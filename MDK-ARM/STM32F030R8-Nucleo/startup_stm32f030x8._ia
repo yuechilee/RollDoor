@@ -1,0 +1,6 @@
+--cpu Cortex-M0 --pd "__EVAL SETA 1" -g --apcs=interwork --pd "__MICROLIB SETA 1"
+-I.\RTE\_STM32F030R8-Nucleo
+-IC:\Users\Yuechi\AppData\Local\Arm\Packs\ARM\CMSIS\5.5.1\CMSIS\Core\Include
+-IC:\Users\Yuechi\AppData\Local\Arm\Packs\Keil\STM32F0xx_DFP\2.0.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include
+--pd "__UVISION_VERSION SETA 528" --pd "_RTE_ SETA 1" --pd "STM32F030x8 SETA 1"
+--list startup_stm32f030x8.lst --xref -o .\stm32f030r8-nucleo\startup_stm32f030x8.o --depend .\stm32f030r8-nucleo\startup_stm32f030x8.d "startup_stm32f030x8.s"
