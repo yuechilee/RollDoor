@@ -117,6 +117,43 @@ typedef enum
 #define LEDx_GPIO_CLK_ENABLE(__INDEX__)   do { if((__INDEX__) == 0) LED2_GPIO_CLK_ENABLE();} while(0)
 #define LEDx_GPIO_CLK_DISABLE(__INDEX__)  (((__INDEX__) == 0) ? LED2_GPIO_CLK_DISABLE() : 0)
 
+//==========Pin define: Port A==========//
+#define BZ_GPIO_PORT         GPIOA
+#define	Buzz	               GPIO_PIN_15  //Buzzer
+	//Wire controller
+#define	W_IR								 GPIO_PIN_8
+
+//==========Pin define: Port B==========//
+#define RL_GPIO_PORT         GPIOB
+#define	RL_ACT               GPIO_PIN_10  //State-ACT display out
+#define	RL_TIME              GPIO_PIN_11  //State-TIME display out
+#define	RL_STATUS            GPIO_PIN_2   //State-STATUS display out
+#define	RLY_DIR              GPIO_PIN_0   //Motor direction control
+#define	RLY_ACT              GPIO_PIN_1   //Motor operate
+	//Wire controller
+#define	W_SMK								 GPIO_PIN_15
+
+//==========Pin define: Port C==========//
+#define EESETTING_GPIO_PORT  GPIOC
+#define	EEPROM_SEL	         GPIO_PIN_13  //Buzzer
+	//Wire controller
+#define	W_ONEKEY	           GPIO_PIN_6
+#define	W_STOP	             GPIO_PIN_7
+#define	W_OPEN   	           GPIO_PIN_8
+#define	W_CLOSE 	           GPIO_PIN_9
+#define	W_ONEKEY	           GPIO_PIN_6
+#define	W_ONEKEY	           GPIO_PIN_6
+
+
+
+//GPIO CLK EN/DISABLE
+#define GPIOA_CLK_ENABLE()           __HAL_RCC_GPIOA_CLK_ENABLE()  
+#define GPIOA_CLK_DISABLE()          __HAL_RCC_GPIOA_CLK_DISABLE()
+#define GPIOB_CLK_ENABLE()           __HAL_RCC_GPIOB_CLK_ENABLE()  
+#define GPIOB_CLK_DISABLE()          __HAL_RCC_GPIOB_CLK_DISABLE()
+#define GPIOC_CLK_ENABLE()           __HAL_RCC_GPIOC_CLK_ENABLE()  
+#define GPIOC_CLK_DISABLE()          __HAL_RCC_GPIOC_CLK_DISABLE()
+
 /**
   * @}
   */ 
