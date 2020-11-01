@@ -41,6 +41,12 @@ int st_w_ir;
 int st_w_smk;
 int st_w_onekey;
 
+int st_rm_open;
+int st_rm_stop;
+int st_rm_close;
+int st_rm_osc;
+int st_rm_lock;
+
 
 static GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -76,8 +82,10 @@ int main(void)
   
   /* -1- Enable each GPIO Clock (to be able to program the configuration registers) */
   LED2_GPIO_CLK_ENABLE();
+	GPIOA_CLK_ENABLE();
 	GPIOB_CLK_ENABLE();
 	GPIOC_CLK_ENABLE();
+	GPIOD_CLK_ENABLE();
 	
   /* -2- Configure IOs in output push-pull mode to drive external LEDs */
   GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
@@ -88,25 +96,49 @@ int main(void)
   HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
 	
 	
-	//Input
-	
-	
-	//HAL_GPIO_WritePin(LED2_GPIO_PORT, LED2_PIN, GPIO_PIN_RESET);
-  /* -3- Toggle IOs in an infinite loop */
+ /* -3- Toggle IOs in an infinite loop */
   while (1)
   {		
-		pin_state = HAL_GPIO_ReadPin(EESETTING_GPIO_PORT, EEPROM_SEL);
+		st_w_open  = HAL_GPIO_ReadPin(GPIOC, W_OPEN);
+		st_w_stop  = HAL_GPIO_ReadPin(GPIOC, W_STOP);
+		st_w_close = HAL_GPIO_ReadPin(GPIOC, W_CLOSE);
 		
-		if(pin_state == GPIO_PIN_SET){
+		st_rm_open  = HAL_GPIO_ReadPin(GPIOD, RM_OPEN);
+		st_rm_stop  = HAL_GPIO_ReadPin(GPIOB, RM_STOP);
+		st_rm_close = HAL_GPIO_ReadPin(GPIOB, RM_CLOSE);
+
+		if(st_rm_open == GPIO_PIN_SET){
 			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_SET);
 		}else{
 			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_RESET);
 		}
 		
+		if(st_w_stop == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
+		}else{
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+		}
+		
+		if(st_w_close == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_SET);
+		}else{
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_RESET);
+		}
+/*
+		if((st_w_stop == GPIO_PIN_SET)||
+			 (st_rm_stop == GPIO_PIN_SET)){
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
+		}else{
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+		}
+		
+		if((st_w_close == GPIO_PIN_SET)||
+		   (st_rm_close == GPIO_PIN_SET)){
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_SET);
+		}else{
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_RESET);
+		}
+*/	
   }
 }
 
