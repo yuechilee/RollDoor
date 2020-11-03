@@ -47,6 +47,7 @@ int st_rm_close;
 int st_rm_osc;
 int st_rm_lock;
 
+int TEST_S;
 
 static GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -92,9 +93,21 @@ int main(void)
   GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_STATUS;
+  GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS | RLY_ACT | RLY_DIR;
   HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
 	
+  GPIO_InitStruct.Pin = MOS_ACT;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	
+	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
+	
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+
+	HAL_Delay(1000);
 	
  /* -3- Toggle IOs in an infinite loop */
   while (1)
@@ -106,8 +119,76 @@ int main(void)
 		st_rm_open  = HAL_GPIO_ReadPin(GPIOD, RM_OPEN);
 		st_rm_stop  = HAL_GPIO_ReadPin(GPIOB, RM_STOP);
 		st_rm_close = HAL_GPIO_ReadPin(GPIOB, RM_CLOSE);
+		
+		
+//線控器
+		if((st_w_open == GPIO_PIN_SET)	||
+		   (st_rm_open == GPIO_PIN_SET)){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+		}
+		
+		if((st_w_stop == GPIO_PIN_SET)	||
+		   (st_rm_stop == GPIO_PIN_SET)){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);		
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+		}
+		
+		if((st_rm_close == GPIO_PIN_SET)	||
+		   (st_w_close == GPIO_PIN_SET)){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+		}
 
-		if(st_rm_open == GPIO_PIN_SET){
+//線控器
+	/* 	if(st_w_open == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+		}
+		
+		if(st_w_stop == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);		
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+		}
+		
+		if(st_w_close == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+		} */
+
+//線控器
+/*		
+		if(st_w_open == GPIO_PIN_SET){
 			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
 		}else{
 			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
@@ -120,11 +201,19 @@ int main(void)
 		}
 		
 		if(st_w_close == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
 		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 		}
+*/
+//發射器
 /*
+		if(st_rm_stop == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
+		}else{
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+		}
+		
 		if((st_w_stop == GPIO_PIN_SET)||
 			 (st_rm_stop == GPIO_PIN_SET)){
 			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
@@ -134,9 +223,9 @@ int main(void)
 		
 		if((st_w_close == GPIO_PIN_SET)||
 		   (st_rm_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
 		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_STATUS, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 		}
 */	
   }
