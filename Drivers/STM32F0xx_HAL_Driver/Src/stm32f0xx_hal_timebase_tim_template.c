@@ -38,8 +38,6 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef        TimHandle;
-/* Private function prototypes -----------------------------------------------*/
-void TIM6_DAC_IRQHandler(void);
 /* Private functions ---------------------------------------------------------*/
 
 /**

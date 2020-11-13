@@ -133,7 +133,7 @@ typedef struct __DMA_HandleTypeDef
   DMA_TypeDef          *DmaBaseAddress;                                               /*!< DMA Channel Base Address                */
   
   uint32_t              ChannelIndex;                                                 /*!< DMA Channel Index                       */
-} DMA_HandleTypeDef;    
+}DMA_HandleTypeDef;    
 
 /**
   * @}

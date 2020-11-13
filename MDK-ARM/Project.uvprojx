@@ -338,7 +338,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>STM32F030x8,USE_HAL_DRIVER,USE_STM32F0XX_NUCLEO</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Inc;..\Drivers\CMSIS\Device\ST\STM32F0xx\Include;..\Drivers\STM32F0xx_HAL_Driver\Inc;..\Drivers\BSP\STM32F0xx-Nucleo;..\Drivers\STM32F0xx_HAL_Driver\Src</IncludePath>
+              <IncludePath>..\Inc;..\Drivers\CMSIS\Device\ST\STM32F0xx\Include;..\Drivers\STM32F0xx_HAL_Driver\Inc;..\Drivers\BSP\STM32F0xx-Nucleo;..\Drivers\STM32F0xx_HAL_Driver\Src;..\Src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -412,6 +412,11 @@
               <FileType>1</FileType>
               <FilePath>..\Src\stm32f0xx_it.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32f0xx_hal_msp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\stm32f0xx_hal_msp.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -461,6 +466,21 @@
               <FileName>stm32f0xx_hal_rcc_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_rcc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_tim.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_tim_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim_ex.c</FilePath>
             </File>
           </Files>
         </Group>

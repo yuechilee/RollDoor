@@ -127,11 +127,16 @@ typedef enum
 #define RL_GPIO_PORT         GPIOB
 #define	RL_ACT               GPIO_PIN_10  //State-ACT display out
 #define	RL_TIME              GPIO_PIN_11  //State-TIME display out
-#define	RL_STATUS            GPIO_PIN_2   //State-STATUS display out
+#define	RL_POS	             GPIO_PIN_2   //State-STATUS display out
 #define	RLY_DIR              GPIO_PIN_0   //Motor direction control
 #define	RLY_ACT              GPIO_PIN_1   //Motor operate
 	//Wire controller
 #define	W_SMK								 GPIO_PIN_15
+	//Remote controller
+#define	RM_CLOSE 	           GPIO_PIN_3
+#define	RM_OSC		           GPIO_PIN_4
+#define	RM_LOCK						   GPIO_PIN_5
+#define	RM_STOP	             GPIO_PIN_8
 
 //==========Pin define: Port C==========//
 #define EESETTING_GPIO_PORT  GPIOC
@@ -141,9 +146,16 @@ typedef enum
 #define	W_STOP	             GPIO_PIN_7
 #define	W_OPEN   	           GPIO_PIN_8
 #define	W_CLOSE 	           GPIO_PIN_9
-#define	W_ONEKEY	           GPIO_PIN_6
-#define	W_ONEKEY	           GPIO_PIN_6
+	//Motor control
+#define	MOS_ACT 	           GPIO_PIN_5
 
+//==========Pin define: Port D==========//
+	//Remote controller
+#define	RM_OPEN   	         GPIO_PIN_2
+
+//==========Pin define: Port F==========//
+	//Remote controller
+#define	TEST_PIN   	         GPIO_PIN_7
 
 
 //GPIO CLK EN/DISABLE
@@ -153,6 +165,12 @@ typedef enum
 #define GPIOB_CLK_DISABLE()          __HAL_RCC_GPIOB_CLK_DISABLE()
 #define GPIOC_CLK_ENABLE()           __HAL_RCC_GPIOC_CLK_ENABLE()  
 #define GPIOC_CLK_DISABLE()          __HAL_RCC_GPIOC_CLK_DISABLE()
+#define GPIOD_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
+#define GPIOD_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
+#define GPIOE_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
+#define GPIOE_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
+#define GPIOF_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
+#define GPIOF_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
 
 /**
   * @}

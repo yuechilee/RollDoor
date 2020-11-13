@@ -1,4 +1,4 @@
--c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ..\Inc -I ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include -I ..\Drivers\STM32F0xx_HAL_Driver\Inc -I ..\Drivers\BSP\STM32F0xx-Nucleo -I ..\Drivers\STM32F0xx_HAL_Driver\Src --C99
+-c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ..\Inc -I ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include -I ..\Drivers\STM32F0xx_HAL_Driver\Inc -I ..\Drivers\BSP\STM32F0xx-Nucleo -I ..\Drivers\STM32F0xx_HAL_Driver\Src -I ..\Src --C99
 -I.\RTE\_STM32F030R8-Nucleo
 -IC:\Users\Yuechi\AppData\Local\Arm\Packs\ARM\CMSIS\5.5.1\CMSIS\Core\Include
 -IC:\Users\Yuechi\AppData\Local\Arm\Packs\Keil\STM32F0xx_DFP\2.0.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include

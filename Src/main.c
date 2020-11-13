@@ -31,6 +31,8 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+TIM_HandleTypeDef    TimHandle;
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 int pin_state;
@@ -47,7 +49,8 @@ int st_rm_close;
 int st_rm_osc;
 int st_rm_lock;
 
-int TEST_S;
+/* Prescaler declaration */
+uint32_t uwPrescalerValue = 0;
 
 static GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -93,23 +96,55 @@ int main(void)
   GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS | RLY_ACT | RLY_DIR;
+  GPIO_InitStruct.Pin = Buzz;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  
+	GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS | RLY_ACT | RLY_DIR;
   HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
 	
   GPIO_InitStruct.Pin = MOS_ACT;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 	
-	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
 	HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
-	
-	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
+
+  HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 
-	HAL_Delay(1000);
+	HAL_GPIO_WritePin(GPIOA, Buzz, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, Buzz, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, Buzz, GPIO_PIN_RESET);
+
+
+ /*##-1- Configure the TIM peripheral #######################################*/
+  /* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
+  uwPrescalerValue = (uint32_t)(SystemCoreClock / 40000) - 1;
+
+  /* Set TIMx instance */
+  TimHandle.Instance = TIMx;
+
+  /* Initialize TIMx peripheral as follows:
+       + Period = 10000 - 1
+       + Prescaler = (SystemCoreClock/10000) - 1
+       + ClockDivision = 0
+       + Counter direction = Up
+  */
+  TimHandle.Init.Period            = 10000 - 1;
+  TimHandle.Init.Prescaler         = uwPrescalerValue;
+  TimHandle.Init.ClockDivision     = 0;
+  TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
+  TimHandle.Init.RepetitionCounter = 0;
+  TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	
- /* -3- Toggle IOs in an infinite loop */
+	HAL_TIM_Base_Init(&TimHandle);
+	HAL_TIM_Base_Start_IT(&TimHandle);
+
+//避免GPIO接收到供電瞬間的不穩定狀態
+	HAL_Delay(1000); 
+
+/* -3- Toggle IOs in an infinite loop */
   while (1)
   {		
 		st_w_open  = HAL_GPIO_ReadPin(GPIOC, W_OPEN);
@@ -122,37 +157,45 @@ int main(void)
 		
 		
 //線控器
-		if((st_w_open == GPIO_PIN_SET)	||
+		if((st_w_open == GPIO_PIN_RESET)	||
 		   (st_rm_open == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_Delay(250);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 		}
 		
-		if((st_w_stop == GPIO_PIN_SET)	||
+		if((st_w_stop == GPIO_PIN_RESET)	||
 		   (st_rm_stop == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);		
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
 			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+			
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 		}
 		
-		if((st_rm_close == GPIO_PIN_SET)	||
-		   (st_w_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+		if((st_w_close == GPIO_PIN_RESET)	||
+		   (st_rm_close == GPIO_PIN_SET)){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_Delay(250);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
 			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
 		}
 
 //線控器

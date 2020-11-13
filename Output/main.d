@@ -18,7 +18,11 @@
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_gpio.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_gpio_ex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_exti.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma_ex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_cortex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash_ex.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim_ex.h
 ..\output\main.o: ..\Drivers\BSP\STM32F0xx-Nucleo\stm32f0xx_nucleo.h

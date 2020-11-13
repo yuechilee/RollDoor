@@ -17,6 +17,10 @@
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_gpio.h
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_gpio_ex.h
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_exti.h
+..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma.h
+..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma_ex.h
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_cortex.h
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash.h
 ..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash_ex.h
+..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim.h
+..\output\stm32f0xx_hal_rcc.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim_ex.h
