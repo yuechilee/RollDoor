@@ -49,6 +49,11 @@ int st_rm_close;
 int st_rm_osc;
 int st_rm_lock;
 
+uint32_t Motor_act_time;
+uint32_t Time_tmp;
+int Op_flag;
+
+
 /* Prescaler declaration */
 uint32_t uwPrescalerValue = 0;
 
@@ -59,6 +64,9 @@ static void SystemClock_Config(void);
 static void Error_Handler(void);
 
 /* Private functions ---------------------------------------------------------*/
+void Door_Up(void);
+void Door_Stop(void);
+void Door_Close(void);
 
 /**
   * @brief  Main program
@@ -78,38 +86,38 @@ int main(void)
          duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and 
          handled in milliseconds basis.
        - Low Level Initialization
-     */
-  HAL_Init();
+    */
+	HAL_Init();
 
-  /* Configure the system clock to 48 MHz */
-  SystemClock_Config();
-  
-  /* -1- Enable each GPIO Clock (to be able to program the configuration registers) */
-  LED2_GPIO_CLK_ENABLE();
+/* Configure the system clock to 48 MHz */
+	SystemClock_Config();
+
+/* -1- Enable each GPIO Clock (to be able to program the configuration registers) */
+	LED2_GPIO_CLK_ENABLE();
 	GPIOA_CLK_ENABLE();
 	GPIOB_CLK_ENABLE();
 	GPIOC_CLK_ENABLE();
 	GPIOD_CLK_ENABLE();
-	
-  /* -2- Configure IOs in output push-pull mode to drive external LEDs */
-  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-  GPIO_InitStruct.Pin = Buzz;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-  
+/* -2- Configure IOs in output push-pull mode to drive external LEDs */
+	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+
+	GPIO_InitStruct.Pin = Buzz;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
 	GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS | RLY_ACT | RLY_DIR;
-  HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
-	
-  GPIO_InitStruct.Pin = MOS_ACT;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	
+	HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = MOS_ACT;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
 	HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
 
-  HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 
@@ -118,159 +126,83 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOA, Buzz, GPIO_PIN_RESET);
 
 
- /*##-1- Configure the TIM peripheral #######################################*/
-  /* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
-  uwPrescalerValue = (uint32_t)(SystemCoreClock / 40000) - 1;
+/*##-1- Configure the TIM peripheral #######################################*/
+	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
+	uwPrescalerValue = (uint32_t)(SystemCoreClock / 40000) - 1;
 
-  /* Set TIMx instance */
-  TimHandle.Instance = TIMx;
+	/* Set TIMx instance */
+	TimHandle.Instance = TIMx;
 
-  /* Initialize TIMx peripheral as follows:
-       + Period = 10000 - 1
-       + Prescaler = (SystemCoreClock/10000) - 1
-       + ClockDivision = 0
-       + Counter direction = Up
-  */
-  TimHandle.Init.Period            = 10000 - 1;
-  TimHandle.Init.Prescaler         = uwPrescalerValue;
-  TimHandle.Init.ClockDivision     = 0;
-  TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
-  TimHandle.Init.RepetitionCounter = 0;
-  TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	
+	/* Initialize TIMx peripheral as follows:
+	+ Period = 10000 - 1
+	+ Prescaler = (SystemCoreClock/10000) - 1
+	+ ClockDivision = 0
+	+ Counter direction = Up
+	*/
+	TimHandle.Init.Period            = 10000 - 1;
+	TimHandle.Init.Prescaler         = uwPrescalerValue;
+	TimHandle.Init.ClockDivision     = 0;
+	TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
+	TimHandle.Init.RepetitionCounter = 0;
+	TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
 	HAL_TIM_Base_Init(&TimHandle);
 	HAL_TIM_Base_Start_IT(&TimHandle);
 
-//避免GPIO接收到供電瞬間的不穩定狀態
+	Motor_act_time = 0;
+	Time_tmp = 100000*10;
+	Op_flag = 0;
+	
+	//用途:避免開機的暫態影響GPIO判讀
 	HAL_Delay(1000); 
 
+	
 /* -3- Toggle IOs in an infinite loop */
   while (1)
   {		
+		//線控器狀態讀取
 		st_w_open  = HAL_GPIO_ReadPin(GPIOC, W_OPEN);
 		st_w_stop  = HAL_GPIO_ReadPin(GPIOC, W_STOP);
 		st_w_close = HAL_GPIO_ReadPin(GPIOC, W_CLOSE);
 		
+		//遙控器狀態讀取
 		st_rm_open  = HAL_GPIO_ReadPin(GPIOD, RM_OPEN);
 		st_rm_stop  = HAL_GPIO_ReadPin(GPIOB, RM_STOP);
 		st_rm_close = HAL_GPIO_ReadPin(GPIOB, RM_CLOSE);
 		
-		
-//線控器
+	//====================================================//
+	
 		if((st_w_open == GPIO_PIN_RESET)	||
 		   (st_rm_open == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
-
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-			
+			Door_Up();
+			Motor_act_time = Time_tmp;
+			Op_flag = 1;
 		}
 		
 		if((st_w_stop == GPIO_PIN_RESET)	||
 		   (st_rm_stop == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
-			
-			
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+			Door_Stop();
+			Motor_act_time = 0;
+			Op_flag = 0;
 		}
 		
 		if((st_w_close == GPIO_PIN_RESET)	||
 		   (st_rm_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
-			
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+			Door_Close();
+			Motor_act_time = Time_tmp;
+			Op_flag = 1;
+		}
+		
+		if((Op_flag == 1)	&&
+		   (Motor_act_time == 0)){
+			Door_Stop();  
+			Op_flag = 0;
+		}
+		
+		if(Motor_act_time > 0) {
+			Motor_act_time = Motor_act_time - 1;
 		}
 
-//線控器
-	/* 	if(st_w_open == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);		
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_close == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		} */
-
-//線控器
-/*		
-		if(st_w_open == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_close == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-*/
-//發射器
-/*
-		if(st_rm_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-		}
-		
-		if((st_w_stop == GPIO_PIN_SET)||
-			 (st_rm_stop == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-		}
-		
-		if((st_w_close == GPIO_PIN_SET)||
-		   (st_rm_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-*/	
   }
 }
 
@@ -349,12 +281,29 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
-/**
-  * @}
-  */
+void Door_Up(void){
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+}
 
-/**
-  * @}
-  */
+void Door_Stop(void){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+void Door_Close(void){
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+
+}
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
