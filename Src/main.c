@@ -59,6 +59,18 @@ static void SystemClock_Config(void);
 static void Error_Handler(void);
 
 /* Private functions ---------------------------------------------------------*/
+void Door_Up(void);
+void Door_Stop(void);
+void Door_Close(void);
+
+	//CN4 Output
+void RL_ACT_ON(void);
+void RL_ACT_OFF(void);
+void RL_TIM_ON(void);
+void RL_TIM_OFF(void);
+void RL_POS_ON(void);
+void RL_POS_OFF(void);
+
 
 /**
   * @brief  Main program
@@ -99,7 +111,7 @@ int main(void)
   GPIO_InitStruct.Pin = Buzz;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
   
-	GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS | RLY_ACT | RLY_DIR;
+	GPIO_InitStruct.Pin = RL_ACT | RL_TIM | RL_POS | RLY_ACT | RLY_DIR;
   HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
 	
   GPIO_InitStruct.Pin = MOS_ACT;
@@ -110,7 +122,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
 
   HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIM, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
 
 	HAL_GPIO_WritePin(GPIOA, Buzz, GPIO_PIN_RESET);
@@ -147,130 +159,33 @@ int main(void)
 /* -3- Toggle IOs in an infinite loop */
   while (1)
   {		
+		//線控器狀態讀取
 		st_w_open  = HAL_GPIO_ReadPin(GPIOC, W_OPEN);
 		st_w_stop  = HAL_GPIO_ReadPin(GPIOC, W_STOP);
 		st_w_close = HAL_GPIO_ReadPin(GPIOC, W_CLOSE);
 		
+		//遙控器狀態讀取
 		st_rm_open  = HAL_GPIO_ReadPin(GPIOD, RM_OPEN);
 		st_rm_stop  = HAL_GPIO_ReadPin(GPIOB, RM_STOP);
 		st_rm_close = HAL_GPIO_ReadPin(GPIOB, RM_CLOSE);
 		
-		
-//線控器
+	//====================================================//
+	
 		if((st_w_open == GPIO_PIN_RESET)	||
 		   (st_rm_open == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
-
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-			
+			Door_Up();
 		}
 		
 		if((st_w_stop == GPIO_PIN_RESET)	||
 		   (st_rm_stop == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
-			
-			
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+			Door_Stop();
 		}
 		
 		if((st_w_close == GPIO_PIN_RESET)	||
 		   (st_rm_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
-			
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			//HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+			Door_Close();
 		}
-
-//線控器
-	/* 	if(st_w_open == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);		
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_close == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		} */
-
-//線控器
-/*		
-		if(st_w_open == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-		}
-		
-		if(st_w_close == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-*/
-//發射器
-/*
-		if(st_rm_stop == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-		}
-		
-		if((st_w_stop == GPIO_PIN_SET)||
-			 (st_rm_stop == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-		}
-		
-		if((st_w_close == GPIO_PIN_SET)||
-		   (st_rm_close == GPIO_PIN_SET)){
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
-		}else{
-			HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
-		}
-*/	
+	
   }
 }
 
@@ -349,12 +264,54 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
-/**
-  * @}
-  */
+void Door_Up(void){
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+}
 
-/**
-  * @}
-  */
+void Door_Stop(void){
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+void Door_Close(void){
+			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+
+}
+
+void RL_ACT_ON(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_SET);
+}
+
+void RL_ACT_OFF(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
+}
+
+void RL_TIM_ON(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIM, GPIO_PIN_SET);
+}
+
+void RL_TIM_OFF(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIM, GPIO_PIN_RESET);
+}
+
+void RL_POS_ON(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_SET);
+}
+
+void RL_POS_OFF(void){
+	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+}
+
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

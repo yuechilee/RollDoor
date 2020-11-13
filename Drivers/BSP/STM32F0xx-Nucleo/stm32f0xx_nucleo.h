@@ -126,7 +126,7 @@ typedef enum
 //==========Pin define: Port B==========//
 #define RL_GPIO_PORT         GPIOB
 #define	RL_ACT               GPIO_PIN_10  //State-ACT display out
-#define	RL_TIME              GPIO_PIN_11  //State-TIME display out
+#define	RL_TIM               GPIO_PIN_11  //State-TIME display out
 #define	RL_POS	             GPIO_PIN_2   //State-STATUS display out
 #define	RLY_DIR              GPIO_PIN_0   //Motor direction control
 #define	RLY_ACT              GPIO_PIN_1   //Motor operate
