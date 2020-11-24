@@ -112,6 +112,26 @@ void TIMx_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&TimHandle);
 }
+
+void EXTI4_15_IRQHandler(void)
+{
+  //HAL_GPIO_EXTI_IRQHandler(WIRE_CTRL_PIN);
+	  /* EXTI line interrupt detected */
+  if(__HAL_GPIO_EXTI_GET_IT(W_OPEN) != 0x00u){ 
+    __HAL_GPIO_EXTI_CLEAR_IT(W_OPEN);
+    HAL_GPIO_EXTI_Callback(W_OPEN);
+		
+  }else if(__HAL_GPIO_EXTI_GET_IT(W_STOP) != 0x00u){ 
+    __HAL_GPIO_EXTI_CLEAR_IT(W_STOP);
+    HAL_GPIO_EXTI_Callback(W_STOP);
+		
+  }else if(__HAL_GPIO_EXTI_GET_IT(W_CLOSE) != 0x00u){ 
+    __HAL_GPIO_EXTI_CLEAR_IT(W_CLOSE);
+    HAL_GPIO_EXTI_Callback(W_CLOSE);
+  }
+
+}
+
 /**
   * @}
   */
