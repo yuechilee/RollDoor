@@ -36,27 +36,28 @@ TIM_HandleTypeDef    TimHandle;
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 //Relay control pin
-int pin_state;
-int st_w_open;
-int st_w_stop;
-int st_w_close;
-int st_w_ir;
-int st_w_smk;
-int st_w_onekey;
-int st_rm_lock;
+uint8_t pin_state;
+uint8_t st_w_open;
+uint8_t st_w_stop;
+uint8_t st_w_close;
+uint8_t st_w_ir;
+uint8_t st_w_smk;
+uint8_t st_w_onekey;
+uint8_t st_rm_lock;
 
 
-int Enable = 1;
-int Disable = 0;
+uint8_t Enable = 1;
+uint8_t Disable = 0;
 
 //Time variable
-char TM_OPEN = 0;
-char TM_CLOSE = 0;
+uint8_t TM_OPEN = 0;
+uint8_t TM_CLOSE = 0;
 
-int Remote_cmd = 0;
-int RLY_Delay_ms = 100;
-int Tim_Delay_ms;
-int Remot_cmd_get = 0;
+uint8_t Remote_cmd = 0;
+uint32_t RLY_Delay_ms = 10;
+uint8_t Tim_Delay_ms;
+uint8_t Remote_flg = 0;
+uint8_t Door_st = 0;
 
 /* Prescaler declaration */
 uint32_t uwPrescalerValue = 0;
@@ -65,17 +66,20 @@ static GPIO_InitTypeDef  GPIO_InitStruct;
 
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
-static void Error_Handler(void);
 static void EXTI4_15_IRQHandler_Config(void);
 static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
-static void TIMx_Config(uint16_t time_ms, int iwork);
+static void TIMx_Config(void);
 
 /* Private functions ---------------------------------------------------------*/
 void Door_Up(void);
 void Door_Stop(void);
 void Door_Close(void);
+void Door_manage(void);
 
+static void Error_Handler(void);
+
+static uint8_t	TIMDEC(uint8_t TIMB);
 
 int main(void)
 {
@@ -106,41 +110,19 @@ int main(void)
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	//buzz config...end
-	
-	//Timer config
-	TIMx_Config(50,Enable);
+	TIMx_Config();
 
-	
 	//用途:避免開機的暫態影響GPIO判讀
 	Door_Stop();
 	HAL_Delay(500); 
 
-	
+	TM_OPEN = 0;
+	TM_CLOSE = 0;
+	HAL_TIM_Base_Start_IT(&TimHandle);
 /* -3- Toggle IOs in an infinite loop */
   while(1)
-  {
-		if(Remot_cmd_get == 1){
-			Remot_cmd_get = 0;
-			switch(Remote_cmd){
-				case 0:
-					Door_Stop();
-					//TIMx_Config(50,Disable);
-					HAL_TIM_Base_Stop_IT(&TimHandle);
-					break;
-				
-				case 1:
-					Door_Up();
-					TIMx_Config(600,Enable);
-					//HAL_TIM_Base_Start_IT(&TimHandle);
-					break;
-				
-				case 2:
-					Door_Close();
-					TIMx_Config(600,Enable);
-					//HAL_TIM_Base_Start_IT(&TimHandle);
-					break;
-			}
-		}
+  {	
+		Door_manage();
   }
 }
 
@@ -218,6 +200,25 @@ void assert_failed(uint8_t *file, uint32_t line)
   }
 }
 #endif
+
+void Door_manage(void){
+		if(Remote_flg == 1){
+			Remote_flg = 0;
+			if(TM_OPEN > 0){
+						Door_Up();
+			}else if(TM_CLOSE > 0){				
+						Door_Close();
+			}else{	
+						Door_Stop();
+			}
+		}else{
+			if((Door_st > 0) 	&& 
+				 (TM_OPEN == 0 && TM_CLOSE == 0)){
+				Door_st = 0;
+				Door_Stop();
+			}
+		}
+}
 
 void Door_Up(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
@@ -301,35 +302,47 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	switch(GPIO_Pin)
   {
-		case W_OPEN:
-			Remote_cmd = 1;
-			Remot_cmd_get = 1;
-			break;
 		case W_STOP:
-			Remote_cmd = 0;
-			Remot_cmd_get = 1;
+			TM_OPEN = 0;
+			TM_CLOSE = 0;
+			Remote_flg = 1;
+			Door_st = 0;
 			break;
+		
+		case W_OPEN:
+			if(Door_st != 1){
+				TM_OPEN = 10;
+				TM_CLOSE = 0;
+				Remote_flg = 1;
+				Door_st = 1;
+			}
+			break;
+
 		case W_CLOSE:
-			Remote_cmd = 2;
-			Remot_cmd_get = 1;
+			if(Door_st != 2){
+				TM_OPEN = 0;
+				TM_CLOSE = 10;
+				Remote_flg = 1;
+				Door_st = 2;
+			}
 			break;
-		//default:
-			
+		
+		default:
+				break;
 	}
 }
 
 //TIM handle
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	HAL_TIM_Base_Stop_IT(&TimHandle);
-	
-	Remote_cmd = 0;
-	Remot_cmd_get = 1;	
+	//HAL_TIM_Base_Stop_IT(&TimHandle);
+	TM_OPEN = TIMDEC(TM_OPEN);
+	TM_CLOSE = TIMDEC(TM_CLOSE);
 }
 
-static void TIMx_Config(uint16_t time_s, int iwork)
+//1s timer
+static void TIMx_Config(void)
 {	
-	uint16_t TMB = time_s;
 	/*##-1- Configure the TIM peripheral #######################################*/
 	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
 	uwPrescalerValue = (uint32_t)(SystemCoreClock / 1000) - 1;
@@ -343,11 +356,9 @@ static void TIMx_Config(uint16_t time_s, int iwork)
 	+ ClockDivision = 0
 	+ Counter direction = Up
 	*/
-	if(TMB > 655){
-		TMB = 655;
-	}
+
 	
-	TimHandle.Init.Period            = (time_s*100) - 1;
+	TimHandle.Init.Period            = (10*100) - 1;
 	TimHandle.Init.Prescaler         = uwPrescalerValue;
 	TimHandle.Init.ClockDivision     = 0;
 	TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
@@ -355,13 +366,15 @@ static void TIMx_Config(uint16_t time_s, int iwork)
 	TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
 	HAL_TIM_Base_Init(&TimHandle);
-	
-	if(iwork == 1){
-		HAL_TIM_Base_Start_IT(&TimHandle);
-	}else if(iwork == 0){
-		HAL_TIM_Base_Stop_IT(&TimHandle);
-	}
 
 }
 
+static uint8_t	TIMDEC(uint8_t TIMB){
+	uint8_t TIM_Buf = TIMB;
+	if(TIMB == 0) return TIMB;
+	
+	TIM_Buf--;
+	
+	return TIM_Buf;
+}
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
