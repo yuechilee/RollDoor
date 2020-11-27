@@ -181,25 +181,22 @@ typedef enum
   */  
 #define BUTTONn                            1
 
-/**
-  * @brief User push-button
-  */
-#define USER_BUTTON_PIN                         GPIO_PIN_13
-#define USER_BUTTON_GPIO_PORT                   GPIOC
-#define USER_BUTTON_GPIO_CLK_ENABLE()         __HAL_RCC_GPIOC_CLK_ENABLE()   
-#define USER_BUTTON_GPIO_CLK_DISABLE()        __HAL_RCC_GPIOC_CLK_DISABLE()  
-#define USER_BUTTON_EXTI_LINE                   GPIO_PIN_13
-#define USER_BUTTON_EXTI_IRQn                   EXTI4_15_IRQn
+//EXTI param
+#define WIRE_CTRL_PIN														W_OPEN | W_STOP | W_CLOSE		//[YC001]
+#define WIRE_CTRL_PORT				                  GPIOC
+#define WIRE_CTRL_GPIO_CLK_ENABLE()  	          GPIOC_CLK_ENABLE()   
+#define WIRE_CTRL_GPIO_CLK_DISABLE()            GPIOC_CLK_DISABLE()  
+#define WIRE_CTRL_LINE                          WIRE_CTRL_PIN
+#define WIRE_CTRL_EXTI_IRQn                     EXTI4_15_IRQn
 /* Aliases */
-#define KEY_BUTTON_PIN                        USER_BUTTON_PIN
-#define KEY_BUTTON_GPIO_PORT                  USER_BUTTON_GPIO_PORT
-#define KEY_BUTTON_GPIO_CLK_ENABLE()          USER_BUTTON_GPIO_CLK_ENABLE()
-#define KEY_BUTTON_GPIO_CLK_DISABLE()         USER_BUTTON_GPIO_CLK_DISABLE()
-#define KEY_BUTTON_EXTI_LINE                  USER_BUTTON_EXTI_LINE
-#define KEY_BUTTON_EXTI_IRQn                  USER_BUTTON_EXTI_IRQn
 
-#define BUTTONx_GPIO_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) USER_BUTTON_GPIO_CLK_ENABLE();} while(0)
+
+#define WIRE_CTRL_GPIOx_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) WIRE_CTRL_GPIO_CLK_ENABLE();} while(0)
+#define WIRE_CTRL_GPIOx_CLK_DISABLE(__INDEX__)   (((__INDEX__) == 0) ? WIRE_CTRL_GPIO_CLK_DISABLE() : 0)
+
+#define BUTTONx_GPIO_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) __HAL_RCC_GPIOC_CLK_ENABLE();} while(0)
 #define BUTTONx_GPIO_CLK_DISABLE(__INDEX__)   (((__INDEX__) == 0) ? USER_BUTTON_GPIO_CLK_DISABLE() : 0)
+
 /**
   * @}
   */ 

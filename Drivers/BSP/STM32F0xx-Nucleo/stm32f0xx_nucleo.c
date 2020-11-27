@@ -80,9 +80,9 @@
 GPIO_TypeDef*  LED_PORT[LEDn] = {LED2_GPIO_PORT};
 const uint16_t LED_PIN[LEDn] = {LED2_PIN};
 
-GPIO_TypeDef*  BUTTON_PORT[BUTTONn] = {USER_BUTTON_GPIO_PORT};
-const uint16_t BUTTON_PIN[BUTTONn] = {USER_BUTTON_PIN};
-const uint8_t  BUTTON_IRQn[BUTTONn] = {USER_BUTTON_EXTI_IRQn };
+GPIO_TypeDef*  BUTTON_PORT[BUTTONn] = {WIRE_CTRL_PORT};
+const uint16_t BUTTON_PIN[BUTTONn] = {WIRE_CTRL_PIN};
+const uint8_t  BUTTON_IRQn[BUTTONn] = {WIRE_CTRL_EXTI_IRQn };
 
 /**
  * @brief BUS variables

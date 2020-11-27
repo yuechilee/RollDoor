@@ -33,12 +33,12 @@
 
 /* Exported functions ------------------------------------------------------- */
 	/* Definition for TIMx clock resources */
-#define TIMx                           TIM3
-#define TIMx_CLK_ENABLE()              __HAL_RCC_TIM3_CLK_ENABLE()
+#define TIMx                           TIM16
+#define TIMx_CLK_ENABLE()              __HAL_RCC_TIM16_CLK_ENABLE()
 
 	/* Definition for TIMx's NVIC */
-#define TIMx_IRQn                      TIM3_IRQn
-#define TIMx_IRQHandler                TIM3_IRQHandler
+#define TIMx_IRQn                      TIM16_IRQn
+#define TIMx_IRQHandler                TIM16_IRQHandler
 
 #endif /* __MAIN_H */
 
