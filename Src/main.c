@@ -77,6 +77,9 @@ void Door_Stop(void);
 void Door_Close(void);
 void Door_manage(void);
 
+void delay_ms(int32_t nms);
+
+
 static void Error_Handler(void);
 
 static uint8_t	TIMDEC(uint8_t TIMB);
@@ -114,7 +117,7 @@ int main(void)
 
 	//用途:避免開機的暫態影響GPIO判讀
 	Door_Stop();
-	HAL_Delay(500); 
+	delay_ms(500); 
 
 	TM_OPEN = 0;
 	TM_CLOSE = 0;
@@ -222,25 +225,25 @@ void Door_manage(void){
 
 void Door_Up(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
 }
 
 void Door_Stop(void){
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
 
 }
 void Door_Close(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			HAL_Delay(RLY_Delay_ms);
+			delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
 
 }
@@ -310,7 +313,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			break;
 		
 		case W_OPEN:
-			if(Door_st != 1){
+			if(Door_st != 1 && Door_st == 0){
 				TM_OPEN = 10;
 				TM_CLOSE = 0;
 				Remote_flg = 1;
@@ -319,7 +322,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			break;
 
 		case W_CLOSE:
-			if(Door_st != 2){
+			if(Door_st != 2 && Door_st == 0){
 				TM_OPEN = 0;
 				TM_CLOSE = 10;
 				Remote_flg = 1;
@@ -377,4 +380,20 @@ static uint8_t	TIMDEC(uint8_t TIMB){
 	
 	return TIM_Buf;
 }
+
+void delay_ms(int32_t nms) 
+ {
+  int32_t temp; 
+  SysTick->LOAD = 8000*nms; 
+  SysTick->VAL=0X00;//清空計數器 
+  SysTick->CTRL=0X01;//使能，減到零是無動作，採用外部時鐘源 
+  do 
+  { 
+       temp=SysTick->CTRL;//讀取當前倒計數值 
+  }
+     while((temp&0x01)&&(!(temp&(1<<16))));//等待時間到達 
+     
+     SysTick->CTRL=0x00; //關閉計數器 
+     SysTick->VAL =0X00; //清空計數器 
+ } 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
