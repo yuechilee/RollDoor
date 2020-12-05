@@ -1,63 +1,30 @@
-/**
-  ******************************************************************************
-  * @file    GPIO/GPIO_IOToggle/Src/main.c
-  * @author  MCD Application Team
-  * @brief   This example describes how to configure and use GPIOs through
-  *          the STM32F0xx HAL API.
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2016 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-/** @addtogroup STM32F0xx_HAL_Examples
-  * @{
-  */
-
-/** @addtogroup GPIO_IOToggle
-  * @{
-  */
-
 /* Private typedef -----------------------------------------------------------*/
+#define TM_AMNT 15
+#define	TM_CLOSE1 10
+#define TM_CLOSE2 TM_AMNT-TM_CLOSE1
+#define flag_twice	1
 /* Private define ------------------------------------------------------------*/
 TIM_HandleTypeDef    TimHandle;
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-//Relay control pin
-uint8_t pin_state;
-uint8_t st_w_open;
-uint8_t st_w_stop;
-uint8_t st_w_close;
-uint8_t st_w_ir;
-uint8_t st_w_smk;
-uint8_t st_w_onekey;
-uint8_t st_rm_lock;
-
-
 uint8_t Enable = 1;
 uint8_t Disable = 0;
 
 //Time variable
 uint8_t TM_OPEN = 0;
 uint8_t TM_CLOSE = 0;
+uint32_t RLY_Delay_ms = 100;
 
-uint8_t Remote_cmd = 0;
-uint32_t RLY_Delay_ms = 10;
-uint8_t Tim_Delay_ms;
-uint8_t Remote_flg = 0;
-uint8_t Door_st = 0;
+//State variable
+bool Remote_flg = FALSE;	//Wire controller and Remote.
+uint8_t ST_CLOSE = 0;		//Door close state
+uint8_t ST_Door = 0;
+uint8_t	ST_Close_Twice = flag_twice;
 
 /* Prescaler declaration */
 uint32_t uwPrescalerValue = 0;
@@ -77,7 +44,7 @@ void Door_Stop(void);
 void Door_Close(void);
 void Door_manage(void);
 
-void delay_ms(int32_t nms);
+void Delay_ms(int32_t nms);
 
 
 static void Error_Handler(void);
@@ -93,7 +60,7 @@ int main(void)
 
 /* -2- Configure EXTI_Line4_15 (connected to PC.13 pin) in interrupt mode */
   EXTI4_15_IRQHandler_Config();
-	
+
 /* -1- Enable each GPIO Clock (to be able to program the configuration registers) */
 	GPIOA_CLK_ENABLE();
 	GPIOB_CLK_ENABLE();
@@ -105,24 +72,20 @@ int main(void)
 	StatusRelay_out_config();
 	
 	//buzz config.
-	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-
-	GPIO_InitStruct.Pin = Buzz;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
+	/*
+	
+	*/
 	//buzz config...end
+
 	TIMx_Config();
 
 	//用途:避免開機的暫態影響GPIO判讀
 	Door_Stop();
-	delay_ms(500); 
+	Delay_ms(500); 
 
-	TM_OPEN = 0;
-	TM_CLOSE = 0;
 	HAL_TIM_Base_Start_IT(&TimHandle);
 /* -3- Toggle IOs in an infinite loop */
+	
   while(1)
   {	
 		Door_manage();
@@ -205,8 +168,35 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif
 
 void Door_manage(void){
-		if(Remote_flg == 1){
-			Remote_flg = 0;
+		if(Remote_flg == TRUE){
+			Remote_flg = FALSE;
+		//Door operating-time setting
+			//Open setting
+			if(ST_Door == 1){
+					TM_CLOSE = 0;
+					TM_OPEN = TM_AMNT;
+					ST_CLOSE = 0;
+			//Close setting
+			}else if(ST_Door == 2){
+					TM_OPEN = 0;
+					if(ST_Close_Twice == 0){
+						TM_CLOSE = TM_AMNT;
+					}else if(ST_Close_Twice == 1){
+						if(ST_CLOSE == 0){
+								TM_CLOSE = TM_CLOSE1;
+								ST_CLOSE++;
+						}else if(ST_CLOSE == 1){
+								TM_CLOSE = TM_CLOSE2;
+								ST_CLOSE = 0;
+						}
+					}
+			//Cease operate
+			}else if(ST_Door == 0){
+					TM_OPEN = 0;
+					TM_CLOSE = 0;
+			}				
+			
+			//Door opeate
 			if(TM_OPEN > 0){
 						Door_Up();
 			}else if(TM_CLOSE > 0){				
@@ -215,9 +205,10 @@ void Door_manage(void){
 						Door_Stop();
 			}
 		}else{
-			if((Door_st > 0) 	&& 
+			
+			if((ST_Door > 0) 	&& 
 				 (TM_OPEN == 0 && TM_CLOSE == 0)){
-				Door_st = 0;
+				ST_Door = 0;
 				Door_Stop();
 			}
 		}
@@ -225,25 +216,25 @@ void Door_manage(void){
 
 void Door_Up(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
 }
 
 void Door_Stop(void){
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
 
 }
 void Door_Close(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
-			delay_ms(RLY_Delay_ms);
+			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
 
 }
@@ -265,6 +256,11 @@ static void MotorRelay_out_config(void){
 	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
 	HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
+	
+	//TEST
+	//GPIO_InitStruct.Pin = TEST_PIN;
+	//HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+	//HAL_GPIO_WritePin(GPIOF, TEST_PIN, GPIO_PIN_RESET);	//1:ON, 0:0FF
 }
 
 static void StatusRelay_out_config(void){
@@ -297,6 +293,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
+	Delay_ms(500); 
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
@@ -306,27 +303,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	switch(GPIO_Pin)
   {
 		case W_STOP:
-			TM_OPEN = 0;
-			TM_CLOSE = 0;
-			Remote_flg = 1;
-			Door_st = 0;
+			Remote_flg = TRUE;
+			ST_Door = 0;
+			ST_CLOSE = 0;
 			break;
 		
 		case W_OPEN:
-			if(Door_st != 1 && Door_st == 0){
-				TM_OPEN = 10;
-				TM_CLOSE = 0;
-				Remote_flg = 1;
-				Door_st = 1;
+			if(ST_Door == 0){
+				Remote_flg = TRUE;
+				ST_Door = 1;
 			}
 			break;
 
 		case W_CLOSE:
-			if(Door_st != 2 && Door_st == 0){
-				TM_OPEN = 0;
-				TM_CLOSE = 10;
-				Remote_flg = 1;
-				Door_st = 2;
+			if(ST_Door == 0){
+				Remote_flg = TRUE;
+				ST_Door = 2;
 			}
 			break;
 		
@@ -381,7 +373,7 @@ static uint8_t	TIMDEC(uint8_t TIMB){
 	return TIM_Buf;
 }
 
-void delay_ms(int32_t nms) 
+void Delay_ms(int32_t nms) 
  {
   int32_t temp; 
   SysTick->LOAD = 8000*nms; 
