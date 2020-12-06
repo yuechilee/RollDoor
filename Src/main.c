@@ -20,17 +20,18 @@ bool ST_BTN;												//(Remote) controller trigger(0:standby, 1:cmd trigger
 bool Open_IT;												//Interrupt in open
 bool Close_IT;											//Interrupt in close 2-1
 bool Close_IT2;											//Interrupt in close 2-2
-bool Close_Segment_Flg;							//2-seg close requie?
+bool Close_Segment_Flg = TRUE;			//2-seg close requie?
 
 	//8-bits
 uint8_t ACT_Door = 0;								//Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;								//Operating status (0:Stop or standby /1:Opening /2:Closing)
+uint8_t ST_Close;										//Recode the 2-seg close cmd
 
 	//16-bits
-uint16_t TM_MAX = 600;							//Operate maximum time.(TM_MAX/10 = xx.x sec.)
+uint16_t TM_MAX = 150;							//Operate maximum time.(TM_MAX/10 = xx.x sec.)
 uint16_t TM_OPEN = 0;								//Time: Door open
 uint16_t TM_CLOSE = 0;							//Time: Door close
-uint16_t CloseTM1 = 400;						//TIme: Door close segment 2-1
+uint16_t CloseTM1 = 100;							//TIme: Door close segment 2-1
 uint16_t CloseTM2 = 0;							//TIme: Door close segment 2-2; Set in Init()
 uint16_t OpenTM_Remain = 0;					//Remain time while interrupt in open
 uint16_t CloseTM_Remain = 0;				//Remain time while interrupt in close
@@ -55,15 +56,16 @@ static void StatusRelay_out_config(void);
 static void TIMx_Config(void);
 
 /* Private functions ---------------------------------------------------------*/
-void Door_Up(void);
+void Door_Open(void);
 void Door_Stop(void);
-void Door_Close(void);
-void Door_manage(void);
+void Door_Close(void);		
+void Door_manage(void);		//Operating time calculate
+void PWR_CTRL(void);		//Power ON to motor
 
 void Delay_ms(int32_t nms);
 
 static void Error_Handler(void);
-static uint8_t	TIMDEC(uint16_t TIMB);
+static uint16_t	TIMDEC(uint16_t TIMB);
 
 int main(void)
 {
@@ -100,6 +102,7 @@ int main(void)
 	TM_OPEN = 0;
 	TM_CLOSE = 0;
 	CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
+	ST_Close = 1;
 	
 	//用途:避免開機的暫態影響GPIO判讀
 	Door_Stop();	
@@ -111,6 +114,7 @@ int main(void)
   while(1)
   {	
 		Door_manage();
+		PWR_CTRL();
   }
 }
 
@@ -189,11 +193,57 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
+void PWR_CTRL(void){
+	if(TM_CLOSE > 0 && TM_OPEN > 0){
+		//Empty
+		//Avoid both the timer work at the same time.
+	}else{	
+		if(Close_Segment_Flg == FALSE){		//1-segment mode
+			if(TM_OPEN > 0){
+				Door_Open();
+			}else if(TM_CLOSE > 0){				
+				Door_Close();
+			}else{
+				Door_Stop();
+			}
+		}else{
+			if(TM_OPEN > 0){
+				Door_Open();
+			}else if(TM_CLOSE > 0){				
+				Door_Close();
+			}else{
+				if(TM_OPEN == 0 && TM_CLOSE == 0){
+					Door_Stop();
+					if(ST_Door == 1){
+						ST_Door = 0;
+						Open_IT = FALSE;
+						Close_IT = FALSE;
+						Close_IT2 = FALSE;
+					}else if(ST_Door == 2){
+						ST_Door = 0;
+						if(Open_IT == TRUE){
+							ST_Close = 1;
+						}else if(ST_Close == 1){
+							ST_Close = 2;
+						}else if(ST_Close == 2){
+							ST_Close = 1;
+						}
+						Open_IT = FALSE;
+						Close_IT = FALSE;
+						Close_IT2 = FALSE;
+
+					}
+				}
+			}
+		}
+	}
+}
+
 void Door_manage(void){
 	if(ST_BTN == TRUE){
 		ST_BTN = FALSE;
-		if(Close_Segment_Flg == FALSE){
-			switch(ST_Door){
+		if(Close_Segment_Flg == FALSE){				//無兩段式關門
+			switch(ACT_Door){
 				case 0:	//Stop
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
@@ -214,8 +264,82 @@ void Door_manage(void){
 					TM_CLOSE = 0;
 			}
 		}else if(Close_Segment_Flg == TRUE){
-			
+			switch(ACT_Door){
+				case 0:	//Stop
+					if(ST_Door == 1){
+						OpenTM_Remain = TM_OPEN;
+						TM_OPEN = 0;
+						if(OpenTM_Remain > 0){
+							Open_IT = TRUE;
+						}else if(OpenTM_Remain == 0){
+							Open_IT = FALSE;
+							Close_IT = FALSE;
+							Close_IT2 = FALSE;
+						}
+
+					}else if(ST_Door == 2){
+						if(ST_Close == 1){
+							CloseTM_Remain = TM_CLOSE;
+							if(CloseTM_Remain > 0){
+								Close_IT = TRUE;
+							}else if(CloseTM_Remain == 0){
+								Close_IT = FALSE;
+								ST_Close = 2;		//等待第二段close指令
+							}
+						}else if(ST_Close == 2){
+							CloseTM_Remain = TM_CLOSE;
+							if(CloseTM_Remain > 0){
+								Close_IT2 = TRUE;
+							}else if(CloseTM_Remain == 0){
+								Close_IT2 = FALSE;
+								ST_Close = 1;
+							}
+						}
+						TM_CLOSE = 0;
+					}
+					ST_Door = 0;
+					break;
+				
+				case 1:	//Open
+					ST_Door = 1;
+					Open_IT = FALSE;
+					Close_IT = FALSE;
+					Close_IT2 = FALSE;
+					TM_OPEN = TM_MAX;
+					TM_CLOSE = 0;
+					break;
+					
+				case 2:	//Close
+					ST_Door = 2;
+					TM_OPEN =0;
+					if(Open_IT == TRUE){
+						TM_CLOSE = TM_MAX;
+					}else if(ST_Close == 1){
+						if(Close_IT == FALSE){
+							TM_CLOSE = CloseTM1;
+						}else{
+							TM_CLOSE = CloseTM_Remain;
+						}
+					}else if(ST_Close == 2){
+						if(Close_IT2 == FALSE){
+							TM_CLOSE = CloseTM2;
+						}else{
+							TM_CLOSE = CloseTM_Remain;
+						}
+					}else{
+						//Empty
+					}
+					break;
+				
+				default:
+					//Empty
+					break;
+			}
 		}
+	}
+	
+	if(TM_OPEN == 0 && TM_CLOSE == 0){
+		ACT_Door = 0;
 	}
 }	
 /*//20201206 disable the older management design
@@ -223,7 +347,7 @@ void Door_manage(void){
 		if(Remote_flg == 1){
 			Remote_flg = 0;
 			if(TM_OPEN > 0){
-						Door_Up();
+						Door_Open();
 			}else if(TM_CLOSE > 0){				
 						Door_Close();
 			}else{	
@@ -240,7 +364,7 @@ void Door_manage(void){
 */
 
 
-void Door_Up(void){
+void Door_Open(void){
 			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
@@ -329,7 +453,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case W_OPEN:
-			if(Door_st == 0){
+			if(ACT_Door == 0){
 				//TM_OPEN = 10;
 				//TM_CLOSE = 0;
 				ST_BTN = TRUE;
@@ -338,7 +462,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 
 		case W_CLOSE:
-			if(Door_st == 0){
+			if(ACT_Door == 0){
 				//TM_OPEN = 0;
 				//TM_CLOSE = 10;
 				ST_BTN = TRUE;
@@ -414,7 +538,7 @@ static void TIMx_Config(void)
 	*/
 
 	
-	TimHandle.Init.Period            = (10*100) - 1;
+	TimHandle.Init.Period            = (1*100) - 1;
 	TimHandle.Init.Prescaler         = uwPrescalerValue;
 	TimHandle.Init.ClockDivision     = 0;
 	TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
@@ -425,7 +549,7 @@ static void TIMx_Config(void)
 
 }
 
-static uint8_t	TIMDEC(uint16_t TIMB){
+static uint16_t	TIMDEC(uint16_t TIMB){
 	uint8_t TIM_Buf = TIMB;
 	if(TIMB == 0) return TIMB;
 	
