@@ -573,7 +573,7 @@ HAL_StatusTypeDef HAL_ADC_Init(ADC_HandleTypeDef* hadc)
     
     /* Update ADC configuration register with previous settings */
     hadc->Instance->CFGR1 |= tmpCFGR1;
-    
+    		
     /* Channel sampling time configuration */
     /* Management of parameters "SamplingTimeCommon" and "SamplingTime"       */
     /* (obsolete): sampling time set in this function if parameter            */

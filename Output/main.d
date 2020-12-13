@@ -21,6 +21,8 @@
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_dma_ex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_cortex.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_adc.h
+..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_adc_ex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash_ex.h
 ..\output\main.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim.h
