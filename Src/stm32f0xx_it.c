@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    GPIO/GPIO_IOToggle/Src/stm32f0xx_it.c
+  * @file    ADC/ADC_DMA_Transfer/Src/stm32f0xx_it.c
   * @author  MCD Application Team
   * @brief   Main Interrupt Service Routines.
   *          This file provides template for all exceptions handler and
@@ -27,7 +27,7 @@
   * @{
   */
 
-/** @addtogroup GPIO_IOToggle
+/** @addtogroup ADC_DMA_Transfer
   * @{
   */
 
@@ -35,6 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+extern ADC_HandleTypeDef             AdcHandle;
 extern TIM_HandleTypeDef    TimHandle;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -45,7 +46,7 @@ extern TIM_HandleTypeDef    TimHandle;
 /******************************************************************************/
 
 /**
-  * @brief  This function handles NMI exception.
+  * @brief   This function handles NMI exception.
   * @param  None
   * @retval None
   */
@@ -66,7 +67,6 @@ void HardFault_Handler(void)
   }
 }
 
-
 /**
   * @brief  This function handles SVCall exception.
   * @param  None
@@ -75,7 +75,6 @@ void HardFault_Handler(void)
 void SVC_Handler(void)
 {
 }
-
 
 /**
   * @brief  This function handles PendSVC exception.
@@ -86,28 +85,17 @@ void PendSV_Handler(void)
 {
 }
 
-/**
-  * @brief  This function handles SysTick Handler.
-  * @param  None
-  * @retval None
-  */
 void SysTick_Handler(void)
 {
   HAL_IncTick();
 }
 
-/******************************************************************************/
-/*                 STM32F0xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f0xx.s).                                               */
-/******************************************************************************/
 
-/**
-  * @brief  This function handles TIM interrupt request.
-  * @param  None
-  * @retval None
-  */
+void DMA1_Channel1_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(AdcHandle.DMA_Handle);
+}
+
 void TIMx_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&TimHandle);
@@ -131,6 +119,7 @@ void EXTI4_15_IRQHandler(void)
   }
 
 }
+
 
 /**
   * @}
