@@ -24,10 +24,27 @@
 /* Handle Declaration ---------------------------------------------------------------*/
 ADC_HandleTypeDef         AdcHandle;	// ADC handle declaration
 ADC_ChannelConfTypeDef    sConfig;		// ADC channel configuration structure declaration
-TIM_HandleTypeDef    			TimHandle;
-static GPIO_InitTypeDef  GPIO_InitStruct;
+TIM_HandleTypeDef    			TimHandle;	
+UART_HandleTypeDef				UartHandle;	// UART handler declaration
+static GPIO_InitTypeDef		GPIO_InitStruct;
 
 /* Private functions ---------------------------------------------------------*/
+#ifdef __GNUC__
+  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+     set to 'Yes') calls __io_putchar() */
+  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
+	/* Buffer used for transmission */
+uint8_t aTxBuffer[] = " **** UART_TwoBoards_ComPolling **** \n";
+
+/* Buffer used for reception */
+uint8_t aRxBuffer[RXBUFFERSIZE];
+
+/* Private function prototypes -----------------------------------------------*/
+static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);
 
 
 /* Private macro -------------------------------------------------------------*/
@@ -108,6 +125,34 @@ int main(void)
 	EXTI4_15_IRQHandler_Config();
 	TIMx_Config();
 
+	/*##-1- Configure the UART peripheral ######################################*/
+  /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
+  /* UART configured as follows:
+      - Word Length = 8 Bits
+      - Stop Bit = One Stop bit
+      - Parity = None
+      - BaudRate = 9600 baud
+      - Hardware flow control disabled (RTS and CTS signals) */
+  UartHandle.Instance        = USARTx;
+
+  UartHandle.Init.BaudRate   = 9600;
+  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  UartHandle.Init.Parity     = UART_PARITY_NONE;
+  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if(HAL_UART_DeInit(&UartHandle) != HAL_OK)
+  {
+    Error_Handler();
+  }  
+  if(HAL_UART_Init(&UartHandle) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+	
+	
 	/* Enable each GPIO Clock */
 	CLOCK_Enable();
 
@@ -148,8 +193,16 @@ int main(void)
 		}
 		adc_32_ave = adc_32_amnt / 32;
 		Voc = adc_32_ave *(3.3/4096);
+		
+		//printf("\n\r %d\n\r",adc_32_ave);
+		printf("\n\r %fV\n\r",Voc);
 
   }
+}
+
+int fputc(int ch, FILE *f){
+	HAL_UART_Transmit(&UartHandle, (uint8_t *)&ch, 1, 1000);
+	return ch;
 }
 
 /**
