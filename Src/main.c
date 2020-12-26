@@ -24,57 +24,46 @@
 /* Handle Declaration ---------------------------------------------------------------*/
 ADC_HandleTypeDef         AdcHandle;	// ADC handle declaration
 ADC_ChannelConfTypeDef    sConfig;		// ADC channel configuration structure declaration
-TIM_HandleTypeDef    			TimHandle;	
-UART_HandleTypeDef				UartHandle;	// UART handler declaration
-static GPIO_InitTypeDef		GPIO_InitStruct;
+TIM_HandleTypeDef         TimHandle;	
+UART_HandleTypeDef        UartHandle;	// UART handler declaration
+static GPIO_InitTypeDef   GPIO_InitStruct;
 
 /* Private functions ---------------------------------------------------------*/
 #ifdef __GNUC__
-  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
-     set to 'Yes') calls __io_putchar() */
   #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
   #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 
-	/* Buffer used for transmission */
-uint8_t aTxBuffer[] = " **** UART_TwoBoards_ComPolling **** \n";
-
-/* Buffer used for reception */
-uint8_t aRxBuffer[RXBUFFERSIZE];
-
-/* Private function prototypes -----------------------------------------------*/
-static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);
-
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 	//Boolean
-bool ST_BTN;												//(Remote) controller trigger(0:standby, 1:cmd trigger
-bool Open_IT;												//Interrupt in open
-bool Close_IT;											//Interrupt in close 2-1
-bool Close_IT2;											//Interrupt in close 2-2
-bool Close_Segment_Flg = TRUE;			//2-seg close requie?
+bool ST_BTN;                            //(Remote) controller trigger(0:standby, 1:cmd trigger
+bool Open_IT;                           //Interrupt in open
+bool Close_IT;                          //Interrupt in close 2-1
+bool Close_IT2;                         //Interrupt in close 2-2
+bool Close_Segment_Flg = TRUE;          //2-seg close requie?
 
 	//8-bits
-uint8_t ACT_Door = 0;								//Controller's cmd (0:Stop /1:Open /2:Close)
-uint8_t ST_Door = 0;								//Operating status (0:Stop or standby /1:Opening /2:Closing)
-uint8_t ST_Close;										//Recode the 2-seg close cmd
+uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
+uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
+uint8_t ST_Close;                       //Recode the 2-seg close cmd
 
 	//16-bits
-uint16_t TM_MAX = 100;							//Operate maximum time.(TM_MAX/10 = xx.x sec.)
-uint16_t TM_OPEN = 0;								//Time: Door open
-uint16_t TM_CLOSE = 0;							//Time: Door close
-uint16_t CloseTM1 = 70;							//TIme: Door close segment 2-1
-uint16_t CloseTM2 = 0;							//TIme: Door close segment 2-2; Set in Init()
-uint16_t OpenTM_Remain = 0;					//Remain time while interrupt in open
-uint16_t CloseTM_Remain = 0;				//Remain time while interrupt in close
-static	uint16_t	aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	//Variable containing ADC conversions data
-
+uint16_t TM_MAX = 100;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
+uint16_t TM_OPEN = 0;                   //Time: Door open
+uint16_t TM_CLOSE = 0;                  //Time: Door close
+uint16_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
+uint16_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
+uint16_t OpenTM_Remain = 0;             //Remain time while interrupt in open
+uint16_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+static	uint16_t   aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
+static	uint16_t   ADCBuffer[10][32];
 //===================================//
 	//32-bits
 uint32_t RLY_Delay_ms = 10;
-uint32_t uwPrescalerValue = 0;			// Prescaler declaration
+uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,13 +71,14 @@ void SystemClock_Config(void);
 void Door_Open(void);
 void Door_Stop(void);
 void Door_Close(void);		
-void Door_manage(void);												//Operating time calculate
-void PWR_CTRL(void);													//Power ON to motor
+void Door_manage(void);                                    //Operating time calculate
+void PWR_CTRL(void);                                       //Power ON to motor
 void Delay_ms(int32_t nms);
 static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
 static void TIMx_Config(void);
 static void ADC_Config(void);
+static void Uart_Config(void);
 static void Error_Handler(void);
 
 static void CLOCK_Enable(void);
@@ -103,7 +93,7 @@ static uint16_t	TIMDEC(uint16_t TIMB);
 
 
 //Variable to ADC conversion
-int i;
+int i,j;
 int adc_32_amnt = 0;
 int adc_32_ave;
 float Voc;
@@ -124,32 +114,7 @@ int main(void)
  	ADC_Config();
 	EXTI4_15_IRQHandler_Config();
 	TIMx_Config();
-
-	/*##-1- Configure the UART peripheral ######################################*/
-  /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
-  /* UART configured as follows:
-      - Word Length = 8 Bits
-      - Stop Bit = One Stop bit
-      - Parity = None
-      - BaudRate = 9600 baud
-      - Hardware flow control disabled (RTS and CTS signals) */
-  UartHandle.Instance        = USARTx;
-
-  UartHandle.Init.BaudRate   = 9600;
-  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
-  UartHandle.Init.StopBits   = UART_STOPBITS_1;
-  UartHandle.Init.Parity     = UART_PARITY_NONE;
-  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-  UartHandle.Init.Mode       = UART_MODE_TX_RX;
-  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if(HAL_UART_DeInit(&UartHandle) != HAL_OK)
-  {
-    Error_Handler();
-  }  
-  if(HAL_UART_Init(&UartHandle) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	Uart_Config();
 
 	
 	
@@ -186,7 +151,8 @@ int main(void)
   { 
 		Door_manage();
 		PWR_CTRL();
-
+     
+	 //以下測試ADC & PRINTF
 		adc_32_amnt = 0;
 		for (i=0;i<=31;i++){
 			adc_32_amnt = adc_32_amnt + aADCxConvertedData[i];
@@ -195,7 +161,7 @@ int main(void)
 		Voc = adc_32_ave *(3.3/4096);
 		
 		//printf("\n\r %d\n\r",adc_32_ave);
-		printf("\n\r %fV\n\r",Voc);
+		printf("\n\r %f V\r",Voc);
 
   }
 }
@@ -318,21 +284,21 @@ void PWR_CTRL(void){
 }
 
 void Door_manage(void){
-	if(ST_BTN == TRUE){								//控制器下達指令
+	if(ST_BTN == TRUE){							//控制器下達指令
 		ST_BTN = FALSE;
-		if(Close_Segment_Flg == FALSE){	//兩段式關門:無
-			switch(ACT_Door){							//指令判斷
-				case 0:											//指令=停止
+		if(Close_Segment_Flg == FALSE){			//兩段式關門:無
+			switch(ACT_Door){					//指令判斷
+				case 0:							//指令=停止
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
 					break;
 				
-				case 1:											//指令=開門
+				case 1:							//指令=開門
 					TM_OPEN = TM_MAX;
 					TM_CLOSE = 0;
 					break;
 				
-				case 2:											//指令=關門
+				case 2:							//指令=關門
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
 					break;
@@ -341,7 +307,7 @@ void Door_manage(void){
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
 			}
-		}else if(Close_Segment_Flg == TRUE){		//兩段式關門:有
+		}else if(Close_Segment_Flg == TRUE){	//兩段式關門:有
 			switch(ACT_Door){
 			//-------------------指令=停止--------------------//
 			/***************************************************
@@ -558,7 +524,7 @@ static void TIMx_Config(void)
 	+ Counter direction = Up
 	*/
 
-	TimHandle.Init.Period            = (1*100) - 1;
+	TimHandle.Init.Period            = (1*100) - 1;   // 1*100ms
 	TimHandle.Init.Prescaler         = uwPrescalerValue;
 	TimHandle.Init.ClockDivision     = 0;
 	TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
@@ -621,6 +587,34 @@ static void ADC_Config(void){
                         (uint32_t *)aADCxConvertedData,
                         ADC_CONVERTED_DATA_BUFFER_SIZE
                        ) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+static void Uart_Config(void){
+	/*##-1- Configure the UART peripheral ######################################*/
+  /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
+  /* UART configured as follows:
+      - Word Length = 8 Bits
+      - Stop Bit = One Stop bit
+      - Parity = None
+      - BaudRate = 9600 baud
+      - Hardware flow control disabled (RTS and CTS signals) */
+  UartHandle.Instance        = USARTx;
+
+  UartHandle.Init.BaudRate   = 9600;
+  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  UartHandle.Init.Parity     = UART_PARITY_NONE;
+  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if(HAL_UART_DeInit(&UartHandle) != HAL_OK)
+  {
+    Error_Handler();
+  }  
+  if(HAL_UART_Init(&UartHandle) != HAL_OK)
   {
     Error_Handler();
   }
