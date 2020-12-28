@@ -103,7 +103,7 @@ void TIMx_IRQHandler(void)
 
 void EXTI4_15_IRQHandler(void)
 {
-  //HAL_GPIO_EXTI_IRQHandler(WIRE_CTRL_PIN);
+  //HAL_GPIO_EXTI_IRQHandler(EXTI_CTRL_PIN);
 	  /* EXTI line interrupt detected */
   if(__HAL_GPIO_EXTI_GET_IT(W_OPEN) != 0x00u){ 
     __HAL_GPIO_EXTI_CLEAR_IT(W_OPEN);

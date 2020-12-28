@@ -245,7 +245,7 @@ static void CLOCK_Enable(void){
 static void Error_Handler(void)
 {
   /* Turn LED2 on*/
-  BSP_LED_On(LED2);
+//  BSP_LED_On(LED2);
   while (1)
   {
   }
@@ -433,27 +433,27 @@ void Door_manage(void){
 }	
 
 void Door_Open(void){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
 }
 
 void Door_Stop(void){
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);			
+			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);		
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
 
 }
 void Door_Close(void){
-			HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_SET);		
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 
 }
 
@@ -464,16 +464,16 @@ static void MotorRelay_out_config(void){
 	
 	//Motor control relays config.
 	GPIO_InitStruct.Pin = RLY_ACT | RLY_DIR;
-	HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(PORT_Motor_Out, &GPIO_InitStruct);
 	
 	//POWER MOSFET config.
 	GPIO_InitStruct.Pin = MOS_ACT;
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	HAL_GPIO_Init(PORT_Motor_MOS, &GPIO_InitStruct);
 	
 	//Initial condition setting.
-	HAL_GPIO_WritePin(GPIOC, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
-	HAL_GPIO_WritePin(GPIOB, RLY_DIR, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
 }
 
 static void StatusRelay_out_config(void){
@@ -482,12 +482,12 @@ static void StatusRelay_out_config(void){
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
 	GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS;
-	HAL_GPIO_Init(RL_GPIO_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 		
 	//Initial condition setting.
-	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_ACT, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_TIME, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(RL_GPIO_PORT, RL_POS, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_POS, GPIO_PIN_RESET);
 }
 
 //EXIT Configures
@@ -496,13 +496,13 @@ static void EXTI4_15_IRQHandler_Config(void)
   GPIO_InitTypeDef   GPIO_InitStructure;
 
   /* Enable GPIOC clock */
-	WIRE_CTRL_GPIO_CLK_ENABLE();
+	EXTI_CTRL_GPIO_CLK_ENABLE();
 
   /* Configure PC.13 pin as input floating */
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
-  GPIO_InitStructure.Pin = WIRE_CTRL_PIN;
-  HAL_GPIO_Init(WIRE_CTRL_PORT, &GPIO_InitStructure);
+  GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
+  HAL_GPIO_Init(EXTI_CTRL_PORT, &GPIO_InitStructure);
 
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);

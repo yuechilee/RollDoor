@@ -117,61 +117,6 @@ typedef enum
 #define LEDx_GPIO_CLK_ENABLE(__INDEX__)   do { if((__INDEX__) == 0) LED2_GPIO_CLK_ENABLE();} while(0)
 #define LEDx_GPIO_CLK_DISABLE(__INDEX__)  (((__INDEX__) == 0) ? LED2_GPIO_CLK_DISABLE() : 0)
 
-//==========Pin define: Port A==========//
-#define BZ_GPIO_PORT         GPIOA
-#define	Buzz	               GPIO_PIN_15  //Buzzer
-	//Wire controller
-#define	W_IR								 GPIO_PIN_8
-
-//==========Pin define: Port B==========//
-#define RL_GPIO_PORT         GPIOB
-#define	RL_ACT               GPIO_PIN_10  //State-ACT display out
-#define	RL_TIME              GPIO_PIN_11  //State-TIME display out
-#define	RL_POS	             GPIO_PIN_2   //State-STATUS display out
-#define	RLY_DIR              GPIO_PIN_0   //Motor direction control
-#define	RLY_ACT              GPIO_PIN_1   //Motor operate
-	//Wire controller
-#define	W_SMK								 GPIO_PIN_15
-	//Remote controller
-#define	RM_CLOSE 	           GPIO_PIN_3
-#define	RM_OSC		           GPIO_PIN_4
-#define	RM_LOCK						   GPIO_PIN_5
-#define	RM_STOP	             GPIO_PIN_8
-
-//==========Pin define: Port C==========//
-#define EESETTING_GPIO_PORT  GPIOC
-#define	EEPROM_SEL	         GPIO_PIN_13  //Buzzer
-	//Wire controller
-#define	W_ONEKEY	           GPIO_PIN_6
-#define	W_STOP	             GPIO_PIN_7
-#define	W_OPEN   	           GPIO_PIN_8
-#define	W_CLOSE 	           GPIO_PIN_9
-	//Motor control
-#define	MOS_ACT 	           GPIO_PIN_5
-
-//==========Pin define: Port D==========//
-	//Remote controller
-#define	RM_OPEN   	         GPIO_PIN_2
-
-//==========Pin define: Port F==========//
-	//Remote controller
-#define	TEST_PIN   	         GPIO_PIN_7
-
-
-//GPIO CLK EN/DISABLE
-#define GPIOA_CLK_ENABLE()           __HAL_RCC_GPIOA_CLK_ENABLE()  
-#define GPIOA_CLK_DISABLE()          __HAL_RCC_GPIOA_CLK_DISABLE()
-#define GPIOB_CLK_ENABLE()           __HAL_RCC_GPIOB_CLK_ENABLE()  
-#define GPIOB_CLK_DISABLE()          __HAL_RCC_GPIOB_CLK_DISABLE()
-#define GPIOC_CLK_ENABLE()           __HAL_RCC_GPIOC_CLK_ENABLE()  
-#define GPIOC_CLK_DISABLE()          __HAL_RCC_GPIOC_CLK_DISABLE()
-#define GPIOD_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define GPIOD_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
-#define GPIOE_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define GPIOE_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
-#define GPIOF_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define GPIOF_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
-
 /**
   * @}
   */ 
@@ -181,22 +126,25 @@ typedef enum
   */  
 #define BUTTONn                            1
 
-//EXTI param
-#define WIRE_CTRL_PIN														W_OPEN | W_STOP | W_CLOSE		//[YC001]
-#define WIRE_CTRL_PORT				                  GPIOC
-#define WIRE_CTRL_GPIO_CLK_ENABLE()  	          GPIOC_CLK_ENABLE()   
-#define WIRE_CTRL_GPIO_CLK_DISABLE()            GPIOC_CLK_DISABLE()  
-#define WIRE_CTRL_LINE                          WIRE_CTRL_PIN
-#define WIRE_CTRL_EXTI_IRQn                     EXTI4_15_IRQn
+/**
+  * @brief User push-button
+  */
+#define USER_BUTTON_PIN                         GPIO_PIN_13
+#define USER_BUTTON_GPIO_PORT                   GPIOC
+#define USER_BUTTON_GPIO_CLK_ENABLE()         __HAL_RCC_GPIOC_CLK_ENABLE()   
+#define USER_BUTTON_GPIO_CLK_DISABLE()        __HAL_RCC_GPIOC_CLK_DISABLE()  
+#define USER_BUTTON_EXTI_LINE                   GPIO_PIN_13
+#define USER_BUTTON_EXTI_IRQn                   EXTI4_15_IRQn
 /* Aliases */
+#define KEY_BUTTON_PIN                        USER_BUTTON_PIN
+#define KEY_BUTTON_GPIO_PORT                  USER_BUTTON_GPIO_PORT
+#define KEY_BUTTON_GPIO_CLK_ENABLE()          USER_BUTTON_GPIO_CLK_ENABLE()
+#define KEY_BUTTON_GPIO_CLK_DISABLE()         USER_BUTTON_GPIO_CLK_DISABLE()
+#define KEY_BUTTON_EXTI_LINE                  USER_BUTTON_EXTI_LINE
+#define KEY_BUTTON_EXTI_IRQn                  USER_BUTTON_EXTI_IRQn
 
-
-#define WIRE_CTRL_GPIOx_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) WIRE_CTRL_GPIO_CLK_ENABLE();} while(0)
-#define WIRE_CTRL_GPIOx_CLK_DISABLE(__INDEX__)   (((__INDEX__) == 0) ? WIRE_CTRL_GPIO_CLK_DISABLE() : 0)
-
-#define BUTTONx_GPIO_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) __HAL_RCC_GPIOC_CLK_ENABLE();} while(0)
+#define BUTTONx_GPIO_CLK_ENABLE(__INDEX__)    do { if((__INDEX__) == 0) USER_BUTTON_GPIO_CLK_ENABLE();} while(0)
 #define BUTTONx_GPIO_CLK_DISABLE(__INDEX__)   (((__INDEX__) == 0) ? USER_BUTTON_GPIO_CLK_DISABLE() : 0)
-
 /**
   * @}
   */ 
