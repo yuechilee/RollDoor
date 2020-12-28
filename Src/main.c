@@ -65,7 +65,7 @@ uint16_t OpenTM_Remain = 0;             //Remain time while interrupt in open
 uint16_t CloseTM_Remain = 0;            //Remain time while interrupt in close
 uint16_t V_base_b;
 uint16_t Voc_Cnt;
-uint16_t Voc_base,Voc_base_;
+float Voc_base,Voc_base_;
 float Voc_base_2;
 uint16_t Voc_amt;
 
@@ -111,9 +111,9 @@ static uint16_t ADC_Calculate(void);
 //uint16_t i,j;
 uint16_t adc_32_amnt = 0;
 uint16_t adc_32_ave;
-float Voc;
+float Voc,Voc_;
 float iWeight_;
-uint16_t Voc_adc;
+float Voc_adc;
 
 // Main Loop
 int main(void)
@@ -171,9 +171,9 @@ int main(void)
 		OC_Detect();
 		
 		if(TM_Printf == 0){
-			Voc = ADC_Calculate() *(3.3/4095);		
+			Voc_ = ADC_Calculate() *(3.3/4095);		
 		//printf("\n\r %d\n\r",adc_32_ave);
-			printf("\n\r %f V\r",Voc);
+			printf("\n\r %f V\r",Voc_);
 			printf("\n\rST_Anti = %d\n\r",ST_Anti);
 			TM_Printf = 5;
 		}
@@ -683,23 +683,23 @@ static void OC_Detect(void){
 			
 			//計算參考值
 			if(Voc_Cnt == 10){
-				//Voc_base = (Voc_amt / 10)*(1 + (iWeight / 100)); //平均值加上權重值
-				Voc_base_ = (Voc_amt / 10); //平均值加上權重值
-				iWeight_ = (float)iWeight/100;
-				Voc_base_2 = (float)Voc_base_*iWeight_;//(10/100);
-				Voc_base = Voc_base_ + Voc_base_2; //平均值加上權重值
+				//Voc_base_ = (Voc_amt / 10); //平均值加上權重值
+				iWeight_ = 1 + (float)iWeight/100;
+				//Voc_base_2 = (float)Voc_base_*iWeight_;//(10/100);
+				//Voc_base = Voc_base_ + Voc_base_2; //平均值加上權重值
+				Voc_base_ = (Voc_amt/10)*(3.3/4095);
+				Voc_base = (Voc_amt/10)*(3.3/4095)*iWeight_;
 				ST_Anti = 2;
-				printf("\n\rVoc_base_ = %d",Voc_base_);
-				printf("\n\rVoc_base_2 = %f",Voc_base_2);
-				printf("\n\rVoc_base = %d",Voc_base);
+				printf("\n\rVoc_base_ = %f",Voc_base_);
+				printf("\n\rVoc_base = %f",Voc_base);
 			}
 			break;
 		
 		case 2:
 		//偵測運轉電流			
-			Voc_adc = ADC_Calculate();
-			if(Voc_adc > Voc_base){
-				printf("%d > % d",Voc_adc,Voc_base);
+			Voc = ADC_Calculate()*(3.3/4095);
+			if(Voc > Voc_base){
+				printf("%f > % f", Voc, Voc_base);
 				ST_Anti = 3;
 				TM_CLOSE = 0;
 				ST_Door = 0;
