@@ -49,18 +49,31 @@ bool Close_Segment_Flg = TRUE;          //2-seg close requie?
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
-
+uint8_t	ST_Anti;
+uint8_t Vop_Cnt;
+uint8_t iWeight = 30;
+	
 	//16-bits
 uint16_t TM_MAX = 100;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
 uint16_t TM_OPEN = 0;                   //Time: Door open
 uint16_t TM_CLOSE = 0;                  //Time: Door close
+uint16_t TM_AntiDly;
+uint16_t TM_AntiDly2;
 uint16_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
 uint16_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
 uint16_t OpenTM_Remain = 0;             //Remain time while interrupt in open
 uint16_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+uint16_t V_base_b;
+uint16_t Voc_Cnt;
+uint16_t Voc_base,Voc_base_;
+float Voc_base_2;
+uint16_t Voc_amt;
+
+uint16_t TM_Printf = 10;
+
 static	uint16_t   aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 static	uint16_t   ADCBuffer[10][32];
-//===================================//
+
 	//32-bits
 uint32_t RLY_Delay_ms = 10;
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
@@ -85,18 +98,22 @@ static void CLOCK_Enable(void);
 
 static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
+static void OC_Detect(void);
 static void Buzzer_Config(void);
 static uint16_t	TIMDEC(uint16_t TIMB);
+static uint16_t ADC_Calculate(void);
 
 /* Private functions ---------------------------------------------------------*/
 
 
 
 //Variable to ADC conversion
-int i,j;
-int adc_32_amnt = 0;
-int adc_32_ave;
+//uint16_t i,j;
+uint16_t adc_32_amnt = 0;
+uint16_t adc_32_ave;
 float Voc;
+float iWeight_;
+uint16_t Voc_adc;
 
 // Main Loop
 int main(void)
@@ -110,34 +127,34 @@ int main(void)
   /* Configure LED2 */
   //BSP_LED_Init(LED2);
 
-	/* Configure */
- 	ADC_Config();
-	EXTI4_15_IRQHandler_Config();
-	TIMx_Config();
-	Uart_Config();
+  /* Configure */
+  ADC_Config();
+  EXTI4_15_IRQHandler_Config();
+  TIMx_Config();
+  Uart_Config();
 
 	
 	
-	/* Enable each GPIO Clock */
-	CLOCK_Enable();
+  /* Enable each GPIO Clock */
+  CLOCK_Enable();
 
-	/* Configure IOs in output push-pull mode to drive Relays */
-	MotorRelay_out_config();
-	StatusRelay_out_config();
-	Buzzer_Config();	//No used
+  /* Configure IOs in output push-pull mode to drive Relays */
+  MotorRelay_out_config();
+  StatusRelay_out_config();
+  Buzzer_Config();	//No used
 
 
-	TM_OPEN = 0;
-	TM_CLOSE = 0;
-	CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
-	ST_Close = 1;
+  TM_OPEN = 0;
+  TM_CLOSE = 0;
+  CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
+  ST_Close = 1;
 	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);  
 
-	//用途:避免開機的暫態影響GPIO判讀
-	Door_Stop();	
-	Delay_ms(500);
+  //用途:避免開機的暫態影響GPIO判讀
+  Door_Stop();	
+  Delay_ms(500);
 
 	//EXTI enable
   if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
@@ -150,19 +167,16 @@ int main(void)
   while (1)
   { 
 		Door_manage();
-		PWR_CTRL();
-     
-	 //以下測試ADC & PRINTF
-		adc_32_amnt = 0;
-		for (i=0;i<=31;i++){
-			adc_32_amnt = adc_32_amnt + aADCxConvertedData[i];
-		}
-		adc_32_ave = adc_32_amnt / 32;
-		Voc = adc_32_ave *(3.3/4096);
+		PWR_CTRL(); 
+		OC_Detect();
 		
+		if(TM_Printf == 0){
+			Voc = ADC_Calculate() *(3.3/4095);		
 		//printf("\n\r %d\n\r",adc_32_ave);
-		printf("\n\r %f V\r",Voc);
-
+			printf("\n\r %f V\r",Voc);
+			printf("\n\rST_Anti = %d\n\r",ST_Anti);
+			TM_Printf = 5;
+		}
   }
 }
 
@@ -249,6 +263,12 @@ void PWR_CTRL(void){
 				Door_Close();
 			}else{
 				Door_Stop();
+				
+				if(ST_Door == 1 && ST_Anti > 0){       //20201227_OC_Detect
+					ST_Anti = 0;                         //20201227_OC_Detect
+				}else if(ST_Door == 2 && ST_Anti < 3){ //20201227_OC_Detect
+					ST_Anti = 0;                         //20201227_OC_Detect
+				}                                      //20201227_OC_Detect
 			}
 		}else{
 			if(TM_OPEN > 0){
@@ -263,6 +283,11 @@ void PWR_CTRL(void){
 						Open_IT = FALSE;
 						Close_IT = FALSE;
 						Close_IT2 = FALSE;
+						
+						if(ST_Anti > 0){                       //20201227_OC_Detect
+							ST_Anti = 0;                         //20201227_OC_Detect
+						}                                      //20201227_OC_Detect
+
 					}else if(ST_Door == 2){
 						ST_Door = 0;
 						if(Open_IT == TRUE){
@@ -275,6 +300,10 @@ void PWR_CTRL(void){
 						Open_IT = FALSE;
 						Close_IT = FALSE;
 						Close_IT2 = FALSE;
+						
+						if(ST_Anti < 3){                       //20201227_OC_Detect
+							ST_Anti = 0;                         //20201227_OC_Detect
+						}                                      //20201227_OC_Detect
 
 					}
 				}
@@ -299,8 +328,12 @@ void Door_manage(void){
 					break;
 				
 				case 2:							//指令=關門
-					TM_OPEN = 0;
-					TM_CLOSE = TM_MAX;
+					if(ST_Anti == 3){ //20201227_OC_Detect
+						break;
+					}
+						TM_OPEN = 0;
+						TM_CLOSE = TM_MAX;
+						TM_AntiDly = 10;	//20201227_OC_Detect
 					break;
 				
 				default:
@@ -361,6 +394,9 @@ void Door_manage(void){
 			//-------------------指令=開門 End----------------//
 			//-------------------指令=關門--------------------//
 				case 2:
+					if(ST_Anti == 3){	 //20201227_OC_Detect
+						break;
+					}
 					ST_Door = 2;
 					TM_OPEN =0;
 					if(Open_IT == TRUE){
@@ -380,6 +416,7 @@ void Door_manage(void){
 					}else{
 						//Empty
 					}
+					TM_AntiDly = 10;	//20201227_OC_Detect
 					break;
 			//-------------------指令=關門 End-----------------//
 			// ----- Else ----- //
@@ -474,8 +511,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 
 //EXTI line detection callbacks
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	switch(GPIO_Pin)
-  {
+	switch(GPIO_Pin){
 		case W_STOP:
 			ST_BTN = TRUE;
 			ACT_Door = 0;
@@ -505,6 +541,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	TM_OPEN = TIMDEC(TM_OPEN);
 	TM_CLOSE = TIMDEC(TM_CLOSE);
+	TM_AntiDly  = TIMDEC(TM_AntiDly);
+	TM_AntiDly2  = TIMDEC(TM_AntiDly2);
+	TM_Printf  = TIMDEC(TM_Printf);
 }
 
 //1s timer
@@ -618,6 +657,82 @@ static void Uart_Config(void){
   {
     Error_Handler();
   }
+}
+
+static void OC_Detect(void){
+	switch(ST_Anti){
+		case 0:
+		//Stand-by
+			if(TM_AntiDly > 0){
+				ST_Anti = 1;
+			}
+			break;
+		
+		case 1:
+		//參考值計算
+			if(TM_AntiDly > 0){
+				// Empty
+				Voc_Cnt = 0;
+				Voc_amt = 0;
+			}else if(TM_AntiDly == 0 && Voc_Cnt < 10){
+				// 讀取ADC buffer值(32筆平均)
+				V_base_b = ADC_Calculate();
+				Voc_amt = Voc_amt + V_base_b;
+				Voc_Cnt++;
+			}
+			
+			//計算參考值
+			if(Voc_Cnt == 10){
+				//Voc_base = (Voc_amt / 10)*(1 + (iWeight / 100)); //平均值加上權重值
+				Voc_base_ = (Voc_amt / 10); //平均值加上權重值
+				iWeight_ = (float)iWeight/100;
+				Voc_base_2 = (float)Voc_base_*iWeight_;//(10/100);
+				Voc_base = Voc_base_ + Voc_base_2; //平均值加上權重值
+				ST_Anti = 2;
+				printf("\n\rVoc_base_ = %d",Voc_base_);
+				printf("\n\rVoc_base_2 = %f",Voc_base_2);
+				printf("\n\rVoc_base = %d",Voc_base);
+			}
+			break;
+		
+		case 2:
+		//偵測運轉電流			
+			Voc_adc = ADC_Calculate();
+			if(Voc_adc > Voc_base){
+				printf("%d > % d",Voc_adc,Voc_base);
+				ST_Anti = 3;
+				TM_CLOSE = 0;
+				ST_Door = 0;
+				TM_AntiDly2 = 10; // Delay 1 sec.
+			}
+			break;
+		
+		case 3:
+		//保護動作 & 開門
+			if(TM_AntiDly2 == 0 && ST_Door == 0){
+				TM_OPEN = TM_MAX;
+				ST_Door = 1;
+			}
+			break;
+		
+		default:
+			// Empty
+			break;
+	}
+}
+
+static uint16_t ADC_Calculate(void){
+	uint16_t   i;
+	uint16_t   Vop_Buf;
+	uint32_t   adc_32_amnt = 0;
+
+	for (i=0;i<=31;i++){
+		adc_32_amnt = adc_32_amnt + aADCxConvertedData[i];
+	}
+	
+	Vop_Buf = adc_32_amnt / 32;
+	
+	return Vop_Buf;
 }
 
 static void Buzzer_Config(void){
