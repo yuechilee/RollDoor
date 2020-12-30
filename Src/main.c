@@ -45,6 +45,7 @@ bool Close_IT;                          //Interrupt in close 2-1
 bool Close_IT2;                         //Interrupt in close 2-2
 bool Close_Segment_Flg = FALSE;          //2-seg close requie?
 bool Op_Flag = FALSE;
+bool Anti_flg2 = TRUE;
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -52,6 +53,7 @@ uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
+uint8_t Over_Slope_Cnt = 0;
 uint16_t iWeight = 1000;
 	
 	//16-bits
@@ -60,6 +62,7 @@ uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
 uint32_t TM_AntiDly;
 uint32_t TM_AntiDly2;
+uint32_t TM_AntiDly4;
 uint32_t TM_DoorOperateDly = 20;				//For V_end detect
 uint32_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
 uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
@@ -71,6 +74,9 @@ uint16_t Voc_Cnt;
 float Voc_base,Voc_base_;
 float Voc_base_2;
 float V_end = 0.3;											//Door operation finish
+float Vo1,Vo2;
+float V_Diff,V_Diff_1,V_Diff_2;
+float Diff_Slope=3;
 uint16_t Voc_amt;
 
 uint16_t TM_Printf = 10;
@@ -102,6 +108,7 @@ static void CLOCK_Enable(void);
 static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
 static void OC_Detect(void);
+static void OC_Detect_2(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
 static uint32_t	TIMDEC(uint32_t TIMB);
@@ -172,20 +179,17 @@ int main(void)
   { 
 		Door_manage();
 		PWR_CTRL(); 
-		OC_Detect();
+		//OC_Detect();
+		OC_Detect_2();
 		
 		if(TM_Printf == 0){
 			Voc_ = ADC_Calculate() *(3.3/4095);		
 		//printf("\n\r %d\n\r",adc_32_ave);
 			printf("\n\r %f V\r",Voc_);
 			printf("\n\rST_Anti = %d\n\r",ST_Anti);
-			if(TM_OPEN > 0){
-				printf("\nTime_Open: %u", TM_OPEN);
-			}
 			
-			if(TM_CLOSE > 0){
-				printf("\nTime_Close: %u", TM_CLOSE);
-			}
+			printf("\n\rVo2 = %f",Vo2);
+
 			TM_Printf = 5;
 		}
   }
@@ -572,6 +576,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	TM_CLOSE = TIMDEC(TM_CLOSE);
 	TM_AntiDly  = TIMDEC(TM_AntiDly);
 	TM_AntiDly2  = TIMDEC(TM_AntiDly2);
+	TM_AntiDly4  = TIMDEC(TM_AntiDly4);
 	TM_DoorOperateDly  = TIMDEC(TM_DoorOperateDly);
 	TM_Printf  = TIMDEC(TM_Printf);
 }
@@ -734,6 +739,106 @@ static void OC_Detect(void){
 				TM_CLOSE = 0;
 				ST_Door = 0;
 				TM_AntiDly2 = 10; // Delay 1 sec.
+			}
+			break;
+		
+		case 3:
+		//保護動作 & 開門
+			if(TM_AntiDly2 == 0 && ST_Door == 0){
+				TM_OPEN = TM_MAX;
+				ST_Door = 1;
+			}
+			break;
+		
+		default:
+			// Empty
+			break;
+	}
+}
+
+static void OC_Detect_2(void){
+	switch(ST_Anti){
+		case 0:
+		//Stand-by
+			if(TM_AntiDly > 0){
+				ST_Anti = 1;
+			}
+			break;
+		
+		case 1:
+		//參考值計算
+			if(TM_AntiDly > 0){
+				// Empty
+				Voc_Cnt = 0;
+				Voc_amt = 0;
+			}else if(TM_AntiDly == 0 && Voc_Cnt < 10){
+				// 讀取ADC buffer值(32筆平均)
+				V_base_b = ADC_Calculate();
+				Voc_amt = Voc_amt + V_base_b;
+				Voc_Cnt++;
+			}
+			
+			//計算參考值
+			if(Voc_Cnt == 10){
+				Vo1 = (Voc_amt/10)*(3.3/4095);
+				Voc_Cnt = 0;
+				ST_Anti = 2;
+				TM_AntiDly4 = 5;
+			}
+			break;
+		
+		case 2:
+		//偵測運轉電流			
+			if(TM_AntiDly4 == 0){// && Anti_flg2 == TRUE){
+				if(Voc_Cnt < 10){
+					// 讀取ADC buffer值(32筆平均)
+					V_base_b = ADC_Calculate();
+					Voc_amt = Voc_amt + V_base_b;
+					Voc_Cnt++;
+				}
+			
+				if(Voc_Cnt == 10){
+					Vo2 = (Voc_amt/10)*(3.3/4095);
+					//Voc_Cnt = 0;
+					TM_AntiDly4 = 5;
+					//Anti_flg2 = FALSE;
+					V_Diff = 10*(Vo2-Vo1)/5;  // (Vo1-Vo2)/0.5sec
+					
+					if(V_Diff >= Diff_Slope){
+						Over_Slope_Cnt++;
+						
+						if(Over_Slope_Cnt == 1){
+							V_Diff_1 = V_Diff;
+						}else if(Over_Slope_Cnt == 2){
+							V_Diff_2= V_Diff;
+						}
+				
+					}else{
+						Over_Slope_Cnt = 0;
+					}
+					
+					if(Over_Slope_Cnt == 2){
+						ST_Anti = 3;
+						TM_CLOSE = 0;
+						ST_Door = 0;
+						TM_AntiDly2 = 10;
+						
+						printf("\n\r************************");
+						printf("\n\rVo1 = %f",Vo1);
+						printf("\n\rVo2 = %f",Vo2);
+						printf("\n\r************************");
+						printf("\n\rSlope= %f",V_Diff);
+						printf("\n\rSlope1= %f",V_Diff_1);
+						printf("\n\rSlope2= %f\n",V_Diff_2);
+						printf("\n\r************************");
+
+					}else{
+						ST_Anti = 2;
+						Vo1 = Vo2;
+						Voc_Cnt = 0;
+						TM_AntiDly4 = 5;
+					}
+				}
 			}
 			break;
 		
