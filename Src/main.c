@@ -43,36 +43,39 @@ bool ST_BTN;                            //(Remote) controller trigger(0:standby,
 bool Open_IT;                           //Interrupt in open
 bool Close_IT;                          //Interrupt in close 2-1
 bool Close_IT2;                         //Interrupt in close 2-2
-bool Close_Segment_Flg = TRUE;          //2-seg close requie?
-
+bool Close_Segment_Flg = FALSE;          //2-seg close requie?
+bool Op_Flag = FALSE;
+	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
-uint8_t iWeight = 30;
+uint16_t iWeight = 1000;
 	
 	//16-bits
-uint16_t TM_MAX = 100;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
-uint16_t TM_OPEN = 0;                   //Time: Door open
-uint16_t TM_CLOSE = 0;                  //Time: Door close
-uint16_t TM_AntiDly;
-uint16_t TM_AntiDly2;
-uint16_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
-uint16_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
-uint16_t OpenTM_Remain = 0;             //Remain time while interrupt in open
-uint16_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+uint32_t TM_MAX = 600;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
+uint32_t TM_OPEN = 0;                   //Time: Door open
+uint32_t TM_CLOSE = 0;                  //Time: Door close
+uint32_t TM_AntiDly;
+uint32_t TM_AntiDly2;
+uint32_t TM_DoorOperateDly = 20;				//For V_end detect
+uint32_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
+uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
+uint32_t OpenTM_Remain = 0;             //Remain time while interrupt in open
+uint32_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+
 uint16_t V_base_b;
 uint16_t Voc_Cnt;
 float Voc_base,Voc_base_;
 float Voc_base_2;
+float V_end = 0.3;											//Door operation finish
 uint16_t Voc_amt;
 
 uint16_t TM_Printf = 10;
 
-static	uint16_t   aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
-static	uint16_t   ADCBuffer[10][32];
+static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 
 	//32-bits
 uint32_t RLY_Delay_ms = 10;
@@ -99,8 +102,9 @@ static void CLOCK_Enable(void);
 static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
 static void OC_Detect(void);
+static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
-static uint16_t	TIMDEC(uint16_t TIMB);
+static uint32_t	TIMDEC(uint32_t TIMB);
 static uint16_t ADC_Calculate(void);
 
 /* Private functions ---------------------------------------------------------*/
@@ -175,6 +179,13 @@ int main(void)
 		//printf("\n\r %d\n\r",adc_32_ave);
 			printf("\n\r %f V\r",Voc_);
 			printf("\n\rST_Anti = %d\n\r",ST_Anti);
+			if(TM_OPEN > 0){
+				printf("\nTime_Open: %u", TM_OPEN);
+			}
+			
+			if(TM_CLOSE > 0){
+				printf("\nTime_Close: %u", TM_CLOSE);
+			}
 			TM_Printf = 5;
 		}
   }
@@ -254,16 +265,18 @@ static void Error_Handler(void)
 void PWR_CTRL(void){
 	if(TM_CLOSE > 0 && TM_OPEN > 0){
 		//Empty
-		//Avoid both the timer work at the same time.
+		//Avoid both the timer work at the same time.		
 	}else{	
 		if(Close_Segment_Flg == FALSE){		//1-segment mode
 			if(TM_OPEN > 0){
 				Door_Open();
-			}else if(TM_CLOSE > 0){				
+				OpEnd_Detect();
+			}else if(TM_CLOSE > 0){	
 				Door_Close();
+				OpEnd_Detect();
 			}else{
 				Door_Stop();
-				
+				Op_Flag = FALSE;
 				if(ST_Door == 1 && ST_Anti > 0){       //20201227_OC_Detect
 					ST_Anti = 0;                         //20201227_OC_Detect
 				}else if(ST_Door == 2 && ST_Anti < 3){ //20201227_OC_Detect
@@ -331,9 +344,9 @@ void Door_manage(void){
 					if(ST_Anti == 3){ //20201227_OC_Detect
 						break;
 					}
-						TM_OPEN = 0;
-						TM_CLOSE = TM_MAX;
-						TM_AntiDly = 10;	//20201227_OC_Detect
+					TM_OPEN = 0;
+					TM_CLOSE = TM_MAX;
+					TM_AntiDly = 20;	//20201227_OC_Detect
 					break;
 				
 				default:
@@ -457,6 +470,22 @@ void Door_Close(void){
 
 }
 
+static void OpEnd_Detect(void){
+	if(Op_Flag == FALSE){
+		TM_DoorOperateDly = 5;	//Delay 0.5 second.
+		Op_Flag = TRUE;
+	}else{
+		Voc = ADC_Calculate() *(3.3/4095);		
+		if(Voc < V_end && TM_DoorOperateDly == 0){
+			printf("\n\nDoor Operate end!");
+			TM_OPEN = 0;
+			TM_CLOSE = 0;
+			ST_Anti = 0;
+			Op_Flag = FALSE;
+		}
+	}
+}
+
 static void MotorRelay_out_config(void){
 	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
@@ -543,6 +572,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	TM_CLOSE = TIMDEC(TM_CLOSE);
 	TM_AntiDly  = TIMDEC(TM_AntiDly);
 	TM_AntiDly2  = TIMDEC(TM_AntiDly2);
+	TM_DoorOperateDly  = TIMDEC(TM_DoorOperateDly);
 	TM_Printf  = TIMDEC(TM_Printf);
 }
 
@@ -747,8 +777,8 @@ static void Buzzer_Config(void){
 	//buzz config...end
 }
 
-static uint16_t	TIMDEC(uint16_t TIMB){
-	uint8_t TIM_Buf = TIMB;
+static uint32_t	TIMDEC(uint32_t TIMB){
+	uint32_t TIM_Buf = TIMB;
 	if(TIMB == 0) return TIMB;
 	
 	TIM_Buf--;

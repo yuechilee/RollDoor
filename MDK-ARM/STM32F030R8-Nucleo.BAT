@@ -19,5 +19,6 @@ SET CPU_CLOCK=0x007A1200
 "C:\Keil_v5\ARM\ARMCC\Bin\ArmCC" --Via "..\output\stm32f0xx_hal_tim_ex.__i"
 "C:\Keil_v5\ARM\ARMCC\Bin\ArmCC" --Via "..\output\stm32f0xx_hal_adc.__i"
 "C:\Keil_v5\ARM\ARMCC\Bin\ArmCC" --Via "..\output\stm32f0xx_hal_adc_ex.__i"
+"C:\Keil_v5\ARM\ARMCC\Bin\ArmCC" --Via "..\output\stm32f0xx_hal_uart.__i"
 "C:\Keil_v5\ARM\ARMCC\Bin\ArmLink" --Via "..\Output\H001.lnp"
 "C:\Keil_v5\ARM\ARMCC\Bin\fromelf.exe" "..\Output\H001.axf" --i32combined --output "..\Output\H001.hex"

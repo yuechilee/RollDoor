@@ -26,3 +26,5 @@
 ..\output\stm32f0xx_hal_gpio.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash_ex.h
 ..\output\stm32f0xx_hal_gpio.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim.h
 ..\output\stm32f0xx_hal_gpio.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim_ex.h
+..\output\stm32f0xx_hal_gpio.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_uart.h
+..\output\stm32f0xx_hal_gpio.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_uart_ex.h
