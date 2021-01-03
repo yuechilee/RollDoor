@@ -54,6 +54,7 @@ uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
 uint8_t OverSlope_Times = 0;
+uint8_t OS_Occur_Times = 2;
 uint16_t iWeight = 1000;
 	
 	//16-bits
@@ -62,8 +63,11 @@ uint32_t TM_MAX = 600;                  //Operate maximum time.(TM_MAX/10 = xx.x
 uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
 uint32_t TM_AntiDly;
+uint32_t Time_AntiDly = 20;
 uint32_t TM_AntiDly2;
 uint32_t TM_AntiDly4;
+uint32_t Time_AntiDly4 = 1;
+uint32_t TM_EndDetec;
 uint32_t TM_DoorOperateDly = 20;				//For V_end detect
 uint32_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
 uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
@@ -74,10 +78,13 @@ uint16_t Vadc_buf;
 uint16_t Calc_Times;
 float Voc_base,Voc_base_;
 float Voc_base_2;
+float V_Stby;
 float V_end = 0.3;											//Door operation finish
 float Vo1,Vo2;
 float V_Diff,V_Diff_1,V_Diff_2;
-float V_Slope=3;
+float V_Slope;
+float Slope_Open = 1.5;
+float Slope_Close = 1.5;
 uint16_t Voc_amt;
 
 uint16_t TM_Printf = 10;
@@ -110,6 +117,7 @@ static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
 static void Anti_Pressure(void);
 static void Anti_Pressure_2(void);
+static void Anti_Pressure_3(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
 static uint32_t	TIMDEC(uint32_t TIMB);
@@ -175,26 +183,45 @@ int main(void)
     Error_Handler();
   }
 	
+	V_Stby = ADC_Calculate() *(3.3/4095);
+	
   /* Infinite Loop */
   while (1)
   { 
 		Door_manage();
 		PWR_CTRL(); 
 		//Anti_Pressure();
-		Anti_Pressure_2();
+		//Anti_Pressure_2();
+		Anti_Pressure_3();
 		
-		if(TM_Printf == 0){
-			Voc_ = ADC_Calculate() *(3.3/4095);		
-		//printf("\n\r %d\n\r",adc_32_ave);
-			printf("\n\r %f V\r",Voc_);
-			printf("\n\rST_Anti = %d\n\r",ST_Anti);
-			
-			printf("\n\rVo2 = %f",Vo2);
 
+		if(TM_Printf == 0){
+			printf("\n\r=================================");			
+			Voc_ = ADC_Calculate() *(3.3/4095);		
+			printf("\n\rVoc= %f V",Voc_);
+			printf("\n\rV_Stby= %f V",V_Stby);
+
+			printf("\n\rST_Door = %d",ST_Door);
+
+			printf("\n\rST_Anti = %d",ST_Anti);
+			if(ST_Anti == 2){
+				printf("\n\rVo1 = %f",Vo1);
+				printf("\n\rVo2 = %f",Vo2);
+			}
+			
+			if(TM_OPEN > 0){
+				printf("\n\rTM_OPEN = %d",TM_OPEN);
+			}
+			if(TM_CLOSE > 0){
+				printf("\n\rTM_CLOSE = %d",TM_CLOSE);
+			}
+			
 			//printf("\n\rOPEN_IT= %d",Open_IT);
 			printf("\n\rST_CLOSE= %d",ST_Close);
 
-			TM_Printf = 5;
+			printf("\n\r");
+
+			TM_Printf = 10;
 		}
   }
 }
@@ -288,11 +315,15 @@ void PWR_CTRL(void){
 			}else{
 				Door_Stop();
 				Op_Flag = FALSE;
-				if(ST_Door == 1 && ST_Anti > 0){       //20201227_OC_Detect
+				if(ST_Door == 1){// && ST_Anti > 0){       //20201227_OC_Detect
 					ST_Anti = 0;                         //20201227_OC_Detect
 				}else if(ST_Door == 2 && ST_Anti < 3){ //20201227_OC_Detect
 					ST_Anti = 0;                         //20201227_OC_Detect
 				}                                      //20201227_OC_Detect
+				
+				//if(ST_Anti < 3){
+					//ST_Door = 0;
+				//}
 			}
 		}else{
 			if(TM_OPEN > 0){
@@ -345,28 +376,36 @@ void Door_manage(void){
 		if(Close_Segment_Flg == FALSE){			//兩段式關門:無
 			switch(ACT_Door){					//指令判斷
 				case 0:							//指令=停止
+					ST_Door = 0;
+					ST_Anti = 0;
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
 					break;
 				
 				case 1:							//指令=開門
-					TM_OPEN = TM_MAX;
+					ST_Door = 1;
 					TM_CLOSE = 0;
+					TM_OPEN = TM_MAX;
+					TM_AntiDly = Time_AntiDly;
+					TM_EndDetec = 10;
 					break;
 				
 				case 2:							//指令=關門
+					ST_Door = 2;
 					if(ST_Anti == 3){ //20201227_OC_Detect
 						break;
 					}
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
-					TM_AntiDly = 20;	//20201227_OC_Detect
+					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
+					TM_EndDetec = 10;
 					break;
 				
 				default:
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
 			}
+			printf("\n\rST_Door = %d",ST_Door);
 		}else if(Close_Segment_Flg == TRUE){	//兩段式關門:有
 			switch(ACT_Door){
 			//-------------------指令=停止--------------------//
@@ -486,17 +525,19 @@ void Door_Close(void){
 }
 
 static void OpEnd_Detect(void){
-	if(Op_Flag == FALSE){
-		TM_DoorOperateDly = 5;	//Delay 0.5 second.
-		Op_Flag = TRUE;
-	}else{
-		Voc = ADC_Calculate() *(3.3/4095);		
-		if(Voc < V_end && TM_DoorOperateDly == 0){
-			printf("\n\n\rDoor Operate end!\n\n");
-			TM_OPEN = 0;
-			TM_CLOSE = 0;
-			ST_Anti = 0;
-			Op_Flag = FALSE;
+	if(TM_EndDetec == 0){
+		if(Op_Flag == FALSE){
+			TM_DoorOperateDly = 5;	//Delay 0.5 second.
+			Op_Flag = TRUE;
+		}else{
+			Voc = ADC_Calculate() *(3.3/4095);		
+			if(Voc <= V_Stby && TM_DoorOperateDly == 0){
+				printf("\n\n\rDoor Operate end!\n\n");
+				TM_OPEN = 0;
+				TM_CLOSE = 0;
+				ST_Anti = 0;
+				Op_Flag = FALSE;
+			}
 		}
 	}
 }
@@ -555,28 +596,28 @@ static void EXTI4_15_IRQHandler_Config(void)
 
 //EXTI line detection callbacks
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	printf("\n\n\rKEY PRESS~~~!!!\n");
+	printf("\n\rKEY PRESS: ");
 	switch(GPIO_Pin){
 		case W_STOP:
-			printf("\n\n\rDoor~STOP~~~!!!\n");
 			ST_BTN = TRUE;
 			ACT_Door = 0;
+			printf("STOP!\n");
 			break;
 		
 		case W_OPEN:
-			printf("\n\n\rDoor~OPEN~~~!!!\n");
 			if(ACT_Door == 0){
 				ST_BTN = TRUE;
 				ACT_Door = 1;
 			}
+			printf("OPEN!\n");
 			break;
 
 		case W_CLOSE:			
-			printf("\n\n\rDoor~Close~~~!!!\n");
 			if(ACT_Door == 0){
 				ST_BTN = TRUE;
 				ACT_Door = 2;
 			}
+			printf("Close!\n");
 			break;
 		
 		default:
@@ -590,10 +631,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	TM_OPEN = TIMDEC(TM_OPEN);
 	TM_CLOSE = TIMDEC(TM_CLOSE);
 	TM_AntiDly  = TIMDEC(TM_AntiDly);
-	TM_AntiDly2  = TIMDEC(TM_AntiDly2);
-	TM_AntiDly4  = TIMDEC(TM_AntiDly4);
-	TM_DoorOperateDly  = TIMDEC(TM_DoorOperateDly);
-	TM_Printf  = TIMDEC(TM_Printf);
+	TM_AntiDly2 = TIMDEC(TM_AntiDly2);
+	TM_AntiDly4 = TIMDEC(TM_AntiDly4);
+	TM_EndDetec = TIMDEC(TM_EndDetec);
+	TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
+	TM_Printf = TIMDEC(TM_Printf);
 }
 
 //1s timer
@@ -709,69 +751,9 @@ static void Uart_Config(void){
   }
 }
 
-static void Anti_Pressure(void){
-	switch(ST_Anti){
-		case 0:
-		//Stand-by
-			if(TM_AntiDly > 0){
-				ST_Anti = 1;
-			}
-			break;
-		
-		case 1:
-		//參考值計算
-			if(TM_AntiDly > 0){
-				// Empty
-				Calc_Times = 0;
-				Voc_amt = 0;
-			}else if(TM_AntiDly == 0 && Calc_Times < 10){
-				// 讀取ADC buffer值(32筆平均)
-				Vadc_buf = ADC_Calculate();
-				Voc_amt = Voc_amt + Vadc_buf;
-				Calc_Times++;
-			}
-			
-			//計算參考值
-			if(Calc_Times == 10){
-				//Voc_base_ = (Voc_amt / 10); //平均值加上權重值
-				iWeight_ = 1 + (float)iWeight/100;
-				//Voc_base_2 = (float)Voc_base_*iWeight_;//(10/100);
-				//Voc_base = Voc_base_ + Voc_base_2; //平均值加上權重值
-				Voc_base_ = (Voc_amt/10)*(3.3/4095);
-				Voc_base = (Voc_amt/10)*(3.3/4095)*iWeight_;
-				ST_Anti = 2;
-				printf("\n\rVoc_base_ = %f",Voc_base_);
-				printf("\n\rVoc_base = %f",Voc_base);
-			}
-			break;
-		
-		case 2:
-		//偵測運轉電流			
-			Voc = ADC_Calculate()*(3.3/4095);
-			if(Voc > Voc_base){
-				printf("%f > % f", Voc, Voc_base);
-				ST_Anti = 3;
-				TM_CLOSE = 0;
-				ST_Door = 0;
-				TM_AntiDly2 = 10; // Delay 1 sec.
-			}
-			break;
-		
-		case 3:
-		//保護動作 & 開門
-			if(TM_AntiDly2 == 0 && ST_Door == 0){
-				TM_OPEN = TM_MAX;
-				ST_Door = 1;
-			}
-			break;
-		
-		default:
-			// Empty
-			break;
-	}
-}
 
-static void Anti_Pressure_2(void){
+
+static void Anti_Pressure_3(void){
 	switch(ST_Anti){
 		case 0:
 		//Stand-by
@@ -798,12 +780,20 @@ static void Anti_Pressure_2(void){
 				Vo1 = (Voc_amt/10)*(3.3/4095);
 				Calc_Times = 0;
 				ST_Anti = 2;
-				TM_AntiDly4 = 5;	
+				TM_AntiDly4 = Time_AntiDly4;	
+				OverSlope_Times = 0;
 			}
 			break;
 		
 		case 2:
-		//偵測運轉電流			
+			if(ST_Door == 1){					//20210103
+				V_Slope = Slope_Open;
+			}else if(ST_Door == 2){
+				V_Slope = Slope_Close;
+			}													//20210103_end
+			
+
+			//偵測運轉電流			
 			if(TM_AntiDly4 == 0){// && Anti_flg2 == TRUE){
 				if(Calc_Times < 10){
 					// 讀取ADC buffer值(32筆平均)
@@ -815,40 +805,51 @@ static void Anti_Pressure_2(void){
 				if(Calc_Times == 10){
 					Vo2 = (Voc_amt/10)*(3.3/4095);
 					V_Diff = 10*(Vo2-Vo1)/5;  // (Vo1-Vo2)/0.5sec
-					TM_AntiDly4 = 5;
+					TM_AntiDly4 = Time_AntiDly4;
+					Voc_amt = 0;
+					
+					printf("\n\rV_Diff = %f",V_Diff);
+					printf("\n\rVo1 = %f",Vo1);
+					printf("\n\rVo2 = %f",Vo2);
 					
 					if(V_Diff >= V_Slope){
 						OverSlope_Times++;
-						
-						if(OverSlope_Times == 1){
+						Calc_Times = 0;
+						printf("\n\rOverSlope_Times = %d", OverSlope_Times);
+
+						/*if(OverSlope_Times == 1){
 							V_Diff_1 = V_Diff;
 						}else if(OverSlope_Times == 2){
 							V_Diff_2= V_Diff;
-						}
+						}*/
 				
 					}else{
 						OverSlope_Times = 0;
+						printf("\n\rOverSlope_Times = %d", OverSlope_Times);
 					}
 					
-					if(OverSlope_Times == 2){
+					if(OverSlope_Times == OS_Occur_Times){
 						ST_Anti = 3;
+						TM_OPEN = 0;		//20210103
 						TM_CLOSE = 0;
-						ST_Door = 0;
+						//20210103//ST_Door = 0;
 						TM_AntiDly2 = 10;
 						
+						//printf("\n\r************************");
+						//printf("\n\rVo1 = %f",Vo1);
+						//printf("\n\rVo2 = %f",Vo2);
 						printf("\n\r************************");
-						printf("\n\rVo1 = %f",Vo1);
-						printf("\n\rVo2 = %f",Vo2);
-						printf("\n\r************************");
+						printf("\n\rAnti_press ratio = %f",V_Slope);
 						printf("\n\rSlope= %f",V_Diff);
-						printf("\n\rSlope1= %f",V_Diff_1);
-						printf("\n\rSlope2= %f\n",V_Diff_2);
+						//printf("\n\rSlope1= %f",V_Diff_1);
+						//printf("\n\rSlope2= %f\n",V_Diff_2);
 						printf("\n\r************************");
 
 					}else{
 						ST_Anti = 2;
 						Vo1 = Vo2;
 						Calc_Times = 0;
+						Voc_amt = 0;
 						TM_AntiDly4 = 5;
 					}
 				}
@@ -857,10 +858,17 @@ static void Anti_Pressure_2(void){
 		
 		case 3:
 		//保護動作 & 開門
-			if(TM_AntiDly2 == 0 && ST_Door == 0){
-				TM_OPEN = TM_MAX;
-				ST_Door = 1;
-			}
+			if(TM_AntiDly2 == 0){			//20210103
+				printf("\n\rST_Anti = %d",ST_Anti);
+				if(ST_Door == 1 && TM_OPEN == 0){
+					//ST_Door = 0;
+					//ST_Anti = 0;
+				}else if(ST_Door == 2){
+					ST_Door = 1;
+					//ST_Anti = 0;
+					TM_OPEN = TM_MAX;
+				}
+			}													//20210103_end
 			break;
 		
 		default:
