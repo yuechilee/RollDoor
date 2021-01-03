@@ -43,9 +43,13 @@ bool ST_BTN;                            //(Remote) controller trigger(0:standby,
 bool Open_IT;                           //Interrupt in open
 bool Close_IT;                          //Interrupt in close 2-1
 bool Close_IT2;                         //Interrupt in close 2-2
-bool Close_Segment_Flg = FALSE;          //2-seg close requie?
 bool Op_Flag = FALSE;
 bool Anti_flg2 = TRUE;
+
+bool Close_Segment_Flg = FALSE;          //2-seg close requie?	
+bool Cycle_test = TRUE;
+	
+bool Wait_flg;
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -58,7 +62,7 @@ uint8_t OS_Occur_Times = 2;
 uint16_t iWeight = 1000;
 	
 	//16-bits
-uint32_t TM_MAX = 600;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
+uint32_t TM_MAX = 100;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
 
 uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
@@ -73,6 +77,8 @@ uint32_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
 uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
 uint32_t OpenTM_Remain = 0;             //Remain time while interrupt in open
 uint32_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+
+uint32_t TM_DLY;
 
 uint16_t Vadc_buf;
 uint16_t Calc_Times;
@@ -185,15 +191,46 @@ int main(void)
 	
 	V_Stby = ADC_Calculate() *(3.3/4095);
 	
+	if(Cycle_test == TRUE){
+		TM_OPEN = TM_MAX;
+		Wait_flg = TRUE;
+		ACT_Door = 1;
+		V_Stby = 0.5;
+	}
   /* Infinite Loop */
   while (1)
   { 
-		Door_manage();
-		PWR_CTRL(); 
-		//Anti_Pressure();
-		//Anti_Pressure_2();
-		Anti_Pressure_3();
 		
+		if(Cycle_test == FALSE){
+			Door_manage();
+			PWR_CTRL(); 
+			Anti_Pressure_3();
+		}else{
+			
+			if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
+				TM_DLY = 100;
+				Wait_flg = FALSE;
+			}
+			
+			if(TM_OPEN == 0 && ACT_Door == 1 && TM_DLY == 0){
+				Door_Stop();
+				TM_CLOSE = TM_MAX;
+				ACT_Door = 2;
+				Wait_flg = TRUE;
+				
+				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+				Delay_ms(RLY_Delay_ms);
+				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+
+			}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
+				Door_Stop();
+				TM_OPEN = TM_MAX;
+				ACT_Door = 1;
+				Wait_flg = TRUE;
+			}
+			PWR_CTRL(); 
+			
+		}
 
 		if(TM_Printf == 0){
 			printf("\n\r=================================");			
@@ -636,6 +673,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	TM_EndDetec = TIMDEC(TM_EndDetec);
 	TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
 	TM_Printf = TIMDEC(TM_Printf);
+	TM_DLY = TIMDEC(TM_DLY);
 }
 
 //1s timer
