@@ -53,11 +53,12 @@ uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
-uint8_t Over_Slope_Cnt = 0;
+uint8_t OverSlope_Times = 0;
 uint16_t iWeight = 1000;
 	
 	//16-bits
 uint32_t TM_MAX = 600;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
+
 uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
 uint32_t TM_AntiDly;
@@ -69,14 +70,14 @@ uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in I
 uint32_t OpenTM_Remain = 0;             //Remain time while interrupt in open
 uint32_t CloseTM_Remain = 0;            //Remain time while interrupt in close
 
-uint16_t V_base_b;
-uint16_t Voc_Cnt;
+uint16_t Vadc_buf;
+uint16_t Calc_Times;
 float Voc_base,Voc_base_;
 float Voc_base_2;
 float V_end = 0.3;											//Door operation finish
 float Vo1,Vo2;
 float V_Diff,V_Diff_1,V_Diff_2;
-float Diff_Slope=3;
+float V_Slope=3;
 uint16_t Voc_amt;
 
 uint16_t TM_Printf = 10;
@@ -107,8 +108,8 @@ static void CLOCK_Enable(void);
 
 static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
-static void OC_Detect(void);
-static void OC_Detect_2(void);
+static void Anti_Pressure(void);
+static void Anti_Pressure_2(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
 static uint32_t	TIMDEC(uint32_t TIMB);
@@ -179,8 +180,8 @@ int main(void)
   { 
 		Door_manage();
 		PWR_CTRL(); 
-		//OC_Detect();
-		OC_Detect_2();
+		//Anti_Pressure();
+		Anti_Pressure_2();
 		
 		if(TM_Printf == 0){
 			Voc_ = ADC_Calculate() *(3.3/4095);		
@@ -189,6 +190,9 @@ int main(void)
 			printf("\n\rST_Anti = %d\n\r",ST_Anti);
 			
 			printf("\n\rVo2 = %f",Vo2);
+
+			//printf("\n\rOPEN_IT= %d",Open_IT);
+			printf("\n\rST_CLOSE= %d",ST_Close);
 
 			TM_Printf = 5;
 		}
@@ -270,6 +274,9 @@ void PWR_CTRL(void){
 	if(TM_CLOSE > 0 && TM_OPEN > 0){
 		//Empty
 		//Avoid both the timer work at the same time.		
+		Door_Stop();
+		printf("\n\rTime_Open =%d",TM_OPEN);
+		printf("\n\rTime_Close=%d",TM_CLOSE);
 	}else{	
 		if(Close_Segment_Flg == FALSE){		//1-segment mode
 			if(TM_OPEN > 0){
@@ -290,10 +297,13 @@ void PWR_CTRL(void){
 		}else{
 			if(TM_OPEN > 0){
 				Door_Open();
+				OpEnd_Detect();
 			}else if(TM_CLOSE > 0){				
 				Door_Close();
+				OpEnd_Detect();
 			}else{
 				if(TM_OPEN == 0 && TM_CLOSE == 0){
+					Op_Flag = FALSE;
 					Door_Stop();
 					if(ST_Door == 1){
 						ST_Door = 0;
@@ -369,30 +379,31 @@ void Door_manage(void){
 						OpenTM_Remain = TM_OPEN;
 						TM_OPEN = 0;				
 						if(OpenTM_Remain > 0){
-							Open_IT = TRUE;
+								Open_IT = TRUE;
 						}else if(OpenTM_Remain == 0){
-							Open_IT = FALSE;
-							Close_IT = FALSE;
-							Close_IT2 = FALSE;
+								Open_IT = FALSE;
+								Close_IT = FALSE;
+								Close_IT2 = FALSE;
 						}
 
 					}else if(ST_Door == 2){			//前狀態:關門
+						CloseTM_Remain = TM_CLOSE;
 						if(ST_Close == 1){
-							CloseTM_Remain = TM_CLOSE;
-							if(CloseTM_Remain > 0){
-								Close_IT = TRUE;
-							}else if(CloseTM_Remain == 0){
-								Close_IT = FALSE;
-								ST_Close = 2;		//等待第二段close指令
-							}
+								//CloseTM_Remain = TM_CLOSE;
+								if(CloseTM_Remain > 0){
+									Close_IT = TRUE;
+								}else if(CloseTM_Remain == 0){
+									Close_IT = FALSE;
+									ST_Close = 2;		//等待第二段close指令
+								}
 						}else if(ST_Close == 2){
-							CloseTM_Remain = TM_CLOSE;
-							if(CloseTM_Remain > 0){
-								Close_IT2 = TRUE;
-							}else if(CloseTM_Remain == 0){
-								Close_IT2 = FALSE;
-								ST_Close = 1;
-							}
+								//CloseTM_Remain = TM_CLOSE;
+								if(CloseTM_Remain > 0){
+									Close_IT2 = TRUE;
+								}else if(CloseTM_Remain == 0){
+									Close_IT2 = FALSE;
+									ST_Close = 1;
+								}
 						}
 						TM_CLOSE = 0;
 					}
@@ -405,8 +416,8 @@ void Door_manage(void){
 					Open_IT = FALSE;
 					Close_IT = FALSE;
 					Close_IT2 = FALSE;
-					TM_OPEN = TM_MAX;
 					TM_CLOSE = 0;
+					TM_OPEN = TM_MAX;
 					break;
 			//-------------------指令=開門 End----------------//
 			//-------------------指令=關門--------------------//
@@ -417,19 +428,19 @@ void Door_manage(void){
 					ST_Door = 2;
 					TM_OPEN =0;
 					if(Open_IT == TRUE){
-						TM_CLOSE = TM_MAX;
+							TM_CLOSE = TM_MAX;
 					}else if(ST_Close == 1){
-						if(Close_IT == FALSE){
-							TM_CLOSE = CloseTM1;
-						}else{
-							TM_CLOSE = CloseTM_Remain;
-						}
+							if(Close_IT == FALSE){
+								TM_CLOSE = CloseTM1;
+							}else{
+								TM_CLOSE = CloseTM_Remain;
+							}
 					}else if(ST_Close == 2){
-						if(Close_IT2 == FALSE){
-							TM_CLOSE = CloseTM2;
-						}else{
-							TM_CLOSE = CloseTM_Remain;
-						}
+							if(Close_IT2 == FALSE){
+								TM_CLOSE = CloseTM2;
+							}else{
+								TM_CLOSE = CloseTM_Remain;
+							}
 					}else{
 						//Empty
 					}
@@ -481,7 +492,7 @@ static void OpEnd_Detect(void){
 	}else{
 		Voc = ADC_Calculate() *(3.3/4095);		
 		if(Voc < V_end && TM_DoorOperateDly == 0){
-			printf("\n\nDoor Operate end!");
+			printf("\n\n\rDoor Operate end!\n\n");
 			TM_OPEN = 0;
 			TM_CLOSE = 0;
 			ST_Anti = 0;
@@ -544,20 +555,24 @@ static void EXTI4_15_IRQHandler_Config(void)
 
 //EXTI line detection callbacks
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	printf("\n\n\rKEY PRESS~~~!!!\n");
 	switch(GPIO_Pin){
 		case W_STOP:
+			printf("\n\n\rDoor~STOP~~~!!!\n");
 			ST_BTN = TRUE;
 			ACT_Door = 0;
 			break;
 		
 		case W_OPEN:
+			printf("\n\n\rDoor~OPEN~~~!!!\n");
 			if(ACT_Door == 0){
 				ST_BTN = TRUE;
 				ACT_Door = 1;
 			}
 			break;
 
-		case W_CLOSE:
+		case W_CLOSE:			
+			printf("\n\n\rDoor~Close~~~!!!\n");
 			if(ACT_Door == 0){
 				ST_BTN = TRUE;
 				ACT_Door = 2;
@@ -694,7 +709,7 @@ static void Uart_Config(void){
   }
 }
 
-static void OC_Detect(void){
+static void Anti_Pressure(void){
 	switch(ST_Anti){
 		case 0:
 		//Stand-by
@@ -707,17 +722,17 @@ static void OC_Detect(void){
 		//參考值計算
 			if(TM_AntiDly > 0){
 				// Empty
-				Voc_Cnt = 0;
+				Calc_Times = 0;
 				Voc_amt = 0;
-			}else if(TM_AntiDly == 0 && Voc_Cnt < 10){
+			}else if(TM_AntiDly == 0 && Calc_Times < 10){
 				// 讀取ADC buffer值(32筆平均)
-				V_base_b = ADC_Calculate();
-				Voc_amt = Voc_amt + V_base_b;
-				Voc_Cnt++;
+				Vadc_buf = ADC_Calculate();
+				Voc_amt = Voc_amt + Vadc_buf;
+				Calc_Times++;
 			}
 			
 			//計算參考值
-			if(Voc_Cnt == 10){
+			if(Calc_Times == 10){
 				//Voc_base_ = (Voc_amt / 10); //平均值加上權重值
 				iWeight_ = 1 + (float)iWeight/100;
 				//Voc_base_2 = (float)Voc_base_*iWeight_;//(10/100);
@@ -756,7 +771,7 @@ static void OC_Detect(void){
 	}
 }
 
-static void OC_Detect_2(void){
+static void Anti_Pressure_2(void){
 	switch(ST_Anti){
 		case 0:
 		//Stand-by
@@ -769,55 +784,53 @@ static void OC_Detect_2(void){
 		//參考值計算
 			if(TM_AntiDly > 0){
 				// Empty
-				Voc_Cnt = 0;
+				Calc_Times = 0;
 				Voc_amt = 0;
-			}else if(TM_AntiDly == 0 && Voc_Cnt < 10){
+			}else if(TM_AntiDly == 0 && Calc_Times < 10){
 				// 讀取ADC buffer值(32筆平均)
-				V_base_b = ADC_Calculate();
-				Voc_amt = Voc_amt + V_base_b;
-				Voc_Cnt++;
+				Vadc_buf = ADC_Calculate();
+				Voc_amt = Voc_amt + Vadc_buf;
+				Calc_Times++;
 			}
 			
 			//計算參考值
-			if(Voc_Cnt == 10){
+			if(Calc_Times == 10){
 				Vo1 = (Voc_amt/10)*(3.3/4095);
-				Voc_Cnt = 0;
+				Calc_Times = 0;
 				ST_Anti = 2;
-				TM_AntiDly4 = 5;
+				TM_AntiDly4 = 5;	
 			}
 			break;
 		
 		case 2:
 		//偵測運轉電流			
 			if(TM_AntiDly4 == 0){// && Anti_flg2 == TRUE){
-				if(Voc_Cnt < 10){
+				if(Calc_Times < 10){
 					// 讀取ADC buffer值(32筆平均)
-					V_base_b = ADC_Calculate();
-					Voc_amt = Voc_amt + V_base_b;
-					Voc_Cnt++;
+					Vadc_buf = ADC_Calculate();
+					Voc_amt = Voc_amt + Vadc_buf;
+					Calc_Times++;
 				}
 			
-				if(Voc_Cnt == 10){
+				if(Calc_Times == 10){
 					Vo2 = (Voc_amt/10)*(3.3/4095);
-					//Voc_Cnt = 0;
-					TM_AntiDly4 = 5;
-					//Anti_flg2 = FALSE;
 					V_Diff = 10*(Vo2-Vo1)/5;  // (Vo1-Vo2)/0.5sec
+					TM_AntiDly4 = 5;
 					
-					if(V_Diff >= Diff_Slope){
-						Over_Slope_Cnt++;
+					if(V_Diff >= V_Slope){
+						OverSlope_Times++;
 						
-						if(Over_Slope_Cnt == 1){
+						if(OverSlope_Times == 1){
 							V_Diff_1 = V_Diff;
-						}else if(Over_Slope_Cnt == 2){
+						}else if(OverSlope_Times == 2){
 							V_Diff_2= V_Diff;
 						}
 				
 					}else{
-						Over_Slope_Cnt = 0;
+						OverSlope_Times = 0;
 					}
 					
-					if(Over_Slope_Cnt == 2){
+					if(OverSlope_Times == 2){
 						ST_Anti = 3;
 						TM_CLOSE = 0;
 						ST_Door = 0;
@@ -835,7 +848,7 @@ static void OC_Detect_2(void){
 					}else{
 						ST_Anti = 2;
 						Vo1 = Vo2;
-						Voc_Cnt = 0;
+						Calc_Times = 0;
 						TM_AntiDly4 = 5;
 					}
 				}
@@ -858,16 +871,16 @@ static void OC_Detect_2(void){
 
 static uint16_t ADC_Calculate(void){
 	uint16_t   i;
-	uint16_t   Vop_Buf;
+	uint16_t   Voc_Buf;
 	uint32_t   adc_32_amnt = 0;
 
 	for (i=0;i<=31;i++){
 		adc_32_amnt = adc_32_amnt + aADCxConvertedData[i];
 	}
 	
-	Vop_Buf = adc_32_amnt / 32;
+	Voc_Buf = adc_32_amnt / 32;
 	
-	return Vop_Buf;
+	return Voc_Buf;
 }
 
 static void Buzzer_Config(void){
