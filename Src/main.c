@@ -37,6 +37,20 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 
 
 /* Private macro -------------------------------------------------------------*/
+bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
+bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
+
+uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
+
+uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
+uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
+
+float V_Stby = 0.3;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+
+float Slope_Open = 1.5;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Slope_Close = 1.5;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+
+
 /* Private variables ---------------------------------------------------------*/
 	//Boolean
 bool ST_BTN;                            //(Remote) controller trigger(0:standby, 1:cmd trigger
@@ -46,8 +60,6 @@ bool Close_IT2;                         //Interrupt in close 2-2
 bool Op_Flag = FALSE;
 bool Anti_flg2 = TRUE;
 
-bool Close_Segment_Flg = FALSE;          //2-seg close requie?	
-bool Cycle_test = TRUE;
 	
 bool Wait_flg;
 	
@@ -59,10 +71,19 @@ uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
 uint8_t OverSlope_Times = 0;
 uint8_t OS_Occur_Times = 2;
-uint16_t iWeight = 1000;
-	
+uint8_t Cycle_jumper;
 	//16-bits
-uint32_t TM_MAX = 100;                  //Operate maximum time.(TM_MAX/10 = xx.x sec.)
+
+uint16_t Vadc_buf;
+uint16_t Calc_Times;
+uint16_t Voc_amt;
+uint16_t TM_Printf = 10;
+uint16_t iWeight = 1000;
+static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
+
+	//32-bits
+uint32_t RLY_Delay_ms = 10;			   //Delay_function(*1ms)
+uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 
 uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
@@ -72,34 +93,22 @@ uint32_t TM_AntiDly2;
 uint32_t TM_AntiDly4;
 uint32_t Time_AntiDly4 = 1;
 uint32_t TM_EndDetec;
-uint32_t TM_DoorOperateDly = 20;				//For V_end detect
-uint32_t CloseTM1 = 70;                 //TIme: Door close segment 2-1
-uint32_t CloseTM2 = 0;                  //TIme: Door close segment 2-2; Set in Init()
-uint32_t OpenTM_Remain = 0;             //Remain time while interrupt in open
-uint32_t CloseTM_Remain = 0;            //Remain time while interrupt in close
+uint32_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
+uint32_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
+uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
+uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 
-uint32_t TM_DLY;
+uint32_t Cycle_times_up = 0;
+uint32_t Cycle_times_down = 0;
 
-uint16_t Vadc_buf;
-uint16_t Calc_Times;
+uint32_t Ver_date = 20210105;
+
+	//Float
 float Voc_base,Voc_base_;
 float Voc_base_2;
-float V_Stby;
-float V_end = 0.3;											//Door operation finish
 float Vo1,Vo2;
 float V_Diff,V_Diff_1,V_Diff_2;
 float V_Slope;
-float Slope_Open = 1.5;
-float Slope_Close = 1.5;
-uint16_t Voc_amt;
-
-uint16_t TM_Printf = 10;
-
-static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
-
-	//32-bits
-uint32_t RLY_Delay_ms = 10;
-uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 
 
 /* Private function prototypes -----------------------------------------------*/
@@ -188,27 +197,41 @@ int main(void)
     /* Starting Error */
     Error_Handler();
   }
-	
+  
+  if(V_Stby == 0){
 	V_Stby = ADC_Calculate() *(3.3/4095);
+  }
 	
-	if(Cycle_test == TRUE){
+	Cycle_jumper = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_7);
+	
+	
+  printf("\n\rVer_date.: %d", Ver_date);
+
+  if(Cycle_test == TRUE && Cycle_jumper == 1){
+		TM_MAX = 600;
 		TM_OPEN = TM_MAX;
 		Wait_flg = TRUE;
 		ACT_Door = 1;
-		V_Stby = 0.5;
-	}
+		V_Stby = 0.2;
+		printf("\n\r循環測試:有\n");
+  }
+  
+    
+	//while (1){
+	//}
   /* Infinite Loop */
   while (1)
   { 
 		
-		if(Cycle_test == FALSE){
+		if(Cycle_test == FALSE || Cycle_jumper == 0){
 			Door_manage();
 			PWR_CTRL(); 
 			Anti_Pressure_3();
+			
 		}else{
 			
 			if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
-				TM_DLY = 100;
+				TM_DLY = 50;
 				Wait_flg = FALSE;
 			}
 			
@@ -217,45 +240,74 @@ int main(void)
 				TM_CLOSE = TM_MAX;
 				ACT_Door = 2;
 				Wait_flg = TRUE;
+				Cycle_times_down++;
 				
-				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
-				Delay_ms(RLY_Delay_ms);
-				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
-
 			}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
 				Door_Stop();
 				TM_OPEN = TM_MAX;
 				ACT_Door = 1;
 				Wait_flg = TRUE;
+				Cycle_times_up++;
+
+				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+				Delay_ms(RLY_Delay_ms);
+				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+
 			}
-			PWR_CTRL(); 
 			
+			PWR_CTRL(); 
+			Anti_Pressure_3();
+			
+			if(TM_Printf == 0){
+				printf("\n\r==============狀態scan===================");			
+				Voc_ = ADC_Calculate() *(3.3/4095);		
+				printf("\n\r目前電壓值 = %f V",Voc_);
+				printf("\n\r待機電壓   = %f V",V_Stby);
+				if(TM_OPEN > 0){
+					printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
+					printf("\n\r開門次數 = %d\n",Cycle_times_down);
+				}
+				if(TM_CLOSE > 0){
+					printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
+					printf("\n\r關門次數 = %d\n",Cycle_times_down);
+				}
+					TM_Printf= 15;
+				}	
 		}
 
-		if(TM_Printf == 0){
-			printf("\n\r=================================");			
+		if(TM_Printf == 0 && (Cycle_test == FALSE || Cycle_jumper == 0)){
+			printf("\n\r==============狀態scan===================");			
 			Voc_ = ADC_Calculate() *(3.3/4095);		
-			printf("\n\rVoc= %f V",Voc_);
-			printf("\n\rV_Stby= %f V",V_Stby);
+			printf("\n\r目前電壓值 = %f V",Voc_);
+			printf("\n\r待機電壓   = %f V",V_Stby);
 
-			printf("\n\rST_Door = %d",ST_Door);
+			printf("\n\n\r目前門狀態 = %d",ST_Door);
 
-			printf("\n\rST_Anti = %d",ST_Anti);
 			if(ST_Anti == 2){
-				printf("\n\rVo1 = %f",Vo1);
-				printf("\n\rVo2 = %f",Vo2);
+				printf("\n\n\r防壓狀態 = %d",ST_Anti);
+				printf("\n\r變化率基準 = %f",V_Slope);
+				printf("\n\r變化率 = %f",V_Diff);
+			}else if(ST_Anti ==3 && ST_Door == 2){
+				printf("\n\n\r防壓狀態 = %d",ST_Anti);
+				printf("\n\n\r關門防壓觸發: 強制開門中");
+			}else if(ST_Anti ==3 && ST_Door == 1){
+				printf("\n\n\r防壓狀態 = %d",ST_Anti);
+				printf("\n\n\r開門防壓觸發: 停止");
 			}
 			
 			if(TM_OPEN > 0){
-				printf("\n\rTM_OPEN = %d",TM_OPEN);
+				printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
 			}
 			if(TM_CLOSE > 0){
-				printf("\n\rTM_CLOSE = %d",TM_CLOSE);
+				printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
 			}
 			
-			//printf("\n\rOPEN_IT= %d",Open_IT);
-			printf("\n\rST_CLOSE= %d",ST_Close);
-
+			if(Close_Segment_Flg == TRUE){		//1-segment mode
+				//printf("\n\rOPEN_IT= %d",Open_IT);
+				printf("\n\n\r兩段式關門狀態");
+				printf("\n\rST_CLOSE= %d",ST_Close);
+			}
+			
 			printf("\n\r");
 
 			TM_Printf = 10;
@@ -339,6 +391,7 @@ void PWR_CTRL(void){
 		//Empty
 		//Avoid both the timer work at the same time.		
 		Door_Stop();
+		printf("\n\n\r===========NG===========");
 		printf("\n\rTime_Open =%d",TM_OPEN);
 		printf("\n\rTime_Close=%d",TM_CLOSE);
 	}else{	
@@ -442,7 +495,7 @@ void Door_manage(void){
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
 			}
-			printf("\n\rST_Door = %d",ST_Door);
+//			printf("\n\r控制器指令 = %d",ACT_Door);
 		}else if(Close_Segment_Flg == TRUE){	//兩段式關門:有
 			switch(ACT_Door){
 			//-------------------指令=停止--------------------//
@@ -569,7 +622,7 @@ static void OpEnd_Detect(void){
 		}else{
 			Voc = ADC_Calculate() *(3.3/4095);		
 			if(Voc <= V_Stby && TM_DoorOperateDly == 0){
-				printf("\n\n\rDoor Operate end!\n\n");
+				printf("\n\n\r門到位-停止運轉!\n\n");
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
@@ -633,7 +686,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 
 //EXTI line detection callbacks
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	printf("\n\rKEY PRESS: ");
+	printf("\n\r控制器指令: ");
 	switch(GPIO_Pin){
 		case W_STOP:
 			ST_BTN = TRUE;
@@ -846,14 +899,14 @@ static void Anti_Pressure_3(void){
 					TM_AntiDly4 = Time_AntiDly4;
 					Voc_amt = 0;
 					
-					printf("\n\rV_Diff = %f",V_Diff);
-					printf("\n\rVo1 = %f",Vo1);
-					printf("\n\rVo2 = %f",Vo2);
+					//printf("\n\rV_Diff = %f",V_Diff);
+					//printf("\n\rVo1 = %f",Vo1);
+					//printf("\n\rVo2 = %f",Vo2);
 					
 					if(V_Diff >= V_Slope){
 						OverSlope_Times++;
 						Calc_Times = 0;
-						printf("\n\rOverSlope_Times = %d", OverSlope_Times);
+						printf("\n\r防壓成立次數 = %d 次", OverSlope_Times);
 
 						/*if(OverSlope_Times == 1){
 							V_Diff_1 = V_Diff;
@@ -863,7 +916,7 @@ static void Anti_Pressure_3(void){
 				
 					}else{
 						OverSlope_Times = 0;
-						printf("\n\rOverSlope_Times = %d", OverSlope_Times);
+						//printf("\n\r防壓成立次數 = %d 次", OverSlope_Times);
 					}
 					
 					if(OverSlope_Times == OS_Occur_Times){
@@ -876,13 +929,14 @@ static void Anti_Pressure_3(void){
 						//printf("\n\r************************");
 						//printf("\n\rVo1 = %f",Vo1);
 						//printf("\n\rVo2 = %f",Vo2);
-						printf("\n\r************************");
-						printf("\n\rAnti_press ratio = %f",V_Slope);
-						printf("\n\rSlope= %f",V_Diff);
+						//printf("\n\r************************");
+						//printf("\n\rAnti_press ratio = %f",V_Slope);
+						//printf("\n\rSlope= %f",V_Diff);
 						//printf("\n\rSlope1= %f",V_Diff_1);
 						//printf("\n\rSlope2= %f\n",V_Diff_2);
-						printf("\n\r************************");
-
+						//printf("\n\r************************");
+						printf("\n\r*********防壓過電流成立**********");
+						
 					}else{
 						ST_Anti = 2;
 						Vo1 = Vo2;
@@ -897,7 +951,7 @@ static void Anti_Pressure_3(void){
 		case 3:
 		//保護動作 & 開門
 			if(TM_AntiDly2 == 0){			//20210103
-				printf("\n\rST_Anti = %d",ST_Anti);
+				//printf("\n\rST_Anti = %d",ST_Anti);
 				if(ST_Door == 1 && TM_OPEN == 0){
 					//ST_Door = 0;
 					//ST_Anti = 0;
