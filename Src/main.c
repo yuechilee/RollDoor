@@ -589,7 +589,7 @@ void Door_manage(void){
 	}
 }	
 
-void Door_Open(void){
+void Door_Close(void){
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
@@ -605,7 +605,7 @@ void Door_Stop(void){
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
 
 }
-void Door_Close(void){
+void Door_Open(void){
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
@@ -935,7 +935,8 @@ static void Anti_Pressure_3(void){
 						//printf("\n\rSlope1= %f",V_Diff_1);
 						//printf("\n\rSlope2= %f\n",V_Diff_2);
 						//printf("\n\r************************");
-						printf("\n\r*********防壓過電流成立**********");
+						printf("\n\n\r防壓成立次數達 %d 次", OverSlope_Times);
+						printf("\n\r*********防壓條件成立-防壓啟動********************");
 						
 					}else{
 						ST_Anti = 2;
