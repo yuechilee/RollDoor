@@ -40,12 +40,12 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
 bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
 
-uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint32_t TM_MAX = 100;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
 uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
 
-float V_Stby = 0.3;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+float V_Stby = 0.2;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 float Slope_Open = 1.5;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 float Slope_Close = 1.5;				//防夾權重(可小數):關門(越小越靈敏),建議>1
@@ -102,6 +102,10 @@ uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
 
 uint32_t Ver_date = 20210105;
+
+uint16_t Tim_cnt_1s = 0;
+uint16_t Tim_cnt_100ms = 0;
+uint16_t Tim_cnt_10ms = 0;
 
 	//Float
 float Voc_base,Voc_base_;
@@ -310,7 +314,7 @@ int main(void)
 			
 			printf("\n\r");
 
-			TM_Printf = 10;
+			TM_Printf = 5;
 		}
   }
 }
@@ -718,15 +722,40 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 //	TIMx handle
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	TM_OPEN = TIMDEC(TM_OPEN);
-	TM_CLOSE = TIMDEC(TM_CLOSE);
-	TM_AntiDly  = TIMDEC(TM_AntiDly);
-	TM_AntiDly2 = TIMDEC(TM_AntiDly2);
-	TM_AntiDly4 = TIMDEC(TM_AntiDly4);
-	TM_EndDetec = TIMDEC(TM_EndDetec);
-	TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
-	TM_Printf = TIMDEC(TM_Printf);
-	TM_DLY = TIMDEC(TM_DLY);
+	Tim_cnt_10ms++;
+	Tim_cnt_100ms++;
+	Tim_cnt_1s++;
+//	printf("\n\r %d",Tim_cnt_100ms);
+	
+	// 0.01 sec
+	if(Tim_cnt_10ms == 10){
+		Tim_cnt_10ms = 0;
+		TM_OPEN 					= TIMDEC(TM_OPEN);
+//		printf("\n\r Tim_cnt_10ms");
+	}
+	
+	// 0.1 sec
+	if(Tim_cnt_100ms == 100){
+		Tim_cnt_100ms = 0;
+		//TM_OPEN 					= TIMDEC(TM_OPEN);
+		TM_CLOSE 					= TIMDEC(TM_CLOSE);
+		TM_AntiDly  			= TIMDEC(TM_AntiDly);
+		TM_AntiDly2 			= TIMDEC(TM_AntiDly2);
+		TM_AntiDly4 			= TIMDEC(TM_AntiDly4);
+		TM_EndDetec 			= TIMDEC(TM_EndDetec);
+		TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
+		TM_Printf 				= TIMDEC(TM_Printf);
+		TM_DLY 						= TIMDEC(TM_DLY);
+//		printf("\n\r Tim_cnt_100ms");
+//		printf("\n\r**************************");
+	}
+	
+	// 1 sec
+	if(Tim_cnt_1s == 100){
+		Tim_cnt_1s = 0;
+//		printf("\n\r Tim_cnt_1s");
+	}
+
 }
 
 //1s timer
@@ -734,7 +763,7 @@ static void TIMx_Config(void)
 {	
 	/*##-1- Configure the TIM peripheral #######################################*/
 	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
-	uwPrescalerValue = (uint32_t)(SystemCoreClock / 1000) - 1;
+	uwPrescalerValue = (uint32_t)(SystemCoreClock / 10000) - 1;
 
 	/* Set TIMx instance */
 	TimHandle.Instance = TIMx;
@@ -746,7 +775,7 @@ static void TIMx_Config(void)
 	+ Counter direction = Up
 	*/
 
-	TimHandle.Init.Period            = (1*100) - 1;   // 1*100ms
+	TimHandle.Init.Period            = (1*10) - 1;   // 1*10ms
 	TimHandle.Init.Prescaler         = uwPrescalerValue;
 	TimHandle.Init.ClockDivision     = 0;
 	TimHandle.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
