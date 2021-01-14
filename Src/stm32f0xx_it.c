@@ -116,6 +116,10 @@ void EXTI4_15_IRQHandler(void)
   }else if(__HAL_GPIO_EXTI_GET_IT(W_CLOSE) != 0x00u){ 
     __HAL_GPIO_EXTI_CLEAR_IT(W_CLOSE);
     HAL_GPIO_EXTI_Callback(W_CLOSE);
+  
+  }else if(__HAL_GPIO_EXTI_GET_IT(RM_LOCK) != 0x00u){ 
+    __HAL_GPIO_EXTI_CLEAR_IT(RM_LOCK);
+    HAL_GPIO_EXTI_Callback(RM_LOCK);
   }
 
 }

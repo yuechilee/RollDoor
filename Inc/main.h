@@ -96,6 +96,8 @@
 #define EXTI_CTRL_PORT_2			                  PORT_Control_2
 #define EXTI_CTRL_GPIO_CLK_ENABLE()  	          GPIOC_CLK_ENABLE()   
 #define EXTI_CTRL_GPIO_CLK_DISABLE()            GPIOC_CLK_DISABLE()  
+#define EXTI_CTRL_LOCK_CLK_ENABLE()  	          GPIOF_CLK_ENABLE()   
+#define EXTI_CTRL_LOCK_CLK_DISABLE()            GPIOF_CLK_DISABLE()  
 //#define WIRE_CTRL_LINE                          EXTI_CTRL_PIN
 //#define EXTI_CTRL_EXTI_IRQn                     EXTI4_15_IRQn
 //==========================EXTI end===============================================//
@@ -227,13 +229,13 @@
 //#define	xxx   	           GPIO_PIN_0
 //#define	xxx   	           GPIO_PIN_1
 //#define	xxx   	           GPIO_PIN_4
-#define	RM_LOCK              GPIO_PIN_5
+//#define	xxx                GPIO_PIN_5
 //#define	xxx   	           GPIO_PIN_6
-//#define	xxx   	           GPIO_PIN_7
+#define	RM_LOCK  	           GPIO_PIN_7
 
 #define PORT_LOCK            GPIOF
-#define LOCK_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define LOCK_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
+#define LOCK_CLK_ENABLE()           __HAL_RCC_GPIOF_CLK_ENABLE()  
+#define LOCK_CLK_DISABLE()          __HAL_RCC_GPIOF_CLK_DISABLE()
 
 //========================================//
 /*************** PIN Def End***************/

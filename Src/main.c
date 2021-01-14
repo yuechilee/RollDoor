@@ -40,7 +40,7 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
 bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
 
-uint32_t TM_MAX = 100;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
 uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
@@ -62,6 +62,7 @@ bool Anti_flg2 = TRUE;
 bool AClose_Flg = FALSE;								// Auto Close 
 bool Flag_AutoClose = TRUE;
 bool Wait_flg;
+bool Lock_CTRL = FALSE;
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -738,12 +739,16 @@ static void EXTI4_15_IRQHandler_Config(void)
 
   /* Enable GPIOC clock */
 	EXTI_CTRL_GPIO_CLK_ENABLE();
+	EXTI_CTRL_LOCK_CLK_ENABLE();
 
   /* Configure PC.13 pin as input floating */
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
   GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
   HAL_GPIO_Init(EXTI_CTRL_PORT, &GPIO_InitStructure);
+
+  GPIO_InitStructure.Pin = RM_LOCK;
+  HAL_GPIO_Init(PORT_LOCK, &GPIO_InitStructure);
 
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
@@ -755,21 +760,34 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	printf("\n\r控制器指令: ");
 	switch(GPIO_Pin){
 		case W_STOP:
+			if(Lock_CTRL == TRUE)	break;
 			ST_BTN = TRUE;
 			ACT_Door = 0;
 			printf("STOP!\n");
 			break;
 		
 		case W_OPEN:
+			if(Lock_CTRL == TRUE)	break;
 			ST_BTN = TRUE;
 			ACT_Door = 1;
 			printf("OPEN!\n");
 			break;
 
 		case W_CLOSE:			
+			if(Lock_CTRL == TRUE)	break;
 			ST_BTN = TRUE;
 			ACT_Door = 2;
 			printf("Close!\n");
+			break;
+		
+		case RM_LOCK:
+			if(Lock_CTRL == TRUE){
+				Lock_CTRL = FALSE;
+				printf("UNLOCK~~~~~~!\n");
+			}else{
+				Lock_CTRL = TRUE;
+				printf("LOCK~~~~~~!\n");
+			}
 			break;
 		
 		default:
