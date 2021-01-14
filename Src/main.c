@@ -59,13 +59,14 @@ bool Close_IT;                          //Interrupt in close 2-1
 bool Close_IT2;                         //Interrupt in close 2-2
 bool Op_Flag = FALSE;
 bool Anti_flg2 = TRUE;
-
-	
+bool AClose_Flg = FALSE;								// Auto Close 
+bool Flag_AutoClose = TRUE;
 bool Wait_flg;
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
+uint8_t ST_Door_buf;
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
@@ -99,6 +100,8 @@ uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 uint32_t TM_Light_Off = 0;
 uint32_t Time_Light = 50;
+uint32_t TM_Auto_Close = 0;
+uint32_t Time_Auto_Close = 100;
 
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
@@ -315,6 +318,11 @@ int main(void)
 				printf("\n\n\r照明結束時間 = %d ms",TM_Light_Off);
 			}
 			
+			if(TM_Auto_Close > 0){
+				//printf("\n\rOPEN_IT= %d",Open_IT);
+				printf("\n\n\r關門等待時間 = %d ms",TM_Auto_Close);
+			}
+			
 			if(Close_Segment_Flg == TRUE){		//1-segment mode
 				//printf("\n\rOPEN_IT= %d",Open_IT);
 				printf("\n\n\r兩段式關門狀態");
@@ -323,7 +331,7 @@ int main(void)
 						
 			printf("\n\r");
 
-			TM_Printf = 5;
+			TM_Printf = 10;
 		}
   }
 }
@@ -408,6 +416,7 @@ void PWR_CTRL(void){
 		printf("\n\rTime_Open =%d",TM_OPEN);
 		printf("\n\rTime_Close=%d",TM_CLOSE);
 	}else{	
+		ST_Door_buf = ST_Door;
 		if(Close_Segment_Flg == FALSE){		//1-segment mode
 			if(TM_OPEN > 0){
 				Door_Open();
@@ -419,11 +428,11 @@ void PWR_CTRL(void){
 				Door_Stop();
 				ST_Door = 0;
 				Op_Flag = FALSE;
-				if(ST_Door == 1){// && ST_Anti > 0){       //20201227_OC_Detect
-					ST_Anti = 0;                         //20201227_OC_Detect
-				}else if(ST_Door == 2 && ST_Anti < 3){ //20201227_OC_Detect
-					ST_Anti = 0;                         //20201227_OC_Detect
-				}                                      //20201227_OC_Detect
+				if(ST_Door == 1){// && ST_Anti > 0){      //20201227_OC_Detect
+					ST_Anti = 0;                         		//20201227_OC_Detect
+				}else if(ST_Door == 2 && ST_Anti < 3){ 		//20201227_OC_Detect
+					ST_Anti = 0;                         		//20201227_OC_Detect
+				}                                      		//20201227_OC_Detect
 				
 				//if(ST_Anti < 3){
 					//ST_Door = 0;
@@ -497,7 +506,7 @@ void Door_manage(void){
 					ST_Door = 1;
 					TM_CLOSE = 0;
 					TM_OPEN = TM_MAX;
-					TM_Light_Off = TM_MAX + Time_Light;
+					//TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;
 					TM_EndDetec = 10;
 					break;
@@ -509,7 +518,7 @@ void Door_manage(void){
 					}
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
-					TM_Light_Off = TM_MAX + Time_Light;
+					//TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
 					TM_EndDetec = 10;
 					break;
@@ -607,8 +616,27 @@ void Door_manage(void){
 		}
 	}
 	
-	if(TM_OPEN == 0 && TM_CLOSE == 0){
-		ACT_Door = 0;
+	/*if(TM_OPEN == 0 && TM_CLOSE == 0){
+		ST_Door = 0;
+	}*/
+	
+	// 開門後延遲時間應過自動關門
+	if(Flag_AutoClose == TRUE){							//自動關門功能: ON
+		if(Close_Segment_Flg == FALSE){					//兩段式關門:無
+			if(ST_Door == 0 && ST_Door_buf == 1){
+				TM_Auto_Close = Time_Auto_Close;
+				AClose_Flg = TRUE;
+			}else if(AClose_Flg == TRUE && TM_Auto_Close == 0){
+				AClose_Flg = FALSE;
+				TM_CLOSE = TM_MAX;
+			}
+		}
+	}
+	
+	if(TM_OPEN > 0){
+		TM_Light_Off = TM_OPEN + Time_Light;
+	}else if(TM_CLOSE > 0){
+		TM_Light_Off = TM_CLOSE + Time_Light;
 	}
 }	
 
@@ -777,6 +805,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Printf 				= TIMDEC(TM_Printf);
 		TM_DLY 						= TIMDEC(TM_DLY);
 		TM_Light_Off 			= TIMDEC(TM_Light_Off);
+		TM_Auto_Close 		= TIMDEC(TM_Auto_Close);
+		
 //		printf("\n\r Tim_cnt_100ms");
 //		printf("\n\r**************************");
 	}
