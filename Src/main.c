@@ -97,6 +97,8 @@ uint32_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
 uint32_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
 uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
+uint32_t TM_Light_Off = 0;
+uint32_t Time_Light = 50;
 
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
@@ -120,6 +122,8 @@ void SystemClock_Config(void);
 void Door_Open(void);
 void Door_Stop(void);
 void Door_Close(void);		
+void Light_ON(void);		
+void Light_OFF(void);		
 void Door_manage(void);                                    //Operating time calculate
 void PWR_CTRL(void);                                       //Power ON to motor
 void Delay_ms(int32_t nms);
@@ -306,12 +310,17 @@ int main(void)
 				printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
 			}
 			
+			if(TM_Light_Off > 0){
+				//printf("\n\rOPEN_IT= %d",Open_IT);
+				printf("\n\n\r照明結束時間 = %d ms",TM_Light_Off);
+			}
+			
 			if(Close_Segment_Flg == TRUE){		//1-segment mode
 				//printf("\n\rOPEN_IT= %d",Open_IT);
 				printf("\n\n\r兩段式關門狀態");
 				printf("\n\rST_CLOSE= %d",ST_Close);
 			}
-			
+						
 			printf("\n\r");
 
 			TM_Printf = 5;
@@ -408,6 +417,7 @@ void PWR_CTRL(void){
 				OpEnd_Detect();
 			}else{
 				Door_Stop();
+				ST_Door = 0;
 				Op_Flag = FALSE;
 				if(ST_Door == 1){// && ST_Anti > 0){       //20201227_OC_Detect
 					ST_Anti = 0;                         //20201227_OC_Detect
@@ -462,6 +472,12 @@ void PWR_CTRL(void){
 			}
 		}
 	}
+	
+	if(TM_Light_Off > 0){
+		Light_ON();
+	}else{
+		Light_OFF();
+	}
 }
 
 void Door_manage(void){
@@ -474,12 +490,14 @@ void Door_manage(void){
 					ST_Anti = 0;
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
+					TM_Light_Off = Time_Light;
 					break;
 				
 				case 1:							//指令=開門
 					ST_Door = 1;
 					TM_CLOSE = 0;
 					TM_OPEN = TM_MAX;
+					TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;
 					TM_EndDetec = 10;
 					break;
@@ -491,6 +509,7 @@ void Door_manage(void){
 					}
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
+					TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
 					TM_EndDetec = 10;
 					break;
@@ -593,6 +612,8 @@ void Door_manage(void){
 	}
 }	
 
+
+//Relay control
 void Door_Close(void){
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
@@ -618,6 +639,18 @@ void Door_Open(void){
 
 }
 
+void Light_ON(void){
+		HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_SET);
+		//printf("\n\rLight ON!");
+}
+
+void Light_OFF(void){
+		HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_RESET);
+		//printf("\n\rLight OFF!");
+}
+
+// Relay control end...
+
 static void OpEnd_Detect(void){
 	if(TM_EndDetec == 0){
 		if(Op_Flag == FALSE){
@@ -629,6 +662,7 @@ static void OpEnd_Detect(void){
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
+				TM_Light_Off = Time_Light;
 				ST_Anti = 0;
 				Op_Flag = FALSE;
 			}
@@ -699,18 +733,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case W_OPEN:
-			if(ACT_Door == 0){
-				ST_BTN = TRUE;
-				ACT_Door = 1;
-			}
+			ST_BTN = TRUE;
+			ACT_Door = 1;
 			printf("OPEN!\n");
 			break;
 
 		case W_CLOSE:			
-			if(ACT_Door == 0){
-				ST_BTN = TRUE;
-				ACT_Door = 2;
-			}
+			ST_BTN = TRUE;
+			ACT_Door = 2;
 			printf("Close!\n");
 			break;
 		
@@ -730,14 +760,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
 		Tim_cnt_10ms = 0;
-		TM_OPEN 					= TIMDEC(TM_OPEN);
+		//TM_OPEN 					= TIMDEC(TM_OPEN);
 //		printf("\n\r Tim_cnt_10ms");
 	}
 	
 	// 0.1 sec
 	if(Tim_cnt_100ms == 100){
 		Tim_cnt_100ms = 0;
-		//TM_OPEN 					= TIMDEC(TM_OPEN);
+		TM_OPEN 					= TIMDEC(TM_OPEN);
 		TM_CLOSE 					= TIMDEC(TM_CLOSE);
 		TM_AntiDly  			= TIMDEC(TM_AntiDly);
 		TM_AntiDly2 			= TIMDEC(TM_AntiDly2);
@@ -746,6 +776,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
 		TM_Printf 				= TIMDEC(TM_Printf);
 		TM_DLY 						= TIMDEC(TM_DLY);
+		TM_Light_Off 			= TIMDEC(TM_Light_Off);
 //		printf("\n\r Tim_cnt_100ms");
 //		printf("\n\r**************************");
 	}
@@ -753,6 +784,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// 1 sec
 	if(Tim_cnt_1s == 100){
 		Tim_cnt_1s = 0;
+	
+/*
+	//到位測試
+		if(TM_OPEN > 0 || TM_CLOSE >0){
+			V_Stby = V_Stby + 0.01;
+		}else{
+			V_Stby = 0.2;
+		}
+	//到位測試end
+*/	
 //		printf("\n\r Tim_cnt_1s");
 	}
 
