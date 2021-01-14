@@ -41,7 +41,19 @@
 #define TIMx_IRQHandler                TIM16_IRQHandler
 //==========================TIMx end===============================================//
 
-//==========================ADCx==================================================//
+//==========================PWM Output=============================================//
+//#define TIMx                           TIM3
+#define TIM3_CLK_ENABLE()              __HAL_RCC_TIM3_CLK_ENABLE()
+
+/* Definition for TIMx Channel Pins */
+#define TIMx_CHANNEL_GPIO_PORT()       __HAL_RCC_GPIOA_CLK_ENABLE()
+#define TIMx_GPIO_PORT_CHANNEL1        GPIOA
+#define TIMx_GPIO_PIN_CHANNEL1         GPIO_PIN_6
+#define TIMx_GPIO_AF_CHANNEL1          GPIO_AF1_TIM3
+
+//==========================PWM Output end=========================================//
+
+//==========================ADCx===================================================//
 /* Definition for ADCx clock resources */
 #define ADCx                            ADC1
 #define ADCx_CLK_ENABLE()               __HAL_RCC_ADC1_CLK_ENABLE()

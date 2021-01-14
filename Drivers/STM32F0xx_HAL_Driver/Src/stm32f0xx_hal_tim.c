@@ -1209,6 +1209,13 @@ HAL_StatusTypeDef HAL_TIM_PWM_Init(TIM_HandleTypeDef *htim)
   /* Init the base time for the PWM */
   TIM_Base_SetConfig(htim->Instance, &htim->Init);
 
+  /* Initialize the DMA burst operation state */
+  htim->DMABurstState = HAL_DMA_BURST_STATE_READY;
+
+  /* Initialize the TIM channels state */
+  TIM_CHANNEL_STATE_SET_ALL(htim, HAL_TIM_CHANNEL_STATE_READY);
+  TIM_CHANNEL_N_STATE_SET_ALL(htim, HAL_TIM_CHANNEL_STATE_READY);
+
   /* Initialize the TIM state*/
   htim->State = HAL_TIM_STATE_READY;
 

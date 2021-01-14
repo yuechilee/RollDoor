@@ -18,6 +18,11 @@
 #define Disable	0
 #define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t)  32)   /* Definition of ADCx conversions data table size */
 
+	// PWM Output for Motor MOS_Act control
+#define  PERIOD_VALUE       (uint32_t)(666 - 1)  /* Period Value  */
+#define  PULSE1_VALUE       (uint32_t)(PERIOD_VALUE*50   /100)     /* Capture Compare 1 Value  */
+
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
@@ -26,6 +31,9 @@ ADC_HandleTypeDef         AdcHandle;	// ADC handle declaration
 ADC_ChannelConfTypeDef    sConfig;		// ADC channel configuration structure declaration
 TIM_HandleTypeDef         TimHandle;	
 UART_HandleTypeDef        UartHandle;	// UART handler declaration
+
+TIM_OC_InitTypeDef 				sOC_Config;	// Timer Output Compare Configuration Structure declaration
+
 static GPIO_InitTypeDef   GPIO_InitStruct;
 
 /* Private functions ---------------------------------------------------------*/
@@ -40,7 +48,7 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
 bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
 
-uint32_t TM_MAX = 100;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
 uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
@@ -83,7 +91,8 @@ static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable
 
 	//32-bits
 uint32_t RLY_Delay_ms = 10;			   //Delay_function(*1ms)
-uint32_t uwPrescalerValue = 0;         // Prescaler declaration
+uint32_t uwPrescalerValue = 0;     // Prescaler declaration
+uint32_t uhPrescalerValue = 0;		 // PWM frequency
 
 uint32_t TM_OPEN = 0;                   //Time: Door open
 uint32_t TM_CLOSE = 0;                  //Time: Door close
@@ -126,6 +135,7 @@ void Delay_ms(int32_t nms);
 static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
 static void TIMx_Config(void);
+static void TIM3_PWM_Output_Config(void);
 static void ADC_Config(void);
 static void Uart_Config(void);
 static void Error_Handler(void);
@@ -169,7 +179,8 @@ int main(void)
   /* Configure */
   ADC_Config();
   EXTI4_15_IRQHandler_Config();
-  TIMx_Config();
+  //TIMx_Config();
+	TIM3_PWM_Output_Config();
   Uart_Config();
 
 	
@@ -190,6 +201,7 @@ int main(void)
 	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);  
+  HAL_NVIC_EnableIRQ(TIM3_IRQn);  
 
   //用途:避免開機的暫態影響GPIO判讀
   Door_Stop();	
@@ -598,24 +610,26 @@ void Door_Close(void){
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+			//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+			HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1);
 }
 
 void Door_Stop(void){
-			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
+			//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+			HAL_TIM_PWM_Stop(&TimHandle, TIM_CHANNEL_1);		
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
-
+			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 }
+
 void Door_Open(void){
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 			Delay_ms(RLY_Delay_ms);
 			HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
 			Delay_ms(RLY_Delay_ms);
-			HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
-
+			//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+			HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1);
 }
 
 static void OpEnd_Detect(void){
@@ -646,11 +660,11 @@ static void MotorRelay_out_config(void){
 	HAL_GPIO_Init(PORT_Motor_Out, &GPIO_InitStruct);
 	
 	//POWER MOSFET config.
-	GPIO_InitStruct.Pin = MOS_ACT;
-	HAL_GPIO_Init(PORT_Motor_MOS, &GPIO_InitStruct);
+	//GPIO_InitStruct.Pin = MOS_ACT;
+	//HAL_GPIO_Init(PORT_Motor_MOS, &GPIO_InitStruct);
 	
 	//Initial condition setting.
-	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
+//	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);	//1:ON, 0:0FF
 }
@@ -728,6 +742,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //	printf("\n\r %d",Tim_cnt_100ms);
 	
 	// 0.01 sec
+		//empty
+	
+	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
 		Tim_cnt_10ms = 0;
 		TM_OPEN 					= TIMDEC(TM_OPEN);
@@ -751,10 +768,69 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	}
 	
 	// 1 sec
-	if(Tim_cnt_1s == 100){
+	if(Tim_cnt_1s == 1000){
 		Tim_cnt_1s = 0;
 //		printf("\n\r Tim_cnt_1s");
 	}
+
+}
+
+static void TIM3_PWM_Output_Config(void){
+	/* Compute the prescaler value to have TIM3 counter clock equal to 16000000 Hz */
+  uhPrescalerValue = (uint32_t)(SystemCoreClock / 16000000) - 1;
+
+  /*##-1- Configure the TIM peripheral #######################################*/
+  /* Initialize TIMx peripheral as follows:
+       + Prescaler = (SystemCoreClock / 16000000) - 1
+       + Period = (666 - 1)
+       + ClockDivision = 0
+       + Counter direction = Up
+  */
+  TimHandle.Instance = TIM3;
+
+  TimHandle.Init.Prescaler         = uhPrescalerValue;
+  TimHandle.Init.Period            = PERIOD_VALUE;
+  TimHandle.Init.ClockDivision     = 0;
+  TimHandle.Init.CounterMode       = TIM_COUNTERMODE_UP;
+  TimHandle.Init.RepetitionCounter = 0;
+  TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&TimHandle) != HAL_OK)
+  {
+    /* Initialization Error */
+    Error_Handler();
+  }
+
+  /*##-2- Configure the PWM channels #########################################*/
+  /* Common configuration for all channels */
+  sOC_Config.OCMode       = TIM_OCMODE_PWM1;
+  sOC_Config.OCPolarity   = TIM_OCPOLARITY_HIGH;
+  sOC_Config.OCFastMode   = TIM_OCFAST_DISABLE;
+  sOC_Config.OCNPolarity  = TIM_OCNPOLARITY_HIGH;
+  sOC_Config.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+  sOC_Config.OCIdleState  = TIM_OCIDLESTATE_RESET;
+
+  /* Set the pulse value for channel 1 */
+  sOC_Config.Pulse = PULSE1_VALUE;
+  if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sOC_Config, TIM_CHANNEL_1) != HAL_OK)
+  {
+    /* Configuration Error */
+    Error_Handler();
+  }
+	
+	/*##-3- Start PWM signals generation #######################################*/
+  /* Start channel 1 */
+  if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();	// PWM Generation Error
+  }
+	
+	/*##-3- Stop PWM signals generation #######################################*/
+  /* Stop channel 1 */
+  //if (HAL_TIM_PWM_Stop(&TimHandle, TIM_CHANNEL_1) != HAL_OK)
+  //{
+  //  Error_Handler();	// PWM Stop Error
+  //}
 
 }
 

@@ -190,9 +190,37 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
 }
 
 /**
-  * @}
+  * @brief TIM MSP Initialization
+  *        This function configures the hardware resources used in this example:
+  *           - Peripheral's clock enable
+  *           - Peripheral's GPIO Configuration
+  * @param htim: TIM handle pointer
+  * @retval None
   */
+void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef *htim)
+{
+  GPIO_InitTypeDef   GPIO_InitStruct;
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* TIMx Peripheral clock enable */
+  TIM3_CLK_ENABLE();
 
+  /* Enable GPIO Channels Clock */
+  TIMx_CHANNEL_GPIO_PORT();
+
+  /* Configure PB.04 (TIM3_Channel1), PB.05 (TIM3_Channel2), PB.00 (TIM3_Channel3),
+     PB.01 (TIM3_Channel4) in output, push-pull, alternate function mode
+  */
+  /* Common configuration for all channels */
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+
+  GPIO_InitStruct.Alternate = TIMx_GPIO_AF_CHANNEL1;
+  GPIO_InitStruct.Pin = TIMx_GPIO_PIN_CHANNEL1;
+  HAL_GPIO_Init(TIMx_GPIO_PORT_CHANNEL1, &GPIO_InitStruct);
+  HAL_NVIC_SetPriority(TIM3_IRQn, 3, 2);
+
+}
 /**
   * @}
   */
