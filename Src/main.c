@@ -63,6 +63,7 @@ bool AClose_Flg = FALSE;								// Auto Close
 bool Flag_AutoClose = TRUE;
 bool Wait_flg;
 bool Lock_CTRL = FALSE;
+bool Flag_JOG = FALSE;
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -74,6 +75,7 @@ uint8_t Vop_Cnt;
 uint8_t OverSlope_Times = 0;
 uint8_t OS_Occur_Times = 2;
 uint8_t Cycle_jumper;
+uint8_t ST_Press;
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -109,9 +111,13 @@ uint32_t Cycle_times_down = 0;
 
 uint32_t Ver_date = 20210105;
 
+uint16_t CNT_Conti_Press = 0;
+uint16_t Conti_times = 50;
+
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
+
 
 	//Float
 float Voc_base,Voc_base_;
@@ -758,35 +764,81 @@ static void EXTI4_15_IRQHandler_Config(void)
 //EXTI line detection callbacks
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	printf("\n\r±±¨î¾¹«ü¥O: ");
+	CNT_Conti_Press = 0;
+	Flag_JOG = FALSE;
 	switch(GPIO_Pin){
 		case W_STOP:
 			if(Lock_CTRL == TRUE)	break;
 			ST_BTN = TRUE;
 			ACT_Door = 0;
-			printf("STOP!\n");
+			printf("\n\rSTOP!\n");
 			break;
 		
 		case W_OPEN:
 			if(Lock_CTRL == TRUE)	break;
+			
+			// JOG detect
+			ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
+			while(ST_Press == 0){
+				CNT_Conti_Press++;
+				printf("\n\rOPEN key.....press\n");
+				ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
+				if(CNT_Conti_Press > Conti_times){		// 50 times
+					Flag_JOG = TRUE;
+					Door_Open();
+					Light_ON();
+				}
+			}
+			printf("\n\rContinue = %d\n",CNT_Conti_Press);
+			if(Flag_JOG == TRUE){
+				Door_Stop();
+				TM_Light_Off = Time_Light;
+				printf("\n\rDoor Stop.....\n");
+				break;
+			}
+			// JOG end
+				
 			ST_BTN = TRUE;
 			ACT_Door = 1;
-			printf("OPEN!\n");
+			printf("\n\rOPEN!\n");
 			break;
 
 		case W_CLOSE:			
 			if(Lock_CTRL == TRUE)	break;
+
+		// JOG detect
+			ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
+			while(ST_Press == 0){
+				CNT_Conti_Press++;
+				printf("\n\rCLOSE key.....press\n");
+				ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
+				if(CNT_Conti_Press > Conti_times){		// 50 times
+					Flag_JOG = TRUE;
+					Door_Close();
+					Light_ON();
+				}
+			}
+			printf("\n\rContinue = %d\n",CNT_Conti_Press);
+			if(Flag_JOG == TRUE){
+				Door_Stop();
+				TM_Light_Off = Time_Light;
+				printf("\n\rDoor Stop.....\n");
+				break;
+			}
+			// JOG end
+			
 			ST_BTN = TRUE;
 			ACT_Door = 2;
-			printf("Close!\n");
+			printf("\n\rClose!\n");
 			break;
 		
 		case RM_LOCK:
 			if(Lock_CTRL == TRUE){
 				Lock_CTRL = FALSE;
-				printf("UNLOCK~~~~~~!\n");
+				printf("\n\rUNLOCK~~~~~~!\n");
 			}else{
 				Lock_CTRL = TRUE;
-				printf("LOCK~~~~~~!\n");
+				printf("\n\rLOCK~~~~~~!\n");
 			}
 			break;
 		
