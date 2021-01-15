@@ -37,13 +37,16 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 
 
 /* Private macro -------------------------------------------------------------*/
-bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
+bool Close_Segment_Flg = TRUE;         //兩段式關門選擇: 			有:TRUE; 無:FALSE	
 bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
 
 uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
 uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
+
+uint32_t OpenTM1 = 20;                 //兩段式關門: 第一段 (需小於TM_MAX)
+uint32_t OpenTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
 
 float V_Stby = 0.2;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
@@ -57,6 +60,8 @@ bool ST_BTN;                            //(Remote) controller trigger(0:standby,
 bool Open_IT;                           //Interrupt in open
 bool Close_IT;                          //Interrupt in close 2-1
 bool Close_IT2;                         //Interrupt in close 2-2
+bool Open_IT;                          //Interrupt in open 2-1
+bool Open_IT2;                         //Interrupt in open 2-2
 bool Op_Flag = FALSE;
 bool Anti_flg2 = TRUE;
 bool AClose_Flg = FALSE;								// Auto Close 
@@ -70,6 +75,7 @@ uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Cl
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
 uint8_t ST_Door_buf;
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
+uint8_t ST_Open;                        //Recode the 2-seg open cmd
 uint8_t	ST_Anti;
 uint8_t Vop_Cnt;
 uint8_t OverSlope_Times = 0;
@@ -200,6 +206,7 @@ int main(void)
   TM_OPEN = 0;
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
+  OpenTM2 = TM_MAX - OpenTM1;		//section_time_2 of close operation
   ST_Close = 1;
 	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
@@ -332,8 +339,8 @@ int main(void)
 			
 			if(Close_Segment_Flg == TRUE){		//1-segment mode
 				//printf("\n\rOPEN_IT= %d",Open_IT);
-				printf("\n\n\r兩段式關門狀態");
-				printf("\n\rST_CLOSE= %d",ST_Close);
+				printf("\n\n\r兩段式開門狀態");
+				printf("\n\rST_Open= %d",ST_Open);
 			}
 						
 			printf("\n\r");
@@ -453,38 +460,17 @@ void PWR_CTRL(void){
 				Door_Close();
 				OpEnd_Detect();
 			}else{
-				if(TM_OPEN == 0 && TM_CLOSE == 0){
-					Op_Flag = FALSE;
-					Door_Stop();
-					if(ST_Door == 1){
-						ST_Door = 0;
-						Open_IT = FALSE;
-						Close_IT = FALSE;
-						Close_IT2 = FALSE;
-						
-						if(ST_Anti > 0){                       //20201227_OC_Detect
-							ST_Anti = 0;                         //20201227_OC_Detect
-						}                                      //20201227_OC_Detect
-
-					}else if(ST_Door == 2){
-						ST_Door = 0;
-						if(Open_IT == TRUE){
-							ST_Close = 1;
-						}else if(ST_Close == 1){
-							ST_Close = 2;
-						}else if(ST_Close == 2){
-							ST_Close = 1;
-						}
-						Open_IT = FALSE;
-						Close_IT = FALSE;
-						Close_IT2 = FALSE;
-						
-						if(ST_Anti < 3){                       //20201227_OC_Detect
-							ST_Anti = 0;                         //20201227_OC_Detect
-						}                                      //20201227_OC_Detect
-
-					}
+				Door_Stop();
+				ST_Door = 0;
+				if(ST_Open == 0){
+					ST_Open = 1;
 				}
+				Op_Flag = FALSE;
+				if(ST_Door == 1){// && ST_Anti > 0){      //20201227_OC_Detect
+					ST_Anti = 0;                         		//20201227_OC_Detect
+				}else if(ST_Door == 2 && ST_Anti < 3){ 		//20201227_OC_Detect
+					ST_Anti = 0;                         		//20201227_OC_Detect
+				}                                      		//20201227_OC_Detect
 			}
 		}
 	}
@@ -513,7 +499,6 @@ void Door_manage(void){
 					ST_Door = 1;
 					TM_CLOSE = 0;
 					TM_OPEN = TM_MAX;
-					//TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;
 					TM_EndDetec = 10;
 					break;
@@ -525,7 +510,6 @@ void Door_manage(void){
 					}
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
-					//TM_Light_Off = TM_MAX + Time_Light;
 					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
 					TM_EndDetec = 10;
 					break;
@@ -543,77 +527,38 @@ void Door_manage(void){
 			*並且紀錄運轉的剩餘時間,用於下次動作時間使用.
 			***************************************************/
 				case 0:
-					if(ST_Door == 1){				
-						OpenTM_Remain = TM_OPEN;
-						TM_OPEN = 0;				
-						if(OpenTM_Remain > 0){
-								Open_IT = TRUE;
-						}else if(OpenTM_Remain == 0){
-								Open_IT = FALSE;
-								Close_IT = FALSE;
-								Close_IT2 = FALSE;
-						}
-
-					}else if(ST_Door == 2){			//前狀態:關門
-						CloseTM_Remain = TM_CLOSE;
-						if(ST_Close == 1){
-								//CloseTM_Remain = TM_CLOSE;
-								if(CloseTM_Remain > 0){
-									Close_IT = TRUE;
-								}else if(CloseTM_Remain == 0){
-									Close_IT = FALSE;
-									ST_Close = 2;		//等待第二段close指令
-								}
-						}else if(ST_Close == 2){
-								//CloseTM_Remain = TM_CLOSE;
-								if(CloseTM_Remain > 0){
-									Close_IT2 = TRUE;
-								}else if(CloseTM_Remain == 0){
-									Close_IT2 = FALSE;
-									ST_Close = 1;
-								}
-						}
-						TM_CLOSE = 0;
-					}
 					ST_Door = 0;
+					ST_Anti = 0;
+					TM_OPEN = 0;
+					TM_CLOSE = 0;
+					TM_Light_Off = Time_Light;
 					break;
 			//-------------------指令=停止 End----------------//
 			//-------------------指令=開門--------------------//
 				case 1:
 					ST_Door = 1;
-					Open_IT = FALSE;
-					Close_IT = FALSE;
-					Close_IT2 = FALSE;
-					TM_CLOSE = 0;
-					TM_OPEN = TM_MAX;
-					break;
+					TM_OPEN =0;
+					if(ST_Open == 0){
+						TM_OPEN = OpenTM1;
+					}else if(ST_Open == 1){
+						TM_OPEN = TM_MAX;
+					}
+					TM_EndDetec = 10;
+					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
+					break;			
 			//-------------------指令=開門 End----------------//
 			//-------------------指令=關門--------------------//
-				case 2:
-					if(ST_Anti == 3){	 //20201227_OC_Detect
+				case 2:							//指令=關門
+					ST_Door = 2;
+					if(ST_Anti == 3){ //20201227_OC_Detect
 						break;
 					}
-					ST_Door = 2;
-					TM_OPEN =0;
-					if(Open_IT == TRUE){
-							TM_CLOSE = TM_MAX;
-					}else if(ST_Close == 1){
-							if(Close_IT == FALSE){
-								TM_CLOSE = CloseTM1;
-							}else{
-								TM_CLOSE = CloseTM_Remain;
-							}
-					}else if(ST_Close == 2){
-							if(Close_IT2 == FALSE){
-								TM_CLOSE = CloseTM2;
-							}else{
-								TM_CLOSE = CloseTM_Remain;
-							}
-					}else{
-						//Empty
-					}
-					TM_AntiDly = 10;	//20201227_OC_Detect
+					TM_OPEN = 0;
+					TM_CLOSE = TM_MAX;
+					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
+					TM_EndDetec = 10;
 					break;
+
 			//-------------------指令=關門 End-----------------//
 			// ----- Else ----- //
 				default:
@@ -700,6 +645,10 @@ static void OpEnd_Detect(void){
 				TM_Light_Off = Time_Light;
 				ST_Anti = 0;
 				Op_Flag = FALSE;
+				
+				if(ST_Door == 2){
+					ST_Open = 0;
+				}
 			}
 		}
 	}
@@ -787,6 +736,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					Flag_JOG = TRUE;
 					Door_Open();
 					Light_ON();
+					//OpEnd_Detect();
 				}
 			}
 			printf("\n\rContinue = %d\n",CNT_Conti_Press);
@@ -816,6 +766,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					Flag_JOG = TRUE;
 					Door_Close();
 					Light_ON();
+					//OpEnd_Detect();
 				}
 			}
 			printf("\n\rContinue = %d\n",CNT_Conti_Press);
