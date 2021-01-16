@@ -37,20 +37,41 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 
 
 /* Private macro -------------------------------------------------------------*/
-bool Close_Segment_Flg = FALSE;         //兩段式關門選擇: 		無:FALSE	
-//bool Close_Segment_Flg = TRUE;         //兩段式關門選擇: 			有:TRUE	
-bool Cycle_test = TRUE;                //開關門循環測試(長時測試): 有:TRUE; 無:FALSE
+//兩段式開門選擇:
+//bool Close_Segment_Flg = FALSE; 		//無:FALSE	
+bool Close_Segment_Flg = TRUE;        //有:TRUE
 
+//循環測試
+bool Cycle_test = TRUE;                //有:TRUE
+//bool Cycle_test = FALSE;             //無:FALSE
+
+//自動關門功能
+//bool Flag_AutoClose = TRUE;				//有:TRUE
+bool Flag_AutoClose = FALSE;			//無:FALSEE
+
+//吋動功能
+//bool Flag_Func_JOG = TRUE;			//有:TRUE
+bool Flag_Func_JOG = FALSE;				//無:FALSEE
+
+//開關門最常運轉時間
 uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
-uint32_t CloseTM1 = 70;                 //兩段式關門: 第一段 (需小於TM_MAX)
-uint32_t CloseTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
+//自動關門延遲時間
+uint32_t Time_Auto_Close = 100;			// n * 0.1sec.
 
-uint32_t OpenTM1 = 20;                 //兩段式關門: 第一段 (需小於TM_MAX)
-uint32_t OpenTM2 = 0;                  //兩段式關門: 第二段 = TM_MAX-CloseTM1
+//捲窗門第一段開門時間
+uint32_t OpenTM1 = 15;                 //兩段式關門: 第一段 (需小於TM_MAX); n*0.1sec
 
+//照明運轉時間
+uint32_t Time_Light = 50;				// n * 0.1sec
+
+//待機電壓
 float V_Stby = 0.3;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
+//吋動判定次數
+uint16_t Conti_times = 50;				//吋動判定次數, 大於:吋動, 小於:一鍵
+
+//防夾3權重
 float Slope_Open = 1.5;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 float Slope_Close = 1.5;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 
@@ -66,10 +87,9 @@ bool Open_IT2;                         //Interrupt in open 2-2
 bool Op_Flag = FALSE;
 bool Anti_flg2 = TRUE;
 bool AClose_Flg = FALSE;				// 自動關門動作旗標
-bool Flag_AutoClose = TRUE;				// 自動關門功能
 bool Wait_flg;
-bool Lock_CTRL = FALSE;
-bool Flag_JOG = FALSE;
+bool Lock_CTRL = FALSE;					//鎖電動作旗標
+bool Flag_JOG = FALSE;					//吋動動作旗標
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -93,7 +113,7 @@ uint16_t iWeight = 1000;
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 
 	//32-bits
-uint32_t RLY_Delay_ms = 10;			   //Delay_function(*1ms)
+uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 
 uint32_t TM_OPEN = 0;                   //Time: Door open
@@ -109,17 +129,14 @@ uint32_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
 uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 uint32_t TM_Light_Off = 0;
-uint32_t Time_Light = 50;
 uint32_t TM_Auto_Close = 0;
-uint32_t Time_Auto_Close = 100;
 
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
 
-uint32_t Ver_date = 20210105;
+uint32_t Ver_date = 20210116;
 
 uint16_t CNT_Conti_Press = 0;
-uint16_t Conti_times = 50;
 
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
@@ -158,8 +175,10 @@ static void StatusRelay_out_config(void);
 static void Anti_Pressure(void);
 static void Anti_Pressure_2(void);
 static void Anti_Pressure_3(void);
+static void Anti_Pressure_4(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
+static void Ext_CNTER(void);			//Door unload detect
 static uint32_t	TIMDEC(uint32_t TIMB);
 static uint16_t ADC_Calculate(void);
 
@@ -206,8 +225,6 @@ int main(void)
 
   TM_OPEN = 0;
   TM_CLOSE = 0;
-  CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
-  OpenTM2 = TM_MAX - OpenTM1;		//section_time_2 of close operation
   ST_Close = 1;
 	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
@@ -238,7 +255,7 @@ int main(void)
 		TM_OPEN = TM_MAX;
 		Wait_flg = TRUE;
 		ACT_Door = 1;
-		V_Stby = 0.2;
+		V_Stby = 0.3;
 		printf("\n\r循環測試:有\n");
   }
   
@@ -252,12 +269,12 @@ int main(void)
 		if(Cycle_test == FALSE || Cycle_jumper == 0){
 			Door_manage();
 			PWR_CTRL(); 
-			Anti_Pressure_3();
+			//Anti_Pressure_3();
 			
 		}else{
 			
 			if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
-				TM_DLY = 50;
+				TM_DLY = 300;
 				Wait_flg = FALSE;
 			}
 			
@@ -267,28 +284,35 @@ int main(void)
 				ACT_Door = 2;
 				Wait_flg = TRUE;
 				Cycle_times_down++;
-				
+				Ext_CNTER();
+				printf("\n\rNoise test 1");
 			}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
 				Door_Stop();
 				TM_OPEN = TM_MAX;
 				ACT_Door = 1;
 				Wait_flg = TRUE;
 				Cycle_times_up++;
-
-				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
-				Delay_ms(RLY_Delay_ms);
-				HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+				
+				Ext_CNTER();
+				//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+				//Delay_ms(RLY_Delay_ms);
+				//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+				printf("\n\rNoise test 2");
 
 			}
 			
+			Door_manage();
 			PWR_CTRL(); 
-			Anti_Pressure_3();
+			//OpEnd_Detect();
+			//Anti_Pressure_3();
 			
 			if(TM_Printf == 0){
-				printf("\n\r==============狀態scan===================");			
+				printf("\n\r==============狀態scan1===================");			
+				printf("\n\r==============循環測試===================");			
 				Voc_ = ADC_Calculate() *(3.3/4095);		
 				printf("\n\r目前電壓值 = %f V",Voc_);
 				printf("\n\r待機電壓   = %f V",V_Stby);
+				printf("\n\rACT_Door = %d",ACT_Door);
 				if(TM_OPEN > 0){
 					printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
 					printf("\n\r開門次數 = %d\n",Cycle_times_down);
@@ -297,18 +321,22 @@ int main(void)
 					printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
 					printf("\n\r關門次數 = %d\n",Cycle_times_down);
 				}
-					TM_Printf= 15;
+				if(TM_DLY > 0){
+					printf("\n\rTM_DLY = %d",TM_DLY);
+				}
+					TM_Printf= 10;
 				}	
 		}
 
 		if(TM_Printf == 0 && (Cycle_test == FALSE || Cycle_jumper == 0)){
-			printf("\n\r==============狀態scan===================");			
+			printf("\n\r==============狀態scan2===================");			
 			
 			if(TM_OPEN > 0 || TM_CLOSE > 0){
 				Voc_ = ADC_Calculate() *(3.3/4095);		
 				printf("\n\r目前電壓值 = %f V",Voc_);
 				printf("\n\r待機電壓   = %f V",V_Stby);
 			}
+			
 			printf("\n\n\r目前門狀態 = %d",ST_Door);
 			
 			if(TM_OPEN > 0){
@@ -344,7 +372,6 @@ int main(void)
 				printf("\n\n\r兩段式開門狀態");
 				printf("\n\rST_Open= %d",ST_Open);
 			}
-						
 			printf("\n\r");
 
 			TM_Printf = 10;
@@ -423,6 +450,13 @@ static void Error_Handler(void)
   }
 }
 
+static void Ext_CNTER(void){
+	printf("\n\r----EXT_CNT");
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+	Delay_ms(RLY_Delay_ms);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+}
+
 void PWR_CTRL(void){
 	if(TM_CLOSE > 0 && TM_OPEN > 0){
 		//Empty
@@ -466,7 +500,7 @@ void PWR_CTRL(void){
 			}else{
 				Door_Stop();
 				ST_Door = 0;
-				if(ST_Open == 0){
+				if(ST_Open == 0 && ST_Door_buf == 1){
 					ST_Open = 1;
 				}
 				Op_Flag = FALSE;
@@ -575,25 +609,27 @@ void Door_manage(void){
 	/*if(TM_OPEN == 0 && TM_CLOSE == 0){
 		ST_Door = 0;
 	}*/
+	if(Cycle_test == TRUE && Cycle_jumper == 1){
 	
-	// 開門後延遲時間應過自動關門
-	if(Flag_AutoClose == TRUE){										//自動關門功能: ON
-		if(Close_Segment_Flg == FALSE){								//兩段開門功能:無
-			if(	ST_Door == 0 		&& 
-				ST_Door_buf == 1 	&&								//判斷門的前次狀態是否為開門
-				ST_Anti < 3){										//防夾3的功能3未啟動
-				printf("\n\r自動關門旗標 & 等待時間設立");
-				TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
-				AClose_Flg = TRUE;									//自動關門旗標:ON
-			}else if(AClose_Flg == TRUE && TM_Auto_Close == 0){		//自動關門倒數時間結束
-				printf("\n\r自動關門等待時間到達");
-				printf("\n\r關門時間設立");
-				AClose_Flg = FALSE;									//自動關門旗標:OFF
-				TM_CLOSE = TM_MAX;									//關門時間設定
+	}else{
+		// 開門後延遲時間應過自動關門
+		if(Flag_AutoClose == TRUE){										//自動關門功能: ON
+			if(Close_Segment_Flg == FALSE){								//兩段開門功能:無
+				if(	ST_Door == 0 		&& 
+					ST_Door_buf == 1 	&&								//判斷門的前次狀態是否為開門
+					ST_Anti < 3){										//防夾3的功能3未啟動
+					printf("\n\r自動關門旗標 & 等待時間設立");
+					TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
+					AClose_Flg = TRUE;									//自動關門旗標:ON
+				}else if(AClose_Flg == TRUE && TM_Auto_Close == 0){		//自動關門倒數時間結束
+					printf("\n\r自動關門等待時間到達");
+					printf("\n\r關門時間設立");
+					AClose_Flg = FALSE;									//自動關門旗標:OFF
+					TM_CLOSE = TM_MAX;									//關門時間設定
+				}
 			}
 		}
 	}
-	
 	//設定開門與關門時的照明
 	//動作後延遲Time_Light時間後再關閉照明
 	if(TM_OPEN > 0){
@@ -606,6 +642,7 @@ void Door_manage(void){
 
 //******************Relay control******************//
 void Door_Close(void){
+//	printf("\n\r----CLOSE_Relay");
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
@@ -614,6 +651,7 @@ void Door_Close(void){
 }
 
 void Door_Stop(void){
+//	printf("\n\r----STOP_Relay");
 	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
@@ -623,6 +661,7 @@ void Door_Stop(void){
 }
 
 void Door_Open(void){
+//	printf("\n\r----OPEN_Relay");
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
@@ -748,42 +787,43 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_OPEN:
 			if(Lock_CTRL == TRUE)	break;
 			
-			//************JOG detect************//
-			//吋動偵測
-			ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
-			while(ST_Press == 0){
-				CNT_Conti_Press++;
-				printf("\n\rOPEN key.....press\n");
+			if(Flag_Func_JOG == TRUE){
+				//************JOG detect************//
+				//吋動偵測
 				ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
-				if(CNT_Conti_Press > Conti_times){		// 按鍵按下並保持: 50 times
-					if(Flag_JOG == FALSE){
-						//TM_DoorOperateDly = 5;
-						Door_Open();
-					}
-					Flag_JOG = TRUE;
-					printf("TM_DoorOperateDly = %d", TM_DoorOperateDly);
-					//回授電壓偵測, 判斷是否到位
-					Voc = ADC_Calculate() *(3.3/4095);		
-					if(Voc > V_Stby ){//&& TM_DoorOperateDly == 0){	//偵測回授電壓>待機電壓?
-						Door_Open();
-						Light_ON();
-					}else{										//回授電壓<=待機電壓時停止
-						Door_Stop();
-					}
-					printf("\n\rJOG Mode:OPEN...\n");
+				while(ST_Press == 0){
+					CNT_Conti_Press++;
+					printf("\n\rOPEN key.....press\n");
+					ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
+					if(CNT_Conti_Press > Conti_times){		// 按鍵按下並保持: 50 times
+						if(Flag_JOG == FALSE){
+							//TM_DoorOperateDly = 5;
+							Door_Open();
+						}
+						Flag_JOG = TRUE;
+						printf("TM_DoorOperateDly = %d", TM_DoorOperateDly);
+						//回授電壓偵測, 判斷是否到位
+						Voc = ADC_Calculate() *(3.3/4095);		
+						if(Voc > V_Stby ){//&& TM_DoorOperateDly == 0){	//偵測回授電壓>待機電壓?
+							Door_Open();
+							Light_ON();
+						}else{										//回授電壓<=待機電壓時停止
+							Door_Stop();
+						}
+						printf("\n\rJOG Mode:OPEN...\n");
 
-					//OpEnd_Detect();
+						//OpEnd_Detect();
+					}
 				}
+				printf("\n\rContinue = %d\n",CNT_Conti_Press);
+				if(Flag_JOG == TRUE){
+					Door_Stop();
+					TM_Light_Off = Time_Light;
+					printf("\n\rDoor Stop.....\n");
+					break;
+				}
+				//************JOG detect end************//
 			}
-			printf("\n\rContinue = %d\n",CNT_Conti_Press);
-			if(Flag_JOG == TRUE){
-				Door_Stop();
-				TM_Light_Off = Time_Light;
-				printf("\n\rDoor Stop.....\n");
-				break;
-			}
-			//************JOG detect end************//
-			
 			if(ST_Door_buf == 2){
 				printf("\n\r--------立即反轉--------");
 				Delay_ms(100);
@@ -798,31 +838,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 		case W_CLOSE:			
 			if(Lock_CTRL == TRUE)	break;
-
-		// JOG detect
-			ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
-			while(ST_Press == 0){
-				CNT_Conti_Press++;
-				printf("\n\rCLOSE key.....press\n");
+			
+			if(Flag_Func_JOG == TRUE){
+			// JOG detect
 				ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
-				if(CNT_Conti_Press > Conti_times){		// 50 times
-					Flag_JOG = TRUE;
-					printf("\n\rJOG Mode:CLOSE...\n");
-					Door_Close();
-					Light_ON();
-					//OpEnd_Detect();
-					//...目前關門有到位斷路功能,
-					//如果不行,再將OPEN的到位控制加入
+				while(ST_Press == 0){
+					CNT_Conti_Press++;
+					printf("\n\rCLOSE key.....press\n");
+					ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
+					if(CNT_Conti_Press > Conti_times){		// 50 times
+						Flag_JOG = TRUE;
+						printf("\n\rJOG Mode:CLOSE...\n");
+						Door_Close();
+						Light_ON();
+						//OpEnd_Detect();
+						//...目前關門有到位斷路功能,
+						//如果不行,再將OPEN的到位控制加入
+					}
 				}
+				printf("\n\rContinue = %d\n",CNT_Conti_Press);
+				if(Flag_JOG == TRUE){
+					Door_Stop();
+					TM_Light_Off = Time_Light;
+					printf("\n\rDoor Stop.....\n");
+					break;
+				}
+				// JOG end
 			}
-			printf("\n\rContinue = %d\n",CNT_Conti_Press);
-			if(Flag_JOG == TRUE){
-				Door_Stop();
-				TM_Light_Off = Time_Light;
-				printf("\n\rDoor Stop.....\n");
-				break;
-			}
-			// JOG end
 			
 			if(ST_Door_buf == 1){
 				printf("\n\r--------立即反轉--------");
