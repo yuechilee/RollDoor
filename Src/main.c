@@ -53,6 +53,11 @@ bool Flag_AutoClose = FALSE;			//無:FALSEE
 //bool Flag_Func_JOG = TRUE;			//有:TRUE
 bool Flag_Func_JOG = FALSE;				//無:FALSEE
 
+//馬達運轉方向
+//bool Flag_Motor_Direction = TRUE;		//北部:TRUE
+bool Flag_Motor_Direction = FALSE;		//南部:FALSE
+
+	
 //開關門最常運轉時間
 uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
@@ -573,7 +578,7 @@ void Door_manage(void){
 			//-------------------指令=開門--------------------//
 				case 1:
 					ST_Door = 1;
-					TM_OPEN =0;
+					TM_CLOSE =0;
 					if(ST_Open == 0){
 						TM_OPEN = OpenTM1;
 					}else if(ST_Open == 1){
@@ -600,8 +605,9 @@ void Door_manage(void){
 			//-------------------指令=關門 End-----------------//
 			// ----- Else ----- //
 				default:
-					//Empty
-					break;
+					TM_OPEN = 0;
+					TM_CLOSE = 0;
+					//break;
 			}
 		}
 	}
@@ -643,7 +649,11 @@ void Door_manage(void){
 //******************Relay control******************//
 void Door_Close(void){
 //	printf("\n\r----CLOSE_Relay");
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	if(Flag_Motor_Direction == TRUE){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
@@ -662,11 +672,15 @@ void Door_Stop(void){
 
 void Door_Open(void){
 //	printf("\n\r----OPEN_Relay");
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+	if(Flag_Motor_Direction == TRUE){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 
 }
 
