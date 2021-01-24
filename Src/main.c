@@ -40,6 +40,7 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 //兩段式開門選擇:
 //bool Flag_WindowsDoor = FALSE; 		//無:FALSE	
 bool Flag_WindowsDoor = TRUE;        //有:TRUE
+uint32_t CloseTM1 = 130;			 // 第一段關門時間: n*0.1sec
 
 //循環測試(長時測試)
 bool Cycle_test = TRUE;                //有:TRUE
@@ -48,6 +49,7 @@ bool Cycle_test = TRUE;                //有:TRUE
 //自動關門功能
 //bool Flag_AutoClose = TRUE;				//有:TRUE
 bool Flag_AutoClose = FALSE;			//無:FALSEE
+uint32_t Time_Auto_Close = 100;			// 自動關門延遲時間: n * 0.1sec.
 
 //吋動功能
 //bool Flag_Func_JOG = TRUE;			//有:TRUE
@@ -62,13 +64,10 @@ bool Flag_Motor_Direction = FALSE;		//南部:FALSE
 bool Flag_Remote_Lock = FALSE;				//無:FALSEE
 
 //開關門最常運轉時間
-uint32_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
-
-//自動關門延遲時間
-uint32_t Time_Auto_Close = 100;			// n * 0.1sec.
+uint32_t TM_MAX = 150;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 //照明運轉時間
-uint32_t Time_Light = 50;				// n * 0.1sec
+uint32_t Time_Light = 100;				// n * 0.1sec
 
 //待機電壓
 float V_Stby = 0.3;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
@@ -79,7 +78,6 @@ uint16_t Conti_times = 50;				//吋動判定次數, 大於:吋動, 小於:一鍵
 //防夾3權重
 float Slope_Open = 1.5;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 float Slope_Close = 1.5;				//防夾權重(可小數):關門(越小越靈敏),建議>1
-
 
 /* Private variables ---------------------------------------------------------*/
 	//Boolean
@@ -132,7 +130,7 @@ uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 uint32_t TM_Light_Off = 0;
 uint32_t TM_Auto_Close = 0;
-uint32_t CloseTM1,CloseTM2;
+uint32_t CloseTM2;
 
 
 uint32_t Cycle_times_up = 0;
@@ -230,6 +228,10 @@ int main(void)
   TM_OPEN = 0;
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - CloseTM1;		//section_time_2 of close operation
+  if(Flag_WindowsDoor == TRUE && CloseTM2 <= 0){
+	Flag_WindowsDoor = FALSE;
+	printf("\n\r捲窗門功能: OFF\n");
+  }
   ST_Close = 1;
 	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
