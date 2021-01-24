@@ -124,6 +124,8 @@ uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 uint32_t TM_Light_Off = 0;
 uint32_t TM_Auto_Close = 0;
+uint32_t CloseTM1,CloseTM2;
+
 
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
