@@ -46,12 +46,13 @@ uint32_t CloseTM1 = 130;			 // 第一段關門時間: n*0.1sec
 //循環測試(長時測試)
 //bool Cycle_test = TRUE;                //有:TRUE
 bool Cycle_test = FALSE;             //無:FALSE
+uint32_t TM_DLY = 300;							//cycle-test等待秒數(*100ms)
 
 //防壓功能
-//bool Flag_AntiPress = TRUE			//有:TRUE
-bool Flag_AntiPress = FALSE;             //無:FALSE
-float Slope_Open = 1.5;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Slope_Close = 1.5;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+bool Flag_AntiPress = TRUE;			//有:TRUE
+//bool Flag_AntiPress = FALSE;             //無:FALSE
+float Slope_Open = 1.2;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Slope_Close = 1.2;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 
 //自動關門功能
 //bool Flag_AutoClose = TRUE;				//有:TRUE
@@ -133,7 +134,6 @@ uint32_t TM_EndDetec;
 uint32_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
 uint32_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
 uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
-uint32_t TM_DLY;						//cycle-test等待秒數(*100ms)
 uint32_t TM_Light_Off = 0;
 uint32_t TM_Auto_Close = 0;
 uint32_t CloseTM2;
@@ -288,7 +288,6 @@ int main(void)
 		}else{ 
 			
 			if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
-				TM_DLY = 300;
 				Wait_flg = FALSE;
 			}
 			
@@ -1385,8 +1384,9 @@ static void Anti_Pressure_4(void){
 			//保護動作 & 開門
 				if(TM_AntiDly2 == 0){			//20210103
 					if(ST_Door_buf2 == 1){		//開門中
-						
+						ST_Door_buf2 = ST_Door;
 					}else if(ST_Door_buf2 == 2){//關門中
+						ST_Door_buf2 = ST_Door;
 						ST_Door = 1;
 						TM_OPEN = TM_MAX;
 					}
