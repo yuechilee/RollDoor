@@ -102,6 +102,33 @@
 //#define EXTI_CTRL_EXTI_IRQn                     EXTI4_15_IRQn
 //==========================EXTI end===============================================//
 
+//==========================I2Cx==========================//
+#define I2Cx                            I2C1
+#define RCC_PERIPHCLK_I2Cx              RCC_PERIPHCLK_I2C1
+#define RCC_I2CxCLKSOURCE_SYSCLK        RCC_I2C1CLKSOURCE_SYSCLK
+#define I2Cx_CLK_ENABLE()               __HAL_RCC_I2C1_CLK_ENABLE()
+#define I2Cx_SDA_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
+#define I2Cx_SCL_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE() 
+
+#define I2Cx_FORCE_RESET()              __HAL_RCC_I2C1_FORCE_RESET()
+#define I2Cx_RELEASE_RESET()            __HAL_RCC_I2C1_RELEASE_RESET()
+
+/* Definition for I2Cx Pins */
+#define I2Cx_SCL_PIN                    GPIO_PIN_6
+#define I2Cx_SCL_GPIO_PORT              GPIOB
+#define I2Cx_SDA_PIN                    GPIO_PIN_7
+#define I2Cx_SDA_GPIO_PORT              GPIOB
+#define I2Cx_SCL_SDA_AF                 GPIO_AF1_I2C1
+
+/* Size of Transmission buffer */
+#define TXBUFFERSIZE                      (COUNTOF(aTxBuffer) - 1)
+/* Size of Reception buffer */
+#define RXBUFFERSIZE                      TXBUFFERSIZE
+
+/* Exported macro ------------------------------------------------------------*/
+#define COUNTOF(__BUFFER__)   (sizeof(__BUFFER__) / sizeof(*(__BUFFER__)))
+/* Exported functions ------------------------------------------------------- */
+//==========================I2Cx end==========================//
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
