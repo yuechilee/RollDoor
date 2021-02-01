@@ -18,6 +18,11 @@
 #define Disable	0
 #define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t)  32)   /* Definition of ADCx conversions data table size */
 
+// =====I2C=====//
+#define I2C_ADDRESS        0xA0	//0x30F
+#define I2C_TIMING      0x00A51314
+
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
@@ -26,6 +31,8 @@ ADC_HandleTypeDef         AdcHandle;	// ADC handle declaration
 ADC_ChannelConfTypeDef    sConfig;		// ADC channel configuration structure declaration
 TIM_HandleTypeDef         TimHandle;	
 UART_HandleTypeDef        UartHandle;	// UART handler declaration
+I2C_HandleTypeDef 				I2cHandle;	// I2C handler declaration
+
 static GPIO_InitTypeDef   GPIO_InitStruct;
 
 /* Private functions ---------------------------------------------------------*/
@@ -41,12 +48,12 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 //兩段式開門選擇:
 bool Flag_WindowsDoor = FALSE; 		//無:FALSE	
 //bool Flag_WindowsDoor = TRUE;        //有:TRUE
-uint32_t CloseTM1 = 130;			 // 第一段關門時間: n*0.1sec
+uint16_t CloseTM1 = 130;			 // 第一段關門時間: n*0.1sec
 
 //循環測試(長時測試)
 //bool Cycle_test = TRUE;                //有:TRUE
 bool Cycle_test = FALSE;             //無:FALSE
-uint32_t TM_DLY = 300;							//cycle-test等待秒數(*100ms)
+uint16_t TM_DLY = 300;							//cycle-test等待秒數(*100ms)
 
 //防壓功能
 bool Flag_AntiPress = TRUE;			//有:TRUE
@@ -57,7 +64,7 @@ float Slope_Close = 1.2;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 //自動關門功能
 //bool Flag_AutoClose = TRUE;				//有:TRUE
 bool Flag_AutoClose = FALSE;			//無:FALSEE
-uint32_t Time_Auto_Close = 100;			// 自動關門延遲時間: n * 0.1sec.
+uint16_t Time_Auto_Close = 100;			// 自動關門延遲時間: n * 0.1sec.
 
 //吋動功能
 //bool Flag_Func_JOG = TRUE;			//有:TRUE
@@ -72,10 +79,10 @@ bool Flag_Motor_Direction = FALSE;		//南部:FALSE
 bool Flag_Remote_Lock = FALSE;				//無:FALSEE
 
 //開關門最常運轉時間
-uint32_t TM_MAX = 300;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint16_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 //照明運轉時間
-uint32_t Time_Light = 100;				// n * 0.1sec
+uint16_t Time_Light = 100;				// n * 0.1sec
 
 //待機電壓
 float V_Stby = 0.1;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
@@ -109,6 +116,7 @@ uint8_t OverSlope_Times = 0;
 uint8_t OS_Occur_Times = 2;
 uint8_t Cycle_jumper;
 uint8_t ST_Press;
+uint8_t aRxBuffer[256];
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -174,6 +182,7 @@ static void EXTI4_15_IRQHandler_Config(void);
 static void TIMx_Config(void);
 static void ADC_Config(void);
 static void Uart_Config(void);
+static void I2C_Config(void);
 static void Error_Handler(void);
 
 static void CLOCK_Enable(void);
@@ -189,6 +198,13 @@ static uint32_t	TIMDEC(uint32_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
 static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
+static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);	// Confirm the I2C R/W datas.
+
+
+//I2C Package
+uint8_t I2C_TX_Buffer_u8[1];
+uint8_t I2C_TX_Buffer_u16[2];
+uint8_t I2C_TX_Buffer_u32[4];
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -219,16 +235,22 @@ int main(void)
   EXTI4_15_IRQHandler_Config();
   TIMx_Config();
   Uart_Config();
-
-	
+	I2C_Config();
 	
   /* Enable each GPIO Clock */
   CLOCK_Enable();
-
+	
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
   Buzzer_Config();	//No used
+
+	// Parameter access
+	if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 8, 10000) != HAL_OK){
+		if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
+			Error_Handler();
+		}
+	}
 
 
   TM_OPEN = 0;
@@ -271,11 +293,7 @@ int main(void)
 		V_Stby = 0.3;
 		printf("\n\r循環測試:有\n");
   }
-  
     
-	//while (1){
-	//}
-  /* Infinite Loop */
   while (1)
   { 
 		//Anti_Pressure_4();
@@ -1122,6 +1140,29 @@ static void ADC_Config(void){
   }
 }
 
+static void I2C_Config(void){
+	/*##-1- Configure the I2C peripheral ######################################*/
+  I2cHandle.Instance             = I2Cx;
+  I2cHandle.Init.Timing          = I2C_TIMING;
+  I2cHandle.Init.OwnAddress1     = I2C_ADDRESS;
+  I2cHandle.Init.AddressingMode  = I2C_ADDRESSINGMODE_7BIT;
+  I2cHandle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  I2cHandle.Init.OwnAddress2     = 0xFF;
+  I2cHandle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  I2cHandle.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
+
+  if(HAL_I2C_Init(&I2cHandle) != HAL_OK)
+  {
+    /* Initialization Error */
+    Error_Handler();
+  }
+
+  /* Enable the Analog I2C Filter */
+  HAL_I2CEx_ConfigAnalogFilter(&I2cHandle,I2C_ANALOGFILTER_ENABLE);
+	
+
+}
+
 static void Uart_Config(void){
 	/*##-1- Configure the UART peripheral ######################################*/
   /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
@@ -1442,8 +1483,8 @@ uint16_t* BubbleSort(uint16_t arr[], uint16_t len){
 	return arr;
 }
 
-static uint32_t	TIMDEC(uint32_t TIMB){
-	uint32_t TIM_Buf = TIMB;
+static uint16_t	TIMDEC(uint16_t TIMB){
+	uint16_t TIM_Buf = TIMB;
 	if(TIMB == 0) return TIMB;
 	
 	TIM_Buf--;
