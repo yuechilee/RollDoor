@@ -16,6 +16,8 @@
 /* Private define ------------------------------------------------------------*/
 #define Enable 1
 #define Disable	0
+#define TRUE 1
+#define FALSE	0
 #define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t)  32)   /* Definition of ADCx conversions data table size */
 
 // =====I2C=====//
@@ -46,64 +48,67 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 /* Private macro -------------------------------------------------------------*/
 //*******參數設定*******//
 //兩段式開門選擇:
-bool Flag_WindowsDoor = FALSE; 		//無:FALSE	
-//bool Flag_WindowsDoor = TRUE;        //有:TRUE
-uint16_t CloseTM1 = 130;			 // 第一段關門時間: n*0.1sec
+uint8_t Flag_WindowsDoor = FALSE; 		//無:FALSE	
+//uint8_t Flag_WindowsDoor = TRUE;        //有:TRUE
+uint16_t CloseTM1;// = 130;			 // 第一段關門時間: n*0.1sec
 
 //循環測試(長時測試)
-//bool Cycle_test = TRUE;                //有:TRUE
-bool Cycle_test = FALSE;             //無:FALSE
-uint16_t TM_DLY = 300;							//cycle-test等待秒數(*100ms)
+//uint8_t Flag_CycleTest = TRUE;                //有:TRUE
+uint8_t Flag_CycleTest = FALSE;             //無:FALSE
+uint16_t TM_DLY;// = 300;							//cycle-test等待秒數(*100ms)
 
 //防壓功能
-bool Flag_AntiPress = TRUE;			//有:TRUE
-//bool Flag_AntiPress = FALSE;             //無:FALSE
-float Slope_Open = 1.2;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Slope_Close = 1.2;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+uint8_t Flag_AntiPress = TRUE;			//有:TRUE
+//uint8_t Flag_AntiPress = FALSE;             //無:FALSE
+//uint8_t Slope_Open_buf = 12;
+//uint8_t Slope_Close_buf = 12;
+float Slope_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Slope_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 
 //自動關門功能
-//bool Flag_AutoClose = TRUE;				//有:TRUE
-bool Flag_AutoClose = FALSE;			//無:FALSEE
-uint16_t Time_Auto_Close = 100;			// 自動關門延遲時間: n * 0.1sec.
+//uint8_t Flag_AutoClose = TRUE;				//有:TRUE
+uint8_t Flag_AutoClose = FALSE;			//無:FALSEE
+uint16_t Time_Auto_Close;// = 100;			// 自動關門延遲時間: n * 0.1sec.
 
 //吋動功能
-//bool Flag_Func_JOG = TRUE;			//有:TRUE
-bool Flag_Func_JOG = FALSE;				//無:FALSEE
+//uint8_t Flag_Func_JOG = TRUE;			//有:TRUE
+uint8_t Flag_Func_JOG = FALSE;				//無:FALSEE
 
 //馬達運轉方向
-//bool Flag_Motor_Direction = TRUE;		//北部:TRUE
-bool Flag_Motor_Direction = FALSE;		//南部:FALSE
+//uint8_t Flag_Motor_Direction = TRUE;		//北部:TRUE
+uint8_t Flag_Motor_Direction = FALSE;		//南部:FALSE
 
 //鎖電功能
-//bool Flag_Remote_Lock = TRUE;			//有:TRUE
-bool Flag_Remote_Lock = FALSE;				//無:FALSEE
+//uint8_t Flag_Remote_Lock = TRUE;			//有:TRUE
+uint8_t Flag_Remote_Lock = FALSE;				//無:FALSEE
 
 //開關門最常運轉時間
-uint16_t TM_MAX = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint16_t TM_MAX;// = 600;                  //開關門最長運轉時間 TM_MAX * 100ms
 
 //照明運轉時間
-uint16_t Time_Light = 100;				// n * 0.1sec
+uint16_t Time_Light;// = 100;				// n * 0.1sec
 
 //待機電壓
-float V_Stby = 0.1;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+//uint8_t	V_Stby_buf = 3;
+float V_Stby;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //吋動判定次數
-uint16_t Conti_times = 50;				//吋動判定次數, 大於:吋動, 小於:一鍵
+uint8_t Conti_times;				//吋動判定次數, 大於:吋動, 小於:一鍵
 
 //*******參數設定結束*******//
 
 /* Private variables ---------------------------------------------------------*/
 	//Boolean
-bool ST_BTN;                            //(Remote) controller trigger(0:standby, 1:cmd trigger
-bool Open_IT;                           //Interrupt in open
-bool Close_IT;                          //Interrupt in close 2-1
-bool Close_IT2;                         //Interrupt in close 2-2
-bool Op_Flag = FALSE;
-bool Anti_flg2 = TRUE;
-bool AClose_Flg = FALSE;				// 自動關門動作旗標
-bool Wait_flg;
-bool Lock_CTRL = FALSE;					//鎖電動作旗標,預設FALSE,控制器可動作.
-bool Flag_JOG = FALSE;					//吋動動作旗標
+uint8_t ST_BTN;                            //(Remote) controller trigger(0:standby, 1:cmd trigger
+uint8_t Open_IT;                           //Interrupt in open
+uint8_t Close_IT;                          //Interrupt in close 2-1
+uint8_t Close_IT2;                         //Interrupt in close 2-2
+uint8_t Op_Flag = FALSE;
+uint8_t Anti_flg2 = TRUE;
+uint8_t AClose_Flg = FALSE;				// 自動關門動作旗標
+uint8_t Wait_flg;
+uint8_t Lock_CTRL = FALSE;					//鎖電動作旗標,預設FALSE,控制器可動作.
+uint8_t Flag_JOG = FALSE;					//吋動動作旗標
 	
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -123,7 +128,6 @@ uint16_t Vadc_buf;
 uint16_t Calc_Times;
 uint16_t Voc_amt;
 uint16_t TM_Printf = 10;
-uint16_t iWeight = 1000;
 uint16_t TM_VDFF = 0;					//防壓4:計算兩筆資料時間間距
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 
@@ -131,20 +135,20 @@ static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 
-uint32_t TM_OPEN = 0;                   //Time: Door open
-uint32_t TM_CLOSE = 0;                  //Time: Door close
-uint32_t TM_AntiDly;
-uint32_t Time_AntiDly = 20;
-uint32_t TM_AntiDly2;
-uint32_t TM_AntiDly4;
-uint32_t Time_AntiDly4 = 1;
-uint32_t TM_EndDetec;
-uint32_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
-uint32_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
-uint32_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
-uint32_t TM_Light_Off = 0;
-uint32_t TM_Auto_Close = 0;
-uint32_t CloseTM2;
+uint16_t TM_OPEN = 0;                   //Time: Door open
+uint16_t TM_CLOSE = 0;                  //Time: Door close
+uint16_t TM_AntiDly;
+uint16_t Time_AntiDly = 20;
+uint16_t TM_AntiDly2;
+uint16_t TM_AntiDly4;
+uint16_t Time_AntiDly4 = 1;
+uint16_t TM_EndDetec;
+uint16_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
+uint16_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
+uint16_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
+uint16_t TM_Light_Off = 0;
+uint16_t TM_Auto_Close = 0;
+uint16_t CloseTM2;
 
 
 uint32_t Cycle_times_up = 0;
@@ -152,7 +156,7 @@ uint32_t Cycle_times_down = 0;
 
 uint32_t Ver_date = 20210116;
 
-uint16_t CNT_Conti_Press = 0;
+uint8_t CNT_Conti_Press = 0;
 
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
@@ -194,7 +198,7 @@ static void Anti_Pressure_4(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
 static void Ext_CNTER(void);			//Door unload detect
-static uint32_t	TIMDEC(uint32_t TIMB);
+static uint16_t	TIMDEC(uint16_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
 static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
@@ -221,6 +225,11 @@ float Voc_adc;
 // Main Loop
 int main(void)
 {
+	//Slope_Open = (float)Slope_Open_buf*0.1;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+	//Slope_Close = (float)Slope_Close_buf*0.1;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+	//V_Stby = (float)V_Stby_buf*0.1;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+
+	
   /* Configure HAL */
   HAL_Init();
 
@@ -246,12 +255,34 @@ int main(void)
   Buzzer_Config();	//No used
 
 	// Parameter access
-	if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 8, 10000) != HAL_OK){
+	if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 256, 10000) != HAL_OK){
 		if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
 			Error_Handler();
 		}
 	}
+	
+	Flag_CycleTest = aRxBuffer[10];
+	Flag_WindowsDoor = aRxBuffer[11];
+	Flag_AntiPress = aRxBuffer[12];
+	Flag_AutoClose = aRxBuffer[13];
+	Flag_Func_JOG = aRxBuffer[14];
+	Flag_Motor_Direction = aRxBuffer[15];
+	Flag_Remote_Lock = aRxBuffer[15];
+	
+	TM_DLY = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;
+	CloseTM1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;
+	TM_MAX = (uint16_t)aRxBuffer[34] | (uint16_t)aRxBuffer[35]<<8;
+	Time_Auto_Close = (uint16_t)aRxBuffer[36] | (uint16_t)aRxBuffer[37]<<8;
+	Time_Light = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;
 
+	V_Stby = (float)aRxBuffer[40]/10;
+	
+	Slope_Open = (float)aRxBuffer[41]/10;
+	Slope_Close = (float)aRxBuffer[42]/10;
+	
+	Conti_times = aRxBuffer[43];
+	
+	//Parameter access end
 
   TM_OPEN = 0;
   TM_CLOSE = 0;
@@ -285,7 +316,7 @@ int main(void)
 	
   printf("\n\rVer_date.: %d", Ver_date);
 
-  if(Cycle_test == TRUE && Cycle_jumper == 1){
+  if(Flag_CycleTest == TRUE && Cycle_jumper == 1){
 		TM_MAX = 600;
 		TM_OPEN = TM_MAX;
 		Wait_flg = TRUE;
@@ -298,7 +329,7 @@ int main(void)
   { 
 		//Anti_Pressure_4();
 
-		if(Cycle_test == FALSE || Cycle_jumper == 0){
+		if(Flag_CycleTest == FALSE || Cycle_jumper == 0){
 			Door_manage();
 			PWR_CTRL(); 
 			Anti_Pressure_4();
@@ -359,7 +390,7 @@ int main(void)
 				}	
 		}
 
-		if(TM_Printf == 0 && (Cycle_test == FALSE || Cycle_jumper == 0)){
+		if(TM_Printf == 0 && (Flag_CycleTest == FALSE || Cycle_jumper == 0)){
 			printf("\n\r==============狀態scan2===================");			
 			
 			if(TM_OPEN > 0 || TM_CLOSE > 0){
@@ -697,7 +728,7 @@ void Door_manage(void){
 		}
 	}
 	
-	if(Cycle_test == TRUE && Cycle_jumper == 1){
+	if(Flag_CycleTest == TRUE && Cycle_jumper == 1){
 		//循環測試模式時, 不動作.
 		//Empty
 		
