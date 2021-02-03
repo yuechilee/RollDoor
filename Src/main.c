@@ -56,6 +56,8 @@ uint16_t CloseTM1;// = 130;			 // 第一段關門時間: n*0.1sec
 //uint8_t Flag_CycleTest = TRUE;                //有:TRUE
 uint8_t Flag_CycleTest = FALSE;             //無:FALSE
 uint16_t TM_DLY;// = 300;							//cycle-test等待秒數(*100ms)
+uint16_t TM_DLY_Value;// = 300;
+
 
 //防壓功能
 uint8_t Flag_AntiPress = TRUE;			//有:TRUE
@@ -269,7 +271,7 @@ int main(void)
 	Flag_Motor_Direction = aRxBuffer[15];
 	Flag_Remote_Lock = aRxBuffer[15];
 	
-	TM_DLY = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;
+	TM_DLY_Value = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;
 	CloseTM1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;
 	TM_MAX = (uint16_t)aRxBuffer[34] | (uint16_t)aRxBuffer[35]<<8;
 	Time_Auto_Close = (uint16_t)aRxBuffer[36] | (uint16_t)aRxBuffer[37]<<8;
@@ -337,6 +339,7 @@ int main(void)
 		}else{ 
 			
 			if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
+				TM_DLY = TM_DLY_Value;
 				Wait_flg = FALSE;
 			}
 			
