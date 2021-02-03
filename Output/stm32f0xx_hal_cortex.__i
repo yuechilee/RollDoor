@@ -1,6 +1,6 @@
 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ..\Inc -I ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include -I ..\Drivers\STM32F0xx_HAL_Driver\Inc -I ..\Drivers\BSP\STM32F0xx-Nucleo -I ..\Drivers\STM32F0xx_HAL_Driver\Src -I ..\Src --C99
 -I.\RTE\_STM32F030R8-Nucleo
--IC:\Users\YCL\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include
--IC:\Users\YCL\AppData\Local\Arm\Packs\Keil\STM32F0xx_DFP\2.1.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include
+-IC:\Users\kid05\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include
+-IC:\Users\kid05\AppData\Local\Arm\Packs\Keil\STM32F0xx_DFP\2.1.0\Drivers\CMSIS\Device\ST\STM32F0xx\Include
 -D__UVISION_VERSION="532" -D_RTE_ -DSTM32F030x8 -D_RTE_ -DSTM32F030x8 -DUSE_HAL_DRIVER -DUSE_STM32F0XX_NUCLEO
 -o ..\output\stm32f0xx_hal_cortex.o --omf_browse ..\output\stm32f0xx_hal_cortex.crf --depend ..\output\stm32f0xx_hal_cortex.d "..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_cortex.c"

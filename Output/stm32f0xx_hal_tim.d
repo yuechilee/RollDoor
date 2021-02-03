@@ -5,11 +5,11 @@
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_def.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include\stm32f0xx.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include\stm32f030x8.h
-..\output\stm32f0xx_hal_tim.o: C:\Users\YCL\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\core_cm0.h
+..\output\stm32f0xx_hal_tim.o: C:\Users\kid05\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\core_cm0.h
 ..\output\stm32f0xx_hal_tim.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-..\output\stm32f0xx_hal_tim.o: C:\Users\YCL\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_version.h
-..\output\stm32f0xx_hal_tim.o: C:\Users\YCL\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_compiler.h
-..\output\stm32f0xx_hal_tim.o: C:\Users\YCL\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_armcc.h
+..\output\stm32f0xx_hal_tim.o: C:\Users\kid05\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_version.h
+..\output\stm32f0xx_hal_tim.o: C:\Users\kid05\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_compiler.h
+..\output\stm32f0xx_hal_tim.o: C:\Users\kid05\AppData\Local\Arm\Packs\ARM\CMSIS\5.7.0\CMSIS\Core\Include\cmsis_armcc.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include\system_stm32f0xx.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal.h
 ..\output\stm32f0xx_hal_tim.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
@@ -24,6 +24,8 @@
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_adc_ex.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_flash_ex.h
+..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_i2c.h
+..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_i2c_ex.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_tim_ex.h
 ..\output\stm32f0xx_hal_tim.o: ..\Drivers\STM32F0xx_HAL_Driver\Inc\stm32f0xx_hal_uart.h
