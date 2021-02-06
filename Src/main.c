@@ -97,6 +97,7 @@ float V_Stby;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 //吋動判定次數
 uint8_t Conti_times;				//吋動判定次數, 大於:吋動, 小於:一鍵
 
+uint8_t EE_Default = TRUE;
 //*******參數設定結束*******//
 
 /* Private variables ---------------------------------------------------------*/
@@ -129,6 +130,8 @@ uint8_t aRxBuffer[256];
 uint16_t Vadc_buf;
 uint16_t Calc_Times;
 uint16_t Voc_amt;
+uint16_t Vadc_amt;
+float Vadc_ave;
 uint16_t TM_Printf = 10;
 uint16_t TM_VDFF = 0;					//防壓4:計算兩筆資料時間間距
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
@@ -263,27 +266,50 @@ int main(void)
 		}
 	}
 	
-	Flag_CycleTest = aRxBuffer[10];
-	Flag_WindowsDoor = aRxBuffer[11];
-	Flag_AntiPress = aRxBuffer[12];
-	Flag_AutoClose = aRxBuffer[13];
-	Flag_Func_JOG = aRxBuffer[14];
-	Flag_Motor_Direction = aRxBuffer[15];
-	Flag_Remote_Lock = aRxBuffer[15];
-	
-	TM_DLY_Value = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;
-	CloseTM1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;
-	TM_MAX = (uint16_t)aRxBuffer[34] | (uint16_t)aRxBuffer[35]<<8;
-	Time_Auto_Close = (uint16_t)aRxBuffer[36] | (uint16_t)aRxBuffer[37]<<8;
-	Time_Light = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;
+	if(EE_Default == TRUE){
+		Flag_CycleTest = 0;
+		Flag_WindowsDoor = 0;
+		Flag_AntiPress = 1;
+		Flag_AutoClose = 0;
+		Flag_Func_JOG = 0;
+		Flag_Motor_Direction = 0;
+		Flag_Remote_Lock = 0;
+		
+		TM_DLY_Value = 300;
+		CloseTM1 = 130;
+		TM_MAX = 600;
+		Time_Auto_Close = 100;
+		Time_Light = 100;
 
-	V_Stby = (float)aRxBuffer[40]/10;
-	
-	Slope_Open = (float)aRxBuffer[41]/10;
-	Slope_Close = (float)aRxBuffer[42]/10;
-	
-	Conti_times = aRxBuffer[43];
-	
+		V_Stby = 0.2;
+		
+		Slope_Open = 1.2;
+		Slope_Close = 1.2;
+		
+		Conti_times = 50;
+		
+	}else{
+		Flag_CycleTest = aRxBuffer[10];
+		Flag_WindowsDoor = aRxBuffer[11];
+		Flag_AntiPress = aRxBuffer[12];
+		Flag_AutoClose = aRxBuffer[13];
+		Flag_Func_JOG = aRxBuffer[14];
+		Flag_Motor_Direction = aRxBuffer[15];
+		Flag_Remote_Lock = aRxBuffer[15];
+		
+		TM_DLY_Value = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;
+		CloseTM1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;
+		TM_MAX = (uint16_t)aRxBuffer[34] | (uint16_t)aRxBuffer[35]<<8;
+		Time_Auto_Close = (uint16_t)aRxBuffer[36] | (uint16_t)aRxBuffer[37]<<8;
+		Time_Light = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;
+
+		V_Stby = (float)aRxBuffer[40]/10;
+		
+		Slope_Open = (float)aRxBuffer[41]/10;
+		Slope_Close = (float)aRxBuffer[42]/10;
+		
+		Conti_times = aRxBuffer[43];
+	}
 	//Parameter access end
 
   TM_OPEN = 0;
@@ -310,7 +336,7 @@ int main(void)
   }
   
   if(V_Stby == 0){
-	V_Stby = ADC_Calculate() *(3.3/4095);
+		V_Stby = ADC_Calculate() *(3.3/4095);
   }
 	
 	Cycle_jumper = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_7);
