@@ -32,6 +32,7 @@
 ADC_HandleTypeDef         AdcHandle;	// ADC handle declaration
 ADC_ChannelConfTypeDef    sConfig;		// ADC channel configuration structure declaration
 TIM_HandleTypeDef         TimHandle;	
+TIM_HandleTypeDef         TimHandle17;	
 UART_HandleTypeDef        UartHandle;	// UART handler declaration
 I2C_HandleTypeDef 				I2cHandle;	// I2C handler declaration
 
@@ -125,6 +126,10 @@ uint8_t OS_Occur_Times = 2;
 uint8_t Cycle_jumper;
 uint8_t ST_Press;
 uint8_t aRxBuffer[256];
+uint8_t PWM_Period = 100;
+uint8_t PWM_Duty = 50;
+uint8_t PWM_Count = 0;
+
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -167,6 +172,7 @@ uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
 
+uint16_t Tim_TEST = 0;
 
 	//Float
 float Voc_base,Voc_base_;
@@ -188,7 +194,8 @@ void PWR_CTRL(void);                                       //Power ON to motor
 void Delay_ms(int32_t nms);
 static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
-static void TIMx_Config(void);
+static void TIM16_Config(void);
+static void TIM17_Config(void);
 static void ADC_Config(void);
 static void Uart_Config(void);
 static void I2C_Config(void);
@@ -247,7 +254,8 @@ int main(void)
   /* Configure */
   ADC_Config();
   EXTI4_15_IRQHandler_Config();
-  TIMx_Config();
+  TIM16_Config();
+  TIM17_Config();
   Uart_Config();
 	I2C_Config();
 	
@@ -329,11 +337,19 @@ int main(void)
   Delay_ms(500);
 
 	//EXTI enable
+		//TIM16 Enable
   if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
   {
     /* Starting Error */
     Error_Handler();
   }
+
+			//TIM14 Enable
+  if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }	
   
   if(V_Stby == 0){
 		V_Stby = ADC_Calculate() *(3.3/4095);
@@ -799,7 +815,7 @@ void Door_Close(void){
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
 }
 
 void Door_Stop(void){
@@ -822,7 +838,7 @@ void Door_Open(void){
 		Delay_ms(RLY_Delay_ms);
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
 		Delay_ms(RLY_Delay_ms);
-		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+		//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 
 }
 
@@ -871,6 +887,11 @@ static void MotorRelay_out_config(void){
 	//POWER MOSFET config.
 	GPIO_InitStruct.Pin = MOS_ACT;
 	HAL_GPIO_Init(PORT_Motor_MOS, &GPIO_InitStruct);
+	
+	
+	GPIO_InitStruct.Pin = TEST_PIN;
+	HAL_GPIO_Init(PORT_TEST, &GPIO_InitStruct);
+
 	
 	//Initial condition setting.
 	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);	//1:OFF, 0:0N
@@ -1058,7 +1079,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 }
 
-//	TIMx handle
+//	TIM14 handle
+void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{	
+  //TBD
+	PWM_Count++;	
+	if(PWM_Count == PWM_Period){
+		PWM_Count = 0;
+		PWM_Duty+=5;
+		if(PWM_Duty >= 99){
+			PWM_Duty = 0;
+		}
+	}
+	
+	if(PWM_Count < PWM_Duty){
+		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	}
+	//HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
+  //HAL_GPIO_TogglePin(PORT_Motor_MOS, MOS_ACT);
+
+}
+
+
+//	TIM16 handle
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	Tim_cnt_10ms++;
 	Tim_cnt_100ms++;
@@ -1116,14 +1163,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 }
 
 //1s timer
-static void TIMx_Config(void)
+static void TIM16_Config(void)
 {	
 	/*##-1- Configure the TIM peripheral #######################################*/
 	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
 	uwPrescalerValue = (uint32_t)(SystemCoreClock / 10000) - 1;
 
 	/* Set TIMx instance */
-	TimHandle.Instance = TIMx;
+	TimHandle.Instance = TIM16;
 
 	/* Initialize TIMx peripheral as follows:
 	+ Period = 10000 - 1
@@ -1140,6 +1187,36 @@ static void TIMx_Config(void)
 	TimHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   
 	if (HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
+  {
+    /* Initialization Error */
+    Error_Handler();
+  }
+}
+
+static void TIM17_Config(void)
+{	
+	/*##-1- Configure the TIM peripheral #######################################*/
+	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
+	uwPrescalerValue = (uint32_t)(SystemCoreClock / 1000000) - 1;
+
+	/* Set TIMx instance */
+	TimHandle17.Instance = TIM17;
+
+	/* Initialize TIMx peripheral as follows:
+	+ Period = 10000 - 1
+	+ Prescaler = (SystemCoreClock/10000) - 1
+	+ ClockDivision = 0
+	+ Counter direction = Up
+	*/
+
+	TimHandle17.Init.Period            = (1*10) - 1;   // 1*10ms
+	TimHandle17.Init.Prescaler         = uwPrescalerValue;
+	TimHandle17.Init.ClockDivision     = 0;
+	TimHandle17.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
+	TimHandle17.Init.RepetitionCounter = 0;
+	TimHandle17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  
+	if (HAL_TIM_Base_Init(&TimHandle17) != HAL_OK)
   {
     /* Initialization Error */
     Error_Handler();

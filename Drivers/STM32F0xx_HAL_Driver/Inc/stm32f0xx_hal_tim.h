@@ -1912,6 +1912,7 @@ HAL_StatusTypeDef HAL_TIM_Encoder_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Cha
   */
 /* Interrupt Handler functions  ***********************************************/
 void HAL_TIM_IRQHandler(TIM_HandleTypeDef *htim);
+void HAL_TIM17_IRQHandler(TIM_HandleTypeDef *htim);
 /**
   * @}
   */
@@ -1956,6 +1957,7 @@ uint32_t HAL_TIM_ReadCapturedValue(TIM_HandleTypeDef *htim, uint32_t Channel);
   */
 /* Callback in non blocking modes (Interrupt and DMA) *************************/
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
+void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 void HAL_TIM_PeriodElapsedHalfCpltCallback(TIM_HandleTypeDef *htim);
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim);
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);

@@ -35,8 +35,9 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-extern ADC_HandleTypeDef             AdcHandle;
-extern TIM_HandleTypeDef    TimHandle;
+extern ADC_HandleTypeDef	AdcHandle;
+extern TIM_HandleTypeDef	TimHandle;
+extern TIM_HandleTypeDef	TimHandle17;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -96,9 +97,14 @@ void DMA1_Channel1_IRQHandler(void)
   HAL_DMA_IRQHandler(AdcHandle.DMA_Handle);
 }
 
-void TIMx_IRQHandler(void)
+void TIM16_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&TimHandle);
+}
+
+void TIM17_IRQHandler(void)
+{
+  HAL_TIM17_IRQHandler(&TimHandle17);
 }
 
 void EXTI4_15_IRQHandler(void)
