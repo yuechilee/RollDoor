@@ -344,12 +344,6 @@ int main(void)
     Error_Handler();
   }
 
-			//TIM14 Enable
-  if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK)
-  {
-    /* Starting Error */
-    Error_Handler();
-  }	
   
   if(V_Stby == 0){
 		V_Stby = ADC_Calculate() *(3.3/4095);
@@ -805,6 +799,25 @@ void Door_manage(void){
 
 
 //******************Relay control******************//
+void Door_Open(void){
+//	printf("\n\r----OPEN_Relay");
+	if(Flag_Motor_Direction == TRUE){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}
+	Delay_ms(RLY_Delay_ms);
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
+	Delay_ms(RLY_Delay_ms);
+	
+	//MOSFET switch ON
+	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+	if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK){
+		/* Starting Error */
+		Error_Handler();
+	}	
+}
+
 void Door_Close(void){
 //	printf("\n\r----CLOSE_Relay");
 	if(Flag_Motor_Direction == TRUE){
@@ -815,12 +828,24 @@ void Door_Close(void){
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
-	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);	//0:H 1:L
+	
+	//MOSFET switch ON
+	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+	if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK){
+		/* Starting Error */
+		Error_Handler();
+	}	
 }
 
 void Door_Stop(void){
 //	printf("\n\r----STOP_Relay");
+	
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		/* Starting Error */
+		Error_Handler();
+	}	
 	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
+	
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
 	Delay_ms(RLY_Delay_ms);
@@ -828,19 +853,7 @@ void Door_Stop(void){
 
 }
 
-void Door_Open(void){
-//	printf("\n\r----OPEN_Relay");
-	if(Flag_Motor_Direction == TRUE){
-		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
-	}else{
-		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
-	}
-		Delay_ms(RLY_Delay_ms);
-		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
-		Delay_ms(RLY_Delay_ms);
-		//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 
-}
 
 // ·Ó©ú:ON
 void Light_ON(void){
@@ -1086,10 +1099,6 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	PWM_Count++;	
 	if(PWM_Count == PWM_Period){
 		PWM_Count = 0;
-		PWM_Duty+=5;
-		if(PWM_Duty >= 99){
-			PWM_Duty = 0;
-		}
 	}
 	
 	if(PWM_Count < PWM_Duty){
