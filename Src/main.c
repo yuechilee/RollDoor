@@ -1602,13 +1602,12 @@ static uint16_t ADC_Calculate(void){
 }
 
 static void Buzzer_Config(void){
-	//buzz config.
-	//GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-	//GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
-	//GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-	//GPIO_InitStruct.Pin = Buzz;
-	//HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin = Buzzer;
+	HAL_GPIO_Init(PORT_Buzzer, &GPIO_InitStruct);
 
 	//buzz config...end
 }

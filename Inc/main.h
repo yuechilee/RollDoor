@@ -145,7 +145,7 @@
 //#define	xxx   	           GPIO_PIN_5
 #define	MOS_ACT   	         GPIO_PIN_6
 //#define	xxx   	           GPIO_PIN_7
-#define	Buzz   	             GPIO_PIN_8
+#define	Buzzer   	           GPIO_PIN_8
 //#define	xxx   	           GPIO_PIN_9
 //#define	xxx   	           GPIO_PIN_10
 //#define	xxx   	           GPIO_PIN_11
