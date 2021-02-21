@@ -179,6 +179,7 @@ float Vo1,Vo2;
 float V_Diff,V_Diff_1,V_Diff_2;
 float V_Slope;
 
+uint32_t REC_Operate_Times;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -241,7 +242,8 @@ int main(void)
 	//Anti_Weight_Open = (float)Anti_Weight_Open*0.1;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 	//Anti_Weight_Close = (float)Anti_Weight_Close*0.1;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 	//Volt_StandBy = (float)Volt_StandBy_buf*0.1;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
-
+	
+  uint8_t i;
 	
   /* Configure HAL */
   HAL_Init();
@@ -332,8 +334,17 @@ int main(void)
 		Times_Remote_Lock = aRxBuffer[44];   //鎖電成立次數
 		
 		Rating_Grade      = aRxBuffer[44];   //鐵捲速度
+		
 	}
-	//Parameter access end
+	
+  //捲門運行次數
+  REC_Operate_Times = 0;
+  //REC_Operate_Times = (uint32_t)aRxBuffer[30] | (uint32_t)aRxBuffer[31]<<8 | (uint32_t)aRxBuffer[32]<<16 | (uint32_t)aRxBuffer[33]<<24;
+  for(i=0;i<4;i++){
+  	REC_Operate_Times = REC_Operate_Times | (uint32_t)aRxBuffer[30+1]<<(8*i);
+  }
+  
+  //Parameter access end
 
   TM_OPEN = 0;
   TM_CLOSE = 0;
