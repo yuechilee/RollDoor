@@ -154,7 +154,7 @@ uint16_t TM_EndDetec;
 uint16_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
 uint16_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
 uint16_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
-uint16_t TM_Light_Off = 0;
+uint16_t TM_Light_ON = 0;
 uint16_t TM_Auto_Close = 0;
 uint16_t CloseTM2;
 
@@ -164,7 +164,7 @@ uint32_t Cycle_times_down = 0;
 
 uint32_t Ver_date = 20210116;
 
-uint8_t CNT_Conti_Press = 0;
+uint8_t CNT_Jog_Press = 0;
 
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
@@ -473,9 +473,9 @@ int main(void)
 				printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
 			}
 			
-			if(TM_Light_Off > 0){
+			if(TM_Light_ON > 0){
 				//printf("\n\rOPEN_IT= %d",Open_IT);
-				printf("\n\n\r照明結束時間 = %d ms",TM_Light_Off);
+				printf("\n\n\r照明結束時間 = %d ms",TM_Light_ON);
 			}
 			
 			if(TM_Auto_Close > 0){
@@ -660,7 +660,8 @@ void PWR_CTRL(void){
 		}
 	}
 	
-	if(TM_Light_Off > 0){
+	//開門燈光控制
+	if(TM_Light_ON > 0){
 		Light_ON();
 	}else{
 		Light_OFF();
@@ -677,14 +678,12 @@ void Door_manage(void){
 					ST_Anti = 0;
 					TM_OPEN = 0;
 					TM_CLOSE = 0;
-					TM_Light_Off = TM_Light;
 					break;
 				
 				case 1:							//指令=開門
 					ST_Door = 1;
 					TM_CLOSE = 0;
 					TM_OPEN = TM_MAX;
-					//TM_Light_Off = TM_MAX + TM_Light;
 					TM_AntiDly = Time_AntiDly;
 					TM_EndDetec = 10;
 					break;
@@ -696,7 +695,6 @@ void Door_manage(void){
 					}
 					TM_OPEN = 0;
 					TM_CLOSE = TM_MAX;
-					//TM_Light_Off = TM_MAX + TM_Light;
 					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
 					TM_EndDetec = 10;
 					AClose_Flg = FALSE;
@@ -817,9 +815,7 @@ void Door_manage(void){
 	//設定開門與關門時的照明
 	//動作後延遲TM_Light時間後再關閉照明
 	if(TM_OPEN > 0){
-		TM_Light_Off = TM_OPEN + TM_Light;
-	}else if(TM_CLOSE > 0){
-		TM_Light_Off = TM_CLOSE + TM_Light;
+		TM_Light_ON = TM_OPEN + TM_Light;
 	}
 }	
 
@@ -906,7 +902,7 @@ static void OpEnd_Detect(void){
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
-				TM_Light_Off = TM_Light;
+				TM_Light_ON = TM_Light;
 				ST_Anti = 0;
 				Op_Flag = FALSE;
 			}
@@ -975,10 +971,10 @@ static void EXTI4_15_IRQHandler_Config(void)
   //HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
-//EXTI line detection callbacks
+//外部中斷:按鍵偵測
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	printf("\n\r控制器指令: ");
-	CNT_Conti_Press = 0;
+	CNT_Jog_Press = 0;
 	Flag_JOG = FALSE;
 	ST_Door_buf = ST_Door;
 	
@@ -1004,10 +1000,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				//吋動偵測
 				ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
 				while(ST_Press == 0){
-					CNT_Conti_Press++;
+					CNT_Jog_Press++;
 					printf("\n\rOPEN key.....press\n");
 					ST_Press = HAL_GPIO_ReadPin(PORT_OPEN, W_OPEN);
-					if(CNT_Conti_Press > Times_JOG){		// 按鍵按下並保持: 50 times
+					if(CNT_Jog_Press > Times_JOG){		// 按鍵按下並保持: 50 times
 						if(Flag_JOG == FALSE){
 							//TM_DoorOperateDly = 5;
 							Door_Open();
@@ -1032,10 +1028,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						//OpEnd_Detect();
 					}
 				}
-				printf("\n\rContinue = %d\n",CNT_Conti_Press);
+				printf("\n\rContinue = %d\n",CNT_Jog_Press);
 				if(Flag_JOG == TRUE){
 					Door_Stop();
-					TM_Light_Off = TM_Light;
+					TM_Light_ON = TM_Light;
 					printf("\n\rDoor Stop.....\n");
 					break;
 				}
@@ -1063,10 +1059,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			// JOG detect
 				ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
 				while(ST_Press == 0){
-					CNT_Conti_Press++;
+					CNT_Jog_Press++;
 					printf("\n\rCLOSE key.....press\n");
 					ST_Press = HAL_GPIO_ReadPin(PORT_CLOSE, W_CLOSE);
-					if(CNT_Conti_Press > Times_JOG){		// 50 times
+					if(CNT_Jog_Press > Times_JOG){		// 50 times
 						Flag_JOG = TRUE;
 						printf("\n\rJOG Mode:CLOSE...\n");
 						Door_Close();
@@ -1076,10 +1072,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						//如果不行,再將OPEN的到位控制加入
 					}
 				}
-				printf("\n\rContinue = %d\n",CNT_Conti_Press);
+				printf("\n\rContinue = %d\n",CNT_Jog_Press);
 				if(Flag_JOG == TRUE){
 					Door_Stop();
-					TM_Light_Off = TM_Light;
 					printf("\n\rDoor Stop.....\n");
 					break;
 				}
@@ -1165,7 +1160,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DoorOperateDly = TIMDEC(TM_DoorOperateDly);
 		TM_Printf 	      = TIMDEC(TM_Printf);
 		TM_DLY 	          = TIMDEC(TM_DLY);
-		TM_Light_Off      = TIMDEC(TM_Light_Off);
+		TM_Light_ON      = TIMDEC(TM_Light_ON);
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		
 
