@@ -49,52 +49,29 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 /* Private macro -------------------------------------------------------------*/
 //*******參數設定*******//
 uint8_t EE_Default = TRUE;
-	
-//兩段式開門選擇:
-uint8_t Flag_WindowsDoor; 		//無:FALSE	
-uint16_t TM_WindowsDoor_ClosePart1;			 // 第一段關門時間: n*0.1sec
-
-//循環測試(長時測試)
-uint8_t Flag_CycleTest;             //無:FALSE
-uint16_t TM_DLY;							//cycle-test等待秒數(*100ms)
-uint16_t TM_DLY_Value;
-
-
-//防壓功能
-uint8_t Flag_AntiPress;			//有:TRUE
-float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
-
-//自動關門功能
-uint8_t Flag_AutoClose;			//無:FALSEE
-uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
-
-//吋動功能
-uint8_t Flag_Func_JOG;				//無:FALSEE
-
-//馬達運轉方向
-uint8_t Flag_Motor_Direction;		//南部:FALSE
-
-//鎖電功能
-uint8_t Flag_Remote_Lock;				//無:FALSEE
-
-//開關門最常運轉時間
-uint16_t TM_MAX;                  //開關門最長運轉時間 TM_MAX * 100ms
-
-//照明運轉時間
-uint16_t TM_Light;				// n * 0.1sec
-
-//待機電壓
-float Volt_StandBy;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
-
-//長按判定次數
-uint8_t Times_JOG;				//吋動判定次數, 大於:吋動, 小於:一鍵
+uint8_t Flag_WindowsDoor; 		//捲窗門選擇:	
+uint8_t Flag_CycleTest;             //循環測試(長時測試)
+uint8_t Flag_AntiPress;			//防壓功能
+uint8_t Times_JOG;				//長按判定次數: 吋動判定次數, 大於:吋動, 小於:一鍵
 uint8_t Times_Remote_Lock;
 uint8_t Rating_Grade;	
-
 uint8_t Flag_Rate_Regulate;
 uint8_t Flag_Buzzer;
+uint8_t Flag_AutoClose;			//自動關門功能
+uint8_t Flag_Func_JOG;				//吋動功能
+uint8_t Flag_Motor_Direction;		//馬達運轉方向
+uint8_t Flag_Remote_Lock;				//鎖電功能
 
+uint16_t TM_MAX;                  //開關門最長運轉時間 TM_MAX * 100ms
+uint16_t TM_WindowsDoor_ClosePart1;			 // 捲窗門第一段關門時間: n*0.1sec
+uint16_t TM_DLY;							//cycle-test等待秒數(*100ms)
+uint16_t TM_DLY_Value;
+uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
+uint16_t TM_Light;				//照明運轉時間n * 0.1sec
+
+float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //*******參數設定結束*******//
 
@@ -132,6 +109,7 @@ uint8_t PWM_Duty = 50;
 uint8_t PWM_Count = 0;
 uint8_t TM_IR_Lock = 0;
 uint8_t Auto_Close_Mode;
+uint8_t CNT_Jog_Press = 0;
 
 	//16-bits
 
@@ -139,15 +117,9 @@ uint16_t Vadc_buf;
 uint16_t Calc_Times;
 uint16_t Voc_amt;
 uint16_t Vadc_amt;
-float Vadc_ave;
 uint16_t TM_Printf = 10;
 uint16_t TM_VDFF = 0;					//防壓4:計算兩筆資料時間間距
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
-
-	//32-bits
-uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
-uint32_t uwPrescalerValue = 0;         // Prescaler declaration
-
 uint16_t TM_OPEN = 0;                   //Time: Door open
 uint16_t TM_CLOSE = 0;                  //Time: Door close
 uint16_t TM_AntiDly;
@@ -162,20 +134,19 @@ uint16_t CloseTM_Remain = 0;            //兩段式關門剩餘時間
 uint16_t TM_Light_ON = 0;
 uint16_t TM_Auto_Close = 0;
 uint16_t CloseTM2;
-
-
-uint32_t Cycle_times_up = 0;
-uint32_t Cycle_times_down = 0;
-
-uint32_t Ver_date = 20210116;
-
-uint8_t CNT_Jog_Press = 0;
-
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
-
 uint16_t Tim_TEST = 0;
+
+	//32-bits
+uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
+uint32_t uwPrescalerValue = 0;         // Prescaler declaration
+uint32_t Cycle_times_up = 0;
+uint32_t Cycle_times_down = 0;
+uint32_t Ver_date = 20210116;
+uint32_t REC_Operate_Times;
+
 
 	//Float
 float Voc_base,Voc_base_;
@@ -183,8 +154,8 @@ float Voc_base_2;
 float Vo1,Vo2;
 float V_Diff,V_Diff_1,V_Diff_2;
 float V_Slope;
+float Vadc_ave;
 
-uint32_t REC_Operate_Times;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -319,8 +290,7 @@ int main(void)
 	printf("\n\r循環測試:有\n");
   }
     
-  while (1)
-  { 
+  while (1){ 
 	if(Flag_CycleTest == FALSE){
 	//Main function
 		Door_manage();
@@ -362,31 +332,11 @@ int main(void)
 		//OpEnd_Detect();
 		//Anti_Pressure_4();
 		
-		if(TM_Printf == 0){
-			printf("\n\r==============狀態scan1===================");			
-			printf("\n\r==============循環測試===================");			
-			Voc_ = ADC_Calculate() *(3.3/4095);		
-			printf("\n\r目前電壓值 = %f V",Voc_);
-			printf("\n\r待機電壓   = %f V",Volt_StandBy);
-			printf("\n\rACT_Door = %d",ACT_Door);
-			if(TM_OPEN > 0){
-				printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
-				printf("\n\r開門次數 = %d\n",Cycle_times_down);
-			}
-			if(TM_CLOSE > 0){
-				printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
-				printf("\n\r關門次數 = %d\n",Cycle_times_down);
-			}
-			if(TM_DLY > 0){
-				printf("\n\rTM_DLY = %d",TM_DLY);
-			}
-				TM_Printf= 10;
-			}	
 	}
 
 	//目前狀態偵測
-	if(TM_Printf == 0 && (Flag_CycleTest == FALSE || Cycle_jumper == 0)){
-		printf("\n\r==============狀態scan2===================");			
+	if(TM_Printf == 0 && Flag_CycleTest == FALSE){
+		printf("\n\r==============狀態scan1===================");			
 		
 		if(TM_OPEN > 0 || TM_CLOSE > 0){
 			Voc_ = ADC_Calculate() *(3.3/4095);		
@@ -434,9 +384,29 @@ int main(void)
 		printf("\n\r");
 
 		TM_Printf = 10;
-	}
+	}else if(TM_Printf == 0 && Flag_CycleTest == TRUE){
+		printf("\n\r==============狀態scan2===================");			
+		printf("\n\r==============循環測試===================");			
+		Voc_ = ADC_Calculate() *(3.3/4095);		
+		printf("\n\r目前電壓值 = %f V",Voc_);
+		printf("\n\r待機電壓   = %f V",Volt_StandBy);
+		printf("\n\rACT_Door = %d",ACT_Door);
+		if(TM_OPEN > 0){
+			printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
+			printf("\n\r開門次數 = %d\n",Cycle_times_down);
+		}
+		if(TM_CLOSE > 0){
+			printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
+			printf("\n\r關門次數 = %d\n",Cycle_times_down);
+		}
+		if(TM_DLY > 0){
+			printf("\n\rTM_DLY = %d",TM_DLY);
+		}
+		TM_Printf= 10;
+	}	
   }
 }
+
 
 int fputc(int ch, FILE *f){
 	HAL_UART_Transmit(&UartHandle, (uint8_t *)&ch, 1, 1000);
@@ -1085,6 +1055,53 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {	
   //TBD
+	switch(Rating_Grade){
+		case 1:
+			PWM_Duty = 25;
+			break;
+			
+		case 2:
+			PWM_Duty = 30;
+			break;
+			
+		case 3:
+			PWM_Duty = 32;
+			break;
+			
+		case 4:
+			PWM_Duty = 35;
+			break;
+			
+		case 5:
+			PWM_Duty = 37;
+			break;
+			
+		case 6:
+			PWM_Duty = 40;
+			break;
+			
+		case 7:
+			PWM_Duty = 42;
+			break;
+			
+		case 8:
+			PWM_Duty = 45;
+			break;
+			
+		case 9:
+			PWM_Duty = 47;
+			break;
+
+		case 10:
+			PWM_Duty = 50;
+			break;
+			
+		default:
+			PWM_Duty = 50;
+			break;
+	}
+  
+  
 	PWM_Count++;	
 	if(PWM_Count == PWM_Period){
 		PWM_Count = 0;
