@@ -957,7 +957,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 	EXTI_CTRL_GPIO_CLK_ENABLE();
 	EXTI_CTRL_LOCK_CLK_ENABLE();
 
-  /* Configure PC.13 pin as input floating */
+  /* Configure pin as input floating */
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
   GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
@@ -966,6 +966,9 @@ static void EXTI4_15_IRQHandler_Config(void)
   GPIO_InitStructure.Pin = RM_LOCK;
   HAL_GPIO_Init(PORT_LOCK, &GPIO_InitStructure);
 
+  GPIO_InitStructure.Pin = EXTI_CTRL_PIN_2;
+  HAL_GPIO_Init(EXTI_CTRL_PORT_2, &GPIO_InitStructure);
+	
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
   //HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
