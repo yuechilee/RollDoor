@@ -196,7 +196,10 @@ static void Buzz_off(void);
 static void Buzz_out(uint8_t ON_Time, uint8_t OFF_Time, uint8_t Conti);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
-
+static void SMK_CTRL(void);	//煙感偵測
+static void Cycle_Test(void);	//煙感偵測
+static void IR_CTRL(void);	//煙感偵測
+static void Light_CTRL(void);	//煙感偵測
 
 //I2C Package
 uint8_t I2C_TX_Buffer_u8[1];
@@ -291,47 +294,19 @@ int main(void)
   }
     
   while (1){ 
-	if(Flag_CycleTest == FALSE){
-	//Main function
-		Door_manage();
-		PWR_CTRL(); 
-		//Anti_Pressure_4();
+	if(Flag_CycleTest == TRUE){
+		//循環測試
+		Cycle_Test();
 		
 	}else{ 
-		//循環測試
-		if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
-			TM_DLY = TM_DLY_Value;
-			Wait_flg = FALSE;
-		}
-		
-		if(TM_OPEN == 0 && ACT_Door == 1 && TM_DLY == 0){
-			Door_Stop();
-			TM_CLOSE = TM_MAX;
-			ACT_Door = 2;
-			Wait_flg = TRUE;
-			Cycle_times_down++;
-			Ext_CNTER();
-			printf("\n\rNoise test 1");
-		}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
-			Door_Stop();
-			TM_OPEN = TM_MAX;
-			ACT_Door = 1;
-			Wait_flg = TRUE;
-			Cycle_times_up++;
-			
-			Ext_CNTER();
-			//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
-			//Delay_ms(RLY_Delay_ms);
-			//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
-			printf("\n\rNoise test 2");
-
-		}
-		
+		//Main function
 		Door_manage();
-		PWR_CTRL(); 
-		//OpEnd_Detect();
-		//Anti_Pressure_4();
+		Light_CTRL();
+		IR_CTRL();
 		
+		PWR_CTRL(); 
+
+		//Anti_Pressure_4();
 	}
 
 	//目前狀態偵測
@@ -362,10 +337,9 @@ int main(void)
 			//printf("\n\rOPEN_IT= %d",Open_IT);
 			printf("\n\n\r關門等待時間 = %d ms",TM_Auto_Close);
 		}
+		
 		if(ST_Anti == 2){
 			printf("\n\n\r防壓狀態 = %d",ST_Anti);
-//				printf("\n\rVo1 = %f",Vo1);
-//				printf("\n\rVo2 = %f",Vo2);
 			printf("\n\r變化率基準 = %f",V_Slope);
 			printf("\n\r變化率 = %f",V_Diff);
 		}else if(ST_Anti ==3 && ST_Door == 2){
@@ -384,9 +358,46 @@ int main(void)
 		printf("\n\r");
 
 		TM_Printf = 10;
-	}else if(TM_Printf == 0 && Flag_CycleTest == TRUE){
-		printf("\n\r==============狀態scan2===================");			
-		printf("\n\r==============循環測試===================");			
+	}
+  }
+}
+
+static void Cycle_Test(void){
+	if(TM_OPEN == 0 && TM_CLOSE == 0 && Wait_flg == TRUE){
+		TM_DLY = TM_DLY_Value;
+		Wait_flg = FALSE;
+	}
+	
+	if(TM_OPEN == 0 && ACT_Door == 1 && TM_DLY == 0){
+		Door_Stop();
+		TM_CLOSE = TM_MAX;
+		ACT_Door = 2;
+		Wait_flg = TRUE;
+		Cycle_times_down++;
+		Ext_CNTER();
+		printf("\n\rNoise test 1");
+	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
+		Door_Stop();
+		TM_OPEN = TM_MAX;
+		ACT_Door = 1;
+		Wait_flg = TRUE;
+		Cycle_times_up++;
+		
+		Ext_CNTER();
+		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+		//Delay_ms(RLY_Delay_ms);
+		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+		printf("\n\rNoise test 2");
+
+	}
+	
+	Door_manage();
+	PWR_CTRL(); 
+	//OpEnd_Detect();
+	//Anti_Pressure_4();
+	
+	if(TM_Printf == 0){
+		printf("\n\r==============循環測試-狀態scan2===================");			
 		Voc_ = ADC_Calculate() *(3.3/4095);		
 		printf("\n\r目前電壓值 = %f V",Voc_);
 		printf("\n\r待機電壓   = %f V",Volt_StandBy);
@@ -404,9 +415,9 @@ int main(void)
 		}
 		TM_Printf= 10;
 	}	
-  }
-}
 
+
+}
 
 int fputc(int ch, FILE *f){
 	HAL_UART_Transmit(&UartHandle, (uint8_t *)&ch, 1, 1000);
@@ -712,18 +723,22 @@ void Door_manage(void){
 		}
 	}
 	
-	//設定開門與關門時的照明
+}	
+
+static void Light_CTRL(void){
+	//設定開門時的照明
 	//動作後延遲TM_Light時間後再關閉照明
 	if(TM_OPEN > 0){
 		TM_Light_ON = TM_OPEN + Time_Light;
 	}
-	
+}
+
+static void IR_CTRL(void){
 	//當紅外線偵測觸發後30秒除能該旗標
 	if(TM_IR_Lock == 0 && Flag_IR == TRUE){
 		Flag_IR = FALSE;
 	}
-}	
-
+}
 
 //******************Relay control******************//
 void Door_Open(void){
@@ -873,9 +888,9 @@ static void EXTI4_15_IRQHandler_Config(void)
 
   /* Enable GPIOC clock */
 	EXTI_CTRL_GPIO_CLK_ENABLE();
+	EXTI_CTRL_GPIO2_CLK_ENABLE();
 	EXTI_CTRL_LOCK_CLK_ENABLE();
 
-  /* Configure PC.13 pin as input floating */
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
   GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
@@ -1049,6 +1064,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	}
 
 }
+
+//煙霧感測偵測
+static void SMK_CTRL(void){
+	uint8_t SMK_tmp;
+	
+	//當煙霧偵測被觸發後,開始polling SMK pin,
+	//直到警報解除才解除煙霧偵測旗標.
+	if(Flag_SMK == TRUE){
+		SMK_tmp = HAL_GPIO_ReadPin(PORT_SMK, W_SMK);
+		if(SMK_tmp == TRUE){
+			Flag_SMK = FALSE;
+		}
+	}
+}
+
 
 //	TIM14 handle
 //	For PWM output
