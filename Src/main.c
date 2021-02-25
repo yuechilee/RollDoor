@@ -90,8 +90,10 @@ uint8_t Flag_JOG;					//吋動動作旗標
 uint8_t Flag_Light;
 uint8_t Flag_IR;
 uint8_t Flag_SMK;
+uint8_t Flag_Door_UpLimit;
+uint8_t Flag_Door_DownLimit;
 
-	
+
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
@@ -110,7 +112,8 @@ uint8_t PWM_Count = 0;
 uint8_t TM_IR_Lock = 0;
 uint8_t Auto_Close_Mode;
 uint8_t CNT_Jog_Press = 0;
-
+uint32_t CNT_LOCK_Press = 0;
+uint8_t ADC_Detect_Start_Flag = 0;
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -139,12 +142,21 @@ uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
 uint16_t Tim_TEST = 0;
 
+uint16_t ADC_OPEN_MAX;
+uint16_t ADC_OPEN_MIN;
+uint16_t ADC_CLOSE_MAX;
+uint16_t ADC_CLOSE_MIN;
+uint16_t ADC_OPEN_MAX_b;
+uint16_t ADC_OPEN_MIN_b;
+uint16_t ADC_CLOSE_MAX_b;
+uint16_t ADC_CLOSE_MIN_b;
+
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210116;
+uint32_t Ver_date = 20210225;
 uint32_t REC_Operate_Times;
 
 
@@ -196,10 +208,12 @@ static void Buzz_off(void);
 static void Buzz_out(uint8_t ON_Time, uint8_t OFF_Time, uint8_t Conti);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
-static void SMK_CTRL(void);	//煙感偵測
-static void Cycle_Test(void);	//煙感偵測
-static void IR_CTRL(void);	//煙感偵測
-static void Light_CTRL(void);	//煙感偵測
+static void SMK_CTRL(void);	    //煙感偵測
+static void Cycle_Test(void);	//
+static void IR_CTRL(void);	    //
+static void Light_CTRL(void);	//
+static void Auto_Close_CTRL(void);	//
+static void Operate_ADC_Detect(void);
 
 //I2C Package
 uint8_t I2C_TX_Buffer_u8[1];
@@ -303,12 +317,15 @@ int main(void)
 		Door_manage();
 		Light_CTRL();
 		IR_CTRL();
-		
+		SMK_CTRL();
 		PWR_CTRL(); 
-
+		Operate_ADC_Detect();
+		Auto_Close_CTRL();
 		//Anti_Pressure_4();
+	
 	}
-
+	
+	TM_Printf = 1000;
 	//目前狀態偵測
 	if(TM_Printf == 0 && Flag_CycleTest == FALSE){
 		printf("\n\r==============狀態scan1===================");			
@@ -355,11 +372,74 @@ int main(void)
 			printf("\n\n\r兩段式關門狀態");
 			printf("\n\rST_CLOSE= %d",ST_Close);
 		}
+		
+		if(ADC_Detect_Start_Flag == 1){
+			printf("\n");
+			printf("\n\r ADC_OPEN_MAX_b = %d",ADC_OPEN_MAX_b);
+			printf("\n\r ADC_OPEN_MIN_b = %d",ADC_OPEN_MIN_b);
+			printf("\n\r ADC_CLOSE_MAX_b = %d",ADC_CLOSE_MAX_b);
+			printf("\n\r ADC_CLOSE_MIN_b = %d",ADC_CLOSE_MIN_b);
+		}else{// if(ADC_Detect_Start_Flag == 2){
+			printf("\n");
+			printf("\n\r ADC_OPEN_MAX = %d",ADC_OPEN_MAX);
+			printf("\n\r ADC_OPEN_MIN = %d",ADC_OPEN_MIN);
+			printf("\n\r ADC_CLOSE_MAX = %d",ADC_CLOSE_MAX);
+			printf("\n\r ADC_CLOSE_MIN = %d",ADC_CLOSE_MIN);
+		}
+		
 		printf("\n\r");
 
 		TM_Printf = 10;
 	}
   }
+}
+
+//紀錄開關門時的最大與最小ADC值
+static void Operate_ADC_Detect(void){
+	uint16_t ADC_Tmp;
+	
+	//ADC_Detect_Start_Flag
+	//0: 載入buffers
+	//1: 透過Opend_detect()啟用,偵測ADC變化
+	//2: Reload給原變數
+	
+	if(ADC_Detect_Start_Flag == 0){
+		ADC_Tmp = ADC_Calculate();
+		ADC_OPEN_MAX_b = ADC_Tmp;
+		ADC_OPEN_MIN_b = ADC_Tmp;
+		ADC_CLOSE_MAX_b = ADC_Tmp;
+		ADC_CLOSE_MIN_b = ADC_Tmp;
+	}
+	
+	if(ADC_Detect_Start_Flag == 1){	//當限位偵測開始即執行
+		if(ST_Door == 1){
+			ADC_Tmp = ADC_Calculate();
+			if(ADC_Tmp > ADC_OPEN_MAX_b){
+				ADC_OPEN_MAX_b = ADC_Tmp;
+			}else if(ADC_Tmp < ADC_OPEN_MIN_b){
+				ADC_OPEN_MIN_b = ADC_Tmp;
+			}
+		}else if(ST_Door == 2){
+			ADC_Tmp = ADC_Calculate();
+			if(ADC_Tmp > ADC_CLOSE_MAX_b){
+				ADC_CLOSE_MAX_b = ADC_Tmp;
+			}else if(ADC_Tmp < ADC_CLOSE_MIN_b){
+				ADC_CLOSE_MIN_b = ADC_Tmp;
+			}
+
+		}
+	}
+	
+	if(ADC_Detect_Start_Flag == 2){
+		if(Flag_Door_UpLimit == TRUE){
+			ADC_OPEN_MAX= ADC_OPEN_MAX_b;
+			ADC_OPEN_MIN = ADC_OPEN_MIN_b;
+		}else if(Flag_Door_DownLimit == TRUE){
+			ADC_CLOSE_MAX= ADC_CLOSE_MAX_b;
+			ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
+		}
+		ADC_Detect_Start_Flag = 0;
+	}
 }
 
 static void Cycle_Test(void){
@@ -459,7 +539,7 @@ static void CLOCK_Enable(void){
 	GPIOC_CLK_ENABLE();
 	GPIOD_CLK_ENABLE();
 	//GPIOE_CLK_ENABLE();
-	//GPIOF_CLK_ENABLE();
+	GPIOF_CLK_ENABLE();
 }
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -521,7 +601,6 @@ void PWR_CTRL(void){
 				OpEnd_Detect_Start_Flag = FALSE;
 				Door_Stop();
 				if(ST_Door == 1){
-					ST_Door = 0;
 					Open_IT = FALSE;
 					Close_IT = FALSE;
 					Close_IT2 = FALSE;
@@ -531,7 +610,6 @@ void PWR_CTRL(void){
 					}                                      //20201227_OC_Detect
 
 				}else if(ST_Door == 2){
-					ST_Door = 0;
 					if(Open_IT == TRUE){
 						ST_Close = 1;
 					}else if(ST_Close == 1){	//第一段關門
@@ -548,6 +626,7 @@ void PWR_CTRL(void){
 					}                                      //20201227_OC_Detect
 
 				}
+				ST_Door = 0;
 			}
 		}
 	}
@@ -595,7 +674,7 @@ void Door_manage(void){
 					TM_AntiDly = Time_AntiDly;	//20201227_OC_Detect
 					TM_EndDetec = 10;
 					AClose_Flg = FALSE;
-					TM_Auto_Close = 0;
+					//TM_Auto_Close = 0;
 					break;
 				
 				default:
@@ -688,13 +767,11 @@ void Door_manage(void){
 			}
 		}
 	}
-	
+}	
+
+static void Auto_Close_CTRL(void){
 	//自動關門功能
-	if(Flag_CycleTest == TRUE){
-		//循環測試模式時, 不動作.
-		//Empty
-		
-	}else if(Flag_SMK == FALSE){
+	if(Flag_SMK == FALSE){
 		// 開門後延遲時間經過自動關門
 		if(Flag_AutoClose == 1){
 			if(AClose_Flg == TRUE && TM_Auto_Close == 0){		//自動關門倒數時間結束
@@ -722,8 +799,7 @@ void Door_manage(void){
 			//Empty
 		}
 	}
-	
-}	
+}
 
 static void Light_CTRL(void){
 	//設定開門時的照明
@@ -816,6 +892,7 @@ static void OpEnd_Detect(void){
 		if(OpEnd_Detect_Start_Flag == FALSE){
 			TM_DoorOperateDly = 5;	//Delay 0.5 second.
 			OpEnd_Detect_Start_Flag = TRUE;
+			ADC_Detect_Start_Flag = 1;
 		}else{
 			Voc = ADC_Calculate() *(3.3/4095);		
 			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
@@ -830,14 +907,20 @@ static void OpEnd_Detect(void){
 					}
 				}
 				
-				if(Flag_SMK == TRUE){
-					Flag_SMK = FALSE;
+				//限位旗標做成
+				if(TM_OPEN > 0){
+					Flag_Door_UpLimit   = TRUE;
+					Flag_Door_DownLimit = FALSE;
+				}else if(TM_CLOSE > 0){
+					Flag_Door_UpLimit   = FALSE;
+					Flag_Door_DownLimit = TRUE;
 				}
 				
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;		
+				ADC_Detect_Start_Flag = 2;		
 			}
 		}
 	}
@@ -911,6 +994,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	printf("\n\r控制器指令: ");
 	CNT_Jog_Press = 0;
+	CNT_LOCK_Press = 0;
 	Flag_JOG = FALSE;
 	ST_Door_buf = ST_Door;
 	
@@ -921,6 +1005,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ST_BTN = TRUE;
 			ACT_Door = 0;
 			ST_Anti = 0;
+			ADC_Detect_Start_Flag = 0;
 			
 			if(AClose_Flg == TRUE){
 				printf("\n\r重新載入等待關門時間: %d ms", TM_Auto_Close);
@@ -998,7 +1083,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						Flag_JOG = TRUE;
 						printf("\n\rJOG Mode:CLOSE...\n");
 						Door_Close();
-						Light_ON();
+						//Light_ON();
 						//OpEnd_Detect();
 						//...目前關門有到位斷路功能,
 						//如果不行,再將OPEN的到位控制加入
@@ -1028,14 +1113,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case RM_LOCK:
-			if(Flag_Remote_Lock == TRUE){
-				if(Flag_LOCK == TRUE){
-					Flag_LOCK = FALSE;
-					printf("\n\rUNLOCK~~~~~~!\n");
-				}else{
-					Flag_LOCK = TRUE;
-					printf("\n\rLOCK~~~~~~!\n");
+			printf("\n\rLock!\n");
+			if(Flag_Remote_Lock == TRUE){	//鎖電功能開啟?
+				
+				ST_Press = HAL_GPIO_ReadPin(PORT_LOCK, RM_LOCK);
+				while(ST_Press == 0){
+					printf("\n\rCLOSE key.....press %d\n", CNT_LOCK_Press);
+					CNT_LOCK_Press++;
+					ST_Press = HAL_GPIO_ReadPin(PORT_LOCK, RM_LOCK);
+					if(CNT_LOCK_Press > Times_Remote_Lock){		// 50 times
+						if(Flag_LOCK == TRUE){
+							Flag_LOCK = FALSE;
+							ST_Press = 1;
+							printf("\n\rUNLOCK~~~~~~!\n");
+						}else{
+							Flag_LOCK = TRUE;
+							ST_Press = 1;
+							printf("\n\rLOCK~~~~~~!\n");
+						}
+					}
 				}
+				
 			}
 			break;
 		
@@ -1348,9 +1446,9 @@ static void Parameter_Load(void){
 		Flag_WindowsDoor     = FALSE;   //捲窗門功能
 		Flag_AntiPress       = TRUE;    //防壓功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
-		Flag_Func_JOG        = FALSE;   //吋動功能
+		Flag_Func_JOG        = TRUE;   //吋動功能
 		Flag_Motor_Direction = FALSE;   //馬達運轉方向
-		Flag_Remote_Lock     = FALSE;   //鎖電功能
+		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明

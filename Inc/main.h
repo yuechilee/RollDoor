@@ -280,10 +280,10 @@
 #define GPIOC_CLK_DISABLE()          __HAL_RCC_GPIOC_CLK_DISABLE()
 #define GPIOD_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
 #define GPIOD_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
-#define GPIOE_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define GPIOE_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
-#define GPIOF_CLK_ENABLE()           __HAL_RCC_GPIOD_CLK_ENABLE()  
-#define GPIOF_CLK_DISABLE()          __HAL_RCC_GPIOD_CLK_DISABLE()
+#define GPIOE_CLK_ENABLE()           __HAL_RCC_GPIOE_CLK_ENABLE()  
+#define GPIOE_CLK_DISABLE()          __HAL_RCC_GPIOE_CLK_DISABLE()
+#define GPIOF_CLK_ENABLE()           __HAL_RCC_GPIOF_CLK_ENABLE()  
+#define GPIOF_CLK_DISABLE()          __HAL_RCC_GPIOF_CLK_DISABLE()
 
 
 //==========End==========//
