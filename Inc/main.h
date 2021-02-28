@@ -151,8 +151,8 @@
 #define	Buzzer   	           GPIO_PIN_8
 //#define	xxx   	           GPIO_PIN_9
 //#define	xxx   	           GPIO_PIN_10
-//#define	xxx   	           GPIO_PIN_11
-//#define	xxx   	           GPIO_PIN_12
+#define	CtrlBox_1   	           GPIO_PIN_11
+#define	CtrlBox_2   	           GPIO_PIN_12
 //#define	xxx   	           GPIO_PIN_13
 //#define	xxx   	           GPIO_PIN_14
 //#define	xxx   	           GPIO_PIN_15
@@ -162,6 +162,10 @@
 #define Motor_MOS_CLK_DISABLE()   __HAL_RCC_GPIOA_CLK_DISABLE()
 
 #define PORT_Buzzer          GPIOA
+#define Buzzer_CLK_ENABLE()       __HAL_RCC_GPIOA_CLK_ENABLE()  
+#define Buzzer_CLK_DISABLE()      __HAL_RCC_GPIOA_CLK_DISABLE()
+
+#define PORT_CtrlBox          GPIOA
 #define Buzzer_CLK_ENABLE()       __HAL_RCC_GPIOA_CLK_ENABLE()  
 #define Buzzer_CLK_DISABLE()      __HAL_RCC_GPIOA_CLK_DISABLE()
 

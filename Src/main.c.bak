@@ -70,8 +70,8 @@ uint16_t TM_DLY_Value;
 uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
 uint16_t Time_Light;				//照明運轉時間n * 0.1sec
 
-float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+float Anti_Weight_Open = 0.01;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Anti_Weight_Close = 0.01;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //*******參數設定結束*******//
@@ -171,7 +171,7 @@ uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210228;
+uint32_t Ver_date = 20210225;
 uint32_t REC_Operate_Times;
 
 uint8_t TXBuf[4];
@@ -214,7 +214,6 @@ static void StatusRelay_out_config(void);
 static void Anti_Pressure_5(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
-static void ControlBox_Config(void);
 static void Ext_CNTER(void);			//Door unload detect
 static uint16_t	TIMDEC(uint16_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
@@ -241,11 +240,6 @@ uint8_t I2C_TX_Buffer_u32[4];
 
 static void Debug_Monitor(void);
 static void Operate_Infor_Save(void);
-static void CtrlBox_Light_Up(void);
-static void CtrlBox_Light_Down(void);
-static void CtrlBox_Light_OFF(void);
-
-
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -288,7 +282,6 @@ int main(void)
   MotorRelay_out_config();
   StatusRelay_out_config();
   //Buzzer_Config();	//No used
-  ControlBox_Config();	//No used
 
   // Parameter access
 	EE_Default = FALSE;
@@ -298,8 +291,8 @@ int main(void)
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - TM_WindowsDoor_ClosePart1;		//section_time_2 of close operation
   if(Flag_WindowsDoor == TRUE && CloseTM2 <= 0){
-		Flag_WindowsDoor = FALSE;
-		printf("\n\r捲窗門功能: OFF\n");
+	Flag_WindowsDoor = FALSE;
+	printf("\n\r捲窗門功能: OFF\n");
   }
   ST_Close = 1;
 	
@@ -540,10 +533,10 @@ static void Operate_ADC_Detect(void){
 		
 		//防壓參考值下限
 		if(ADC_OPEN_MAX < 1000){
-			ADC_OPEN_MAX = 3700;
+			ADC_OPEN_MAX = 4000;
 		}
 		if(ADC_CLOSE_MAX < 1000){
-			ADC_CLOSE_MAX = 3700;
+			ADC_CLOSE_MAX = 4000;
 		}
 		
 		ADC_Detect_Start_Flag = 0;
@@ -561,7 +554,7 @@ static void Cycle_Test(void){
 		TM_CLOSE = TM_MAX;
 		ACT_Door = 2;
 		Wait_flg = TRUE;
-		REC_Operate_Times++;
+		Cycle_times_down++;
 		Ext_CNTER();
 		printf("\n\rNoise test 1");
 	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
@@ -582,8 +575,6 @@ static void Cycle_Test(void){
 	Door_manage();
 	PWR_CTRL(); 
 	//OpEnd_Detect();
-	Operate_Infor_Save();
-
 	
 	if(TM_Printf == 0){
 		printf("\n\r==============循環測試-狀態scan2===================");			
@@ -741,14 +732,6 @@ void PWR_CTRL(void){
 		//Buzz_out(5, 5);
 	}else{
 		//Buzz_out(0, 0);
-	}
-	
-	if(TM_OPEN > 0){
-		CtrlBox_Light_Up();
-	}else if(TM_CLOSE > 0){
-		CtrlBox_Light_Down();
-	}else{
-		CtrlBox_Light_OFF();
 	}
 	
 	//printf("\r\n\n TM_BAUZZ = %d", TM_Buzz);
@@ -990,8 +973,6 @@ void Door_Stop(void){
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
-	
-	HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
 
 }
 
@@ -1594,8 +1575,6 @@ static void Parameter_Load(void){
 		}
 	}
 	
-	EE_Default = HAL_GPIO_ReadPin(PORT_EE_SEL, EEPROM_SEL);
-	
 	if(EE_Default == TRUE){
 		//Default parameter
 		Flag_CycleTest       = FALSE;   //循環測試(長時測試)
@@ -1608,13 +1587,12 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
-		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
 		TM_DLY_Value              = 300;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = 70;   //捲窗門_第一段關門時間
 		TM_MAX                    = 600;   //開關門最長運轉時間
 		Time_Auto_Close           = 100;   //自動關門延遲時間
-		Time_Light                = 100;   //照明運轉時間
+		Time_Light                  = 100;   //照明運轉時間
 
 		Volt_StandBy = 0;//0.2;	//0.2 for 測試用
 		//Volt_StandBy = 0.3;
@@ -1624,9 +1602,10 @@ static void Parameter_Load(void){
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade        = 6;   //鐵捲速度
-		Auto_Close_Mode  = 1;	 //自動關門模式設定
+		PWM_Grade      = 6;   //鐵捲速度
+		Auto_Close_Mode   = 1;	 //自動關門模式設定
 		
+		Flag_Low_Operate = FALSE;
 
 	}else{
 		//******Parameter form EEPROM*****//
@@ -1641,7 +1620,6 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = aRxBuffer[17];   //捲門調速
 		Flag_Buzzer          = aRxBuffer[18];   //蜂鳴器
 		Flag_Light           = aRxBuffer[19];    //自動照明
-		Flag_Low_Operate     = aRxBuffer[20];  //緩起步 & 緩停止
 		
 		TM_DLY_Value              = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;   //捲窗門_第一段關門時間
@@ -1650,8 +1628,8 @@ static void Parameter_Load(void){
 		Time_Light                = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;   //照明運轉時間
 
 		Volt_StandBy      = (float)aRxBuffer[40]/10;   //待機電壓for到位判定使用
-		Anti_Weight_Open  = (float)aRxBuffer[41]/100;   //防夾權重: 開門
-		Anti_Weight_Close = (float)aRxBuffer[42]/100;   //防夾權重: 關門
+		Anti_Weight_Open  = (float)aRxBuffer[41]/10;   //防夾權重: 開門
+		Anti_Weight_Close = (float)aRxBuffer[42]/10;   //防夾權重: 關門
 		
 		Times_JOG         = aRxBuffer[43];   //吋動判定次數
 		Times_Remote_Lock = aRxBuffer[44];   //鎖電成立次數
@@ -1830,33 +1808,6 @@ static void Buzzer_Config(void){
 
 	//buzz config...end
 }
-
-static void ControlBox_Config(void){
-	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-
-	GPIO_InitStruct.Pin = CtrlBox_1 | CtrlBox_2;
-	HAL_GPIO_Init(PORT_CtrlBox, &GPIO_InitStruct);
-
-}
-
-static void CtrlBox_Light_Up(void){
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
-	}
-
-static void CtrlBox_Light_Down(void){
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_SET);
-}
-
-static void CtrlBox_Light_OFF(void){
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
-}
-
-
 
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len){
 	int i, j, temp;
