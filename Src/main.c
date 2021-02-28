@@ -69,8 +69,8 @@ uint16_t TM_DLY_Value;
 uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
 uint16_t Time_Light;				//照明運轉時間n * 0.1sec
 
-float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+float Anti_Weight_Open = 0.01;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Anti_Weight_Close = 0.01;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //*******參數設定結束*******//
@@ -117,6 +117,7 @@ uint8_t ADC_Detect_Start_Flag = 0;
 uint8_t Times_OverADC = 0;
 uint8_t Times_OverADC_Target = 2;	//防夾被觸發次數
 uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
+uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -325,7 +326,7 @@ int main(void)
 	printf("\n\r循環測試:有\n");
   }
 	
-	Buzz_out(10,1);
+	//Buzz_out(10,1);
     
   while (1){ 
 	if(Flag_CycleTest == TRUE){
@@ -495,11 +496,10 @@ static void Operate_ADC_Detect(void){
 			}else if(ADC_Tmp < ADC_CLOSE_MIN_b){
 				ADC_CLOSE_MIN_b = ADC_Tmp;
 			}
-
 		}
 		
 	}else if(ADC_Detect_Start_Flag == 2){
-		if(TM_ADC_Relaod == 0){
+		if(TM_ADC_Relaod == 0 && Anti_Event_buf == 0){
 			if(Flag_Door_UpLimit == TRUE){
 				ADC_OPEN_MAX= ADC_OPEN_MAX_b;
 				ADC_OPEN_MIN = ADC_OPEN_MIN_b;
@@ -697,6 +697,8 @@ void PWR_CTRL(void){
 	//到位偵測
 	if(TM_OPEN > 0 || TM_CLOSE > 0){
 		OpEnd_Detect();
+	}else{
+		ADC_Detect_Start_Flag =0;
 	}
 	
 	//開門燈光控制
@@ -840,6 +842,9 @@ void Door_manage(void){
 					//break;
 			}
 		}
+		if(TM_OPEN > 0 || TM_CLOSE > 0){
+			TM_ADC_Relaod = 50;
+		}
 	}
 }	
 
@@ -982,6 +987,7 @@ static void OpEnd_Detect(void){
 					}
 					
 					//若是關門防夾觸發,恢復成待機正常運轉
+					Anti_Event_buf = Anti_Event;
 					if(Anti_Event == 2){
 						Anti_Event = 0;
 					}
@@ -1368,6 +1374,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
 		TM_Buzz_ON        = TIMDEC(TM_Buzz_ON);
 		TM_Buzz_OFF        = TIMDEC(TM_Buzz_OFF);
+		TM_ADC_Relaod        = TIMDEC(TM_ADC_Relaod);
 		
 		Tim_cnt_100ms = 0;
 
@@ -1552,8 +1559,8 @@ static void Parameter_Load(void){
 
 		Volt_StandBy = 0.3;	//0.2 for 測試用
 		//Volt_StandBy = 0.3;
-		Anti_Weight_Open  = 1;   //防夾權重: 開門
-		Anti_Weight_Close = 1;   //防夾權重: 關門
+		Anti_Weight_Open  = 0.01;   //防夾權重: 開門
+		Anti_Weight_Close = 0.01;   //防夾權重: 關門
 		
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
@@ -1636,11 +1643,13 @@ static void Anti_Pressure_5(void){
 				}else if(TM_AntiDly == 0){
 					//根據防夾參數權重,設定防夾動作值
 					if(TM_OPEN > 0){
-						Anti_Weight = 1 + (Anti_Weight_Open / 10);
+						//Anti_Weight = 1 + (Anti_Weight_Open / 10);
+						Anti_Weight = 1 + Anti_Weight_Open; //(Anti_Weight_Open / 10);
 						ADC_Anti_Max = ADC_OPEN_MAX * Anti_Weight;
 						ST_Anti = 2;
 					}else if(TM_CLOSE > 0){
-						Anti_Weight = 1 + (Anti_Weight_Close / 10);
+						//Anti_Weight = 1 + (Anti_Weight_Close / 10);
+						Anti_Weight = 1 + Anti_Weight_Close; //(Anti_Weight_Close / 10);
 						ADC_Anti_Max = ADC_CLOSE_MAX * Anti_Weight;
 						ST_Anti = 3;
 					}
@@ -1676,7 +1685,7 @@ static void Anti_Pressure_5(void){
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
-						TM_AntiDly2 = 5;
+						TM_AntiDly2 = 3;
 					}
 				}
 				break;
@@ -1701,11 +1710,11 @@ static void Anti_Pressure_5(void){
 						//停機
 						TM_OPEN = 0;
 						TM_CLOSE = 0;
-						TM_AntiDly3 = 10;	//停頓1秒後,反轉開門
+						TM_AntiDly3 = 1;	//停頓1秒後,反轉開門
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
-						TM_AntiDly2 = 5;
+						TM_AntiDly2 = 1;
 					}
 				}
 				break;
