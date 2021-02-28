@@ -144,11 +144,11 @@ uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
 uint16_t Tim_TEST = 0;
 
-//uint16_t ADC_OPEN_MAX = 1000;	//[???]
-uint16_t ADC_OPEN_MAX;
+uint16_t ADC_OPEN_MAX = 3700;	//[???]
+//uint16_t ADC_OPEN_MAX;
 uint16_t ADC_OPEN_MIN;
-//uint16_t ADC_CLOSE_MAX = 1000;	//[???]
-uint16_t ADC_CLOSE_MAX;
+uint16_t ADC_CLOSE_MAX = 3700;	//[???]
+//uint16_t ADC_CLOSE_MAX;
 uint16_t ADC_CLOSE_MIN;
 uint16_t ADC_OPEN_MAX_b;
 uint16_t ADC_OPEN_MIN_b;
@@ -160,6 +160,7 @@ uint16_t TM_Anti_Occur = 0;
 uint16_t TM_Save = 2*60*60;			//運轉次數儲存ˊ週期
 uint16_t TM_Buzz_ON = 0;
 uint16_t TM_Buzz_OFF = 0;
+uint16_t TM_ADC_Relaod = 0;
 
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
@@ -410,7 +411,15 @@ static void Debug_Monitor(void){
 			printf("\n\r ADC_CLOSE_MAX = %d",ADC_CLOSE_MAX);
 			//printf("\n\r ADC_CLOSE_MIN = %d",ADC_CLOSE_MIN);
 		}
-		
+
+		if(TM_ADC_Relaod > 0){
+			printf("\n\r TM_ADC_Relaod = %d",TM_ADC_Relaod);
+		}
+		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
+		if(ADC_Detect_Start_Flag > 0){
+			printf("\n\r ADC_Detect_Start_Flag = %d",ADC_Detect_Start_Flag);
+		}
+
 		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
 		
 		printf("\n\r");
@@ -490,12 +499,16 @@ static void Operate_ADC_Detect(void){
 		}
 		
 	}else if(ADC_Detect_Start_Flag == 2){
-		if(Flag_Door_UpLimit == TRUE){
-			ADC_OPEN_MAX= ADC_OPEN_MAX_b;
-			ADC_OPEN_MIN = ADC_OPEN_MIN_b;
-		}else if(Flag_Door_DownLimit == TRUE){
-			ADC_CLOSE_MAX= ADC_CLOSE_MAX_b;
-			ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
+		if(TM_ADC_Relaod == 0){
+			if(Flag_Door_UpLimit == TRUE){
+				ADC_OPEN_MAX= ADC_OPEN_MAX_b;
+				ADC_OPEN_MIN = ADC_OPEN_MIN_b;
+			}else if(Flag_Door_DownLimit == TRUE){
+				ADC_CLOSE_MAX= ADC_CLOSE_MAX_b;
+				ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
+			}
+		}else{
+			ADC_Detect_Start_Flag = 0;
 		}
 		
 		//防壓參考值下限
@@ -1300,7 +1313,7 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			break;
 
 		case 10:
-			PWM_Duty = 50;
+			PWM_Duty = 99;
 			break;
 			
 		default:
@@ -1525,7 +1538,7 @@ static void Parameter_Load(void){
 		Flag_AntiPress       = TRUE;    //防夾功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
 		Flag_Func_JOG        = FALSE;   //吋動功能
-		Flag_Motor_Direction = FALSE;   //馬達運轉方向
+		Flag_Motor_Direction = TRUE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
@@ -1537,7 +1550,7 @@ static void Parameter_Load(void){
 		Time_Auto_Close           = 100;   //自動關門延遲時間
 		Time_Light                  = 100;   //照明運轉時間
 
-		Volt_StandBy = 0.1;	//0.2 for 測試用
+		Volt_StandBy = 0.3;	//0.2 for 測試用
 		//Volt_StandBy = 0.3;
 		Anti_Weight_Open  = 1;   //防夾權重: 開門
 		Anti_Weight_Close = 1;   //防夾權重: 關門
