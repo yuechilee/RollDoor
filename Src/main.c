@@ -315,7 +315,7 @@ int main(void)
 	
   printf("\n\rVer_date.: %d", Ver_date);
 
-  if(Flag_CycleTest == TRUE && Cycle_jumper == 1){
+  if(Flag_CycleTest == TRUE){
 	TM_MAX = 600;
 	TM_OPEN = TM_MAX;
 	Wait_flg = TRUE;
@@ -694,14 +694,14 @@ void PWR_CTRL(void){
 	}
 	
 	if(TM_Buzz > 0){
-		Buzz_out(5, 5);
+		//Buzz_out(5, 5);
 	}else{
-		Buzz_out(0, 0);
+		//Buzz_out(0, 0);
 	}
 	
-	printf("\r\n\n TM_BAUZZ = %d", TM_Buzz);
-	printf("\r\n TM_BAUZZ_ON = %d", TM_Buzz_ON);
-	printf("\r\n TM_BAUZZ_OFF = %d", TM_Buzz_OFF);
+	//printf("\r\n\n TM_BAUZZ = %d", TM_Buzz);
+	//printf("\r\n TM_BAUZZ_ON = %d", TM_Buzz_ON);
+	//printf("\r\n TM_BAUZZ_OFF = %d", TM_Buzz_OFF);
 	
 }
 
@@ -1524,7 +1524,7 @@ static void Parameter_Load(void){
 		Flag_WindowsDoor     = FALSE;   //捲窗門功能
 		Flag_AntiPress       = TRUE;    //防夾功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
-		Flag_Func_JOG        = TRUE;   //吋動功能
+		Flag_Func_JOG        = FALSE;   //吋動功能
 		Flag_Motor_Direction = FALSE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
