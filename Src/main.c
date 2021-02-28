@@ -48,7 +48,7 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 
 /* Private macro -------------------------------------------------------------*/
 //*******參數設定*******//
-uint8_t EE_Default = TRUE;
+uint8_t EE_Default = FALSE;
 uint8_t Flag_WindowsDoor; 		//捲窗門選擇:	
 uint8_t Flag_CycleTest;             //循環測試(長時測試)
 uint8_t Flag_AntiPress;			//防夾功能
@@ -284,6 +284,7 @@ int main(void)
   //Buzzer_Config();	//No used
 
   // Parameter access
+	EE_Default = FALSE;
   Parameter_Load();
 
   TM_OPEN = 0;
@@ -366,6 +367,9 @@ static void Debug_Monitor(void){
 			printf("\n\r待機電壓   = %f V",Volt_StandBy);
 		}
 		
+			printf("\n\r***********ADC = %d",ADC_Calculate());
+		
+		
 		printf("\n\n\r目前門狀態 = %d",ST_Door);
 		
 		if(TM_OPEN > 0){
@@ -437,6 +441,7 @@ static void Debug_Monitor(void){
 		printf("\n\r *******ST_Low_Operate = %d",ST_Low_Operate);
 		printf("\n\r PWM_Duty = %d",PWM_Duty);
 		printf("\n\r PWM_Period = %d",PWM_Period);
+		printf("\n\r OpEnd_Detect_Start_Flag = %d",OpEnd_Detect_Start_Flag);
 		
 		printf("\n\r");
 
@@ -528,10 +533,10 @@ static void Operate_ADC_Detect(void){
 		
 		//防壓參考值下限
 		if(ADC_OPEN_MAX < 1000){
-			ADC_OPEN_MAX = 1000;
+			ADC_OPEN_MAX = 3700;
 		}
 		if(ADC_CLOSE_MAX < 1000){
-			ADC_CLOSE_MAX = 1000;
+			ADC_CLOSE_MAX = 3700;
 		}
 		
 		ADC_Detect_Start_Flag = 0;
@@ -810,6 +815,7 @@ void Door_manage(void){
 						TM_CLOSE = 0;
 					}
 					ST_Door = 0;
+					ST_Anti = 0;
 					break;
 			//-------------------指令=停止 End----------------//
 			//-------------------指令=開門--------------------//
@@ -820,11 +826,13 @@ void Door_manage(void){
 					Close_IT2 = FALSE;
 					TM_CLOSE = 0;
 					TM_OPEN = TM_MAX;
+					TM_AntiDly = Time_AntiDly;
+					TM_EndDetec = 10;
 					break;
 			//-------------------指令=開門 End----------------//
 			//-------------------指令=關門--------------------//
 				case 2:
-					if(ST_Anti == 3){	 //20201227_OC_Detect
+					if(Anti_Event == 2){ 		//關門防壓中: break
 						break;
 					}
 					ST_Door = 2;
@@ -846,7 +854,9 @@ void Door_manage(void){
 					}else{
 						//Empty
 					}
-					TM_AntiDly = 10;	//20201227_OC_Detect
+					TM_AntiDly = Time_AntiDly;
+					TM_EndDetec = 10;
+					AClose_Flg = FALSE;
 					break;
 			//-------------------指令=關門 End-----------------//
 			// ----- Else ----- //
@@ -1021,6 +1031,12 @@ static void OpEnd_Detect(void){
 				//運轉次數
 				if(TM_OPEN > 0){
 					REC_Operate_Times++;
+				}
+				
+				if(Flag_WindowsDoor == TRUE){
+					if(TM_OPEN > 0){
+						ST_Close = 1;
+					}
 				}
 				
 				TM_OPEN = 0;
@@ -1302,8 +1318,8 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			PWM_Period = 2;
 			ST_Low_Operate = 1;
 		}else if(TM_Low_Operate < 90){
-			PWM_Duty = 4;
-			PWM_Period = 5;
+			PWM_Duty = 99;
+			PWM_Period = 100;
 			ST_Low_Operate = 2;
 		}else{
 			PWM_Duty = 1;
@@ -1338,8 +1354,8 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				break;
 				
 			case 6:
-				PWM_Duty = 9;
-				PWM_Period = 10;
+				PWM_Duty = 99;
+				PWM_Period = 100;
 				break;
 				
 			default:
@@ -1573,7 +1589,7 @@ static void Parameter_Load(void){
 		Flag_Light           = FALSE;    //自動照明
 		
 		TM_DLY_Value              = 300;   //循環測試間隔時間
-		TM_WindowsDoor_ClosePart1 = 130;   //捲窗門_第一段關門時間
+		TM_WindowsDoor_ClosePart1 = 70;   //捲窗門_第一段關門時間
 		TM_MAX                    = 600;   //開關門最長運轉時間
 		Time_Auto_Close           = 100;   //自動關門延遲時間
 		Time_Light                  = 100;   //照明運轉時間
@@ -1586,10 +1602,10 @@ static void Parameter_Load(void){
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade      = 1;   //鐵捲速度
+		PWM_Grade      = 6;   //鐵捲速度
 		Auto_Close_Mode   = 1;	 //自動關門模式設定
 		
-		Flag_Low_Operate = TRUE;
+		Flag_Low_Operate = FALSE;
 
 	}else{
 		//******Parameter form EEPROM*****//
