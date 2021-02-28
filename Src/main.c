@@ -291,8 +291,8 @@ int main(void)
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - TM_WindowsDoor_ClosePart1;		//section_time_2 of close operation
   if(Flag_WindowsDoor == TRUE && CloseTM2 <= 0){
-	Flag_WindowsDoor = FALSE;
-	printf("\n\r捲窗門功能: OFF\n");
+		Flag_WindowsDoor = FALSE;
+		printf("\n\r捲窗門功能: OFF\n");
   }
   ST_Close = 1;
 	
@@ -554,7 +554,7 @@ static void Cycle_Test(void){
 		TM_CLOSE = TM_MAX;
 		ACT_Door = 2;
 		Wait_flg = TRUE;
-		Cycle_times_down++;
+		REC_Operate_Times++;
 		Ext_CNTER();
 		printf("\n\rNoise test 1");
 	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
@@ -575,6 +575,8 @@ static void Cycle_Test(void){
 	Door_manage();
 	PWR_CTRL(); 
 	//OpEnd_Detect();
+	Operate_Infor_Save();
+
 	
 	if(TM_Printf == 0){
 		printf("\n\r==============循環測試-狀態scan2===================");			
@@ -1575,6 +1577,8 @@ static void Parameter_Load(void){
 		}
 	}
 	
+	EE_Default = HAL_GPIO_ReadPin(PORT_EE_SEL, EEPROM_SEL);
+	
 	if(EE_Default == TRUE){
 		//Default parameter
 		Flag_CycleTest       = FALSE;   //循環測試(長時測試)
@@ -1587,12 +1591,13 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
+		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
 		TM_DLY_Value              = 300;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = 70;   //捲窗門_第一段關門時間
 		TM_MAX                    = 600;   //開關門最長運轉時間
 		Time_Auto_Close           = 100;   //自動關門延遲時間
-		Time_Light                  = 100;   //照明運轉時間
+		Time_Light                = 100;   //照明運轉時間
 
 		Volt_StandBy = 0;//0.2;	//0.2 for 測試用
 		//Volt_StandBy = 0.3;
@@ -1602,10 +1607,9 @@ static void Parameter_Load(void){
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade      = 6;   //鐵捲速度
-		Auto_Close_Mode   = 1;	 //自動關門模式設定
+		PWM_Grade        = 6;   //鐵捲速度
+		Auto_Close_Mode  = 1;	 //自動關門模式設定
 		
-		Flag_Low_Operate = FALSE;
 
 	}else{
 		//******Parameter form EEPROM*****//
@@ -1620,6 +1624,7 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = aRxBuffer[17];   //捲門調速
 		Flag_Buzzer          = aRxBuffer[18];   //蜂鳴器
 		Flag_Light           = aRxBuffer[19];    //自動照明
+		Flag_Low_Operate     = aRxBuffer[20];  //緩起步 & 緩停止
 		
 		TM_DLY_Value              = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;   //捲窗門_第一段關門時間
@@ -1628,8 +1633,8 @@ static void Parameter_Load(void){
 		Time_Light                = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;   //照明運轉時間
 
 		Volt_StandBy      = (float)aRxBuffer[40]/10;   //待機電壓for到位判定使用
-		Anti_Weight_Open  = (float)aRxBuffer[41]/10;   //防夾權重: 開門
-		Anti_Weight_Close = (float)aRxBuffer[42]/10;   //防夾權重: 關門
+		Anti_Weight_Open  = (float)aRxBuffer[41]/100;   //防夾權重: 開門
+		Anti_Weight_Close = (float)aRxBuffer[42]/100;   //防夾權重: 關門
 		
 		Times_JOG         = aRxBuffer[43];   //吋動判定次數
 		Times_Remote_Lock = aRxBuffer[44];   //鎖電成立次數
