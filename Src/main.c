@@ -70,8 +70,8 @@ uint16_t TM_DLY_Value;
 uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
 uint16_t Time_Light;				//照明運轉時間n * 0.1sec
 
-float Anti_Weight_Open = 0.01;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-float Anti_Weight_Close = 0.01;				//防夾權重(可小數):關門(越小越靈敏),建議>1
+float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //*******參數設定結束*******//
@@ -214,6 +214,7 @@ static void StatusRelay_out_config(void);
 static void Anti_Pressure_5(void);
 static void OpEnd_Detect(void);			//Door unload detect
 static void Buzzer_Config(void);
+static void ControlBox_Config(void);
 static void Ext_CNTER(void);			//Door unload detect
 static uint16_t	TIMDEC(uint16_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
@@ -240,6 +241,11 @@ uint8_t I2C_TX_Buffer_u32[4];
 
 static void Debug_Monitor(void);
 static void Operate_Infor_Save(void);
+static void CtrlBox_Light_Up(void);
+static void CtrlBox_Light_Down(void);
+static void CtrlBox_Light_OFF(void);
+
+
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -282,6 +288,7 @@ int main(void)
   MotorRelay_out_config();
   StatusRelay_out_config();
   //Buzzer_Config();	//No used
+  ControlBox_Config();	//No used
 
   // Parameter access
 	EE_Default = FALSE;
@@ -734,6 +741,14 @@ void PWR_CTRL(void){
 		//Buzz_out(5, 5);
 	}else{
 		//Buzz_out(0, 0);
+	}
+	
+	if(TM_OPEN > 0){
+		CtrlBox_Light_Up();
+	}else if(TM_CLOSE > 0){
+		CtrlBox_Light_Down();
+	}else{
+		CtrlBox_Light_OFF();
 	}
 	
 	//printf("\r\n\n TM_BAUZZ = %d", TM_Buzz);
@@ -1813,6 +1828,33 @@ static void Buzzer_Config(void){
 
 	//buzz config...end
 }
+
+static void ControlBox_Config(void){
+	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+
+	GPIO_InitStruct.Pin = CtrlBox_1 | CtrlBox_2;
+	HAL_GPIO_Init(PORT_CtrlBox, &GPIO_InitStruct);
+
+}
+
+static void CtrlBox_Light_Up(void){
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
+	}
+
+static void CtrlBox_Light_Down(void){
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_SET);
+}
+
+static void CtrlBox_Light_OFF(void){
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
+}
+
+
 
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len){
 	int i, j, temp;
