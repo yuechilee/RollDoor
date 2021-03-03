@@ -1334,17 +1334,24 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(Flag_Low_Operate == TRUE){
 		if(TM_Low_Operate < 20){
 			PWM_Duty = 1;
-			PWM_Period = 2;
+			PWM_Period = 3;
 			ST_Low_Operate = 1;
-		}else if(TM_Low_Operate < 90){
+		}else if(TM_Low_Operate < 50){
 			PWM_Duty = 99;
 			PWM_Period = 100;
 			ST_Low_Operate = 2;
 		}else{
 			PWM_Duty = 1;
-			PWM_Period = 2;
+			PWM_Period = 3;
 			ST_Low_Operate = 3;
 		}
+		
+		if(ST_Low_Operate == 2){
+			Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.3;
+		}else{
+			Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.1;
+		}
+		
 	}else{
 		switch(PWM_Grade){
 			case 1:
@@ -1842,13 +1849,13 @@ static void ControlBox_Config(void){
 }
 
 static void CtrlBox_Light_Up(void){
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
-	}
-
-static void CtrlBox_Light_Down(void){
 	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_SET);
+}
+
+static void CtrlBox_Light_Down(void){
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_1, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_CtrlBox, CtrlBox_2, GPIO_PIN_RESET);
 }
 
 static void CtrlBox_Light_OFF(void){
