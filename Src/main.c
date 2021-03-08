@@ -120,6 +120,7 @@ uint8_t Times_OverADC_Target = 2;	//防夾被觸發次數
 uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
+uint8_t Buzz_Type = 0;
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -262,11 +263,7 @@ uint16_t TM_Buzz;// = 30;
 
 // Main Loop
 int main(void)
-{
-	//Anti_Weight_Open = (float)Anti_Weight_Open*0.1;					//防夾權重(可小數):開門(越小越靈敏),建議>1
-	//Anti_Weight_Close = (float)Anti_Weight_Close*0.1;				//防夾權重(可小數):關門(越小越靈敏),建議>1
-	//Volt_StandBy = (float)Volt_StandBy_buf*0.1;						//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
-		
+{		
   /* Configure HAL */
   HAL_Init();
 
@@ -287,7 +284,7 @@ int main(void)
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
-  //Buzzer_Config();	//No used
+  Buzzer_Config();	//No used
   ControlBox_Config();	//No used
 
   // Parameter access
@@ -312,19 +309,15 @@ int main(void)
 
 	//EXTI enable
 	//TIM16 Enable
-  if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
-  {
-    /* Starting Error */
+  if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK){
     Error_Handler();
   }
 
-  
   if(Volt_StandBy == 0){
 		Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.3;
   }
 	
   //Cycle_jumper = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_7);
-	
 	
   printf("\n\rVer_date.: %d", Ver_date);
 
@@ -337,8 +330,11 @@ int main(void)
 	printf("\n\r循環測試:有\n");
   }
 	
-	//Buzz_out(10,1);
-    
+  //開機提示音
+  Buzz_on();
+  Delay_ms(500);
+  Buzz_off();
+  
   while (1){ 
 	if(Flag_CycleTest == TRUE){
 		//循環測試
@@ -737,12 +733,6 @@ void PWR_CTRL(void){
 		Light_OFF();
 	}
 	
-	if(TM_Buzz > 0){
-		//Buzz_out(5, 5);
-	}else{
-		//Buzz_out(0, 0);
-	}
-	
 	if(TM_OPEN > 0){
 		CtrlBox_Light_Up();
 	}else if(TM_CLOSE > 0){
@@ -751,10 +741,18 @@ void PWR_CTRL(void){
 		CtrlBox_Light_OFF();
 	}
 	
-	//printf("\r\n\n TM_BAUZZ = %d", TM_Buzz);
-	//printf("\r\n TM_BAUZZ_ON = %d", TM_Buzz_ON);
-	//printf("\r\n TM_BAUZZ_OFF = %d", TM_Buzz_OFF);
-	
+	if(TM_Buzz > 0){
+		if(Buzz_Type == 1){
+			Buzz_out(3,3);
+		}else if(Buzz_Type == 2){
+			Buzz_out(5,5);
+		}else{
+			//TBD
+		}
+	}else{
+		Buzz_off();
+	}
+		
 }
 
 void Door_manage(void){	
@@ -1142,8 +1140,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	
 	switch(GPIO_Pin){
 		case W_STOP:
-			if(Flag_LOCK == TRUE)	break;		//鎖電功能ON: 不動作
-			if(Flag_SMK == TRUE)	break;
+			if(Flag_SMK  == TRUE)	break;
+			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
+				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
+				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+				break;
+			}
 			ST_BTN = TRUE;
 			ACT_Door = 0;
 			ST_Anti = 0;
@@ -1166,8 +1168,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case W_OPEN:
-			if(Flag_LOCK == TRUE)	break;		//鎖電功能ON: 不動作
-			if(Flag_SMK == TRUE)	break;
+			if(Flag_SMK  == TRUE)	break;
+			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
+				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
+				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+				break;
+			}
 			
 			//吋動功能
 			if(Flag_Func_JOG == TRUE){
@@ -1213,10 +1219,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 
 		case W_CLOSE:			
-			if(Flag_LOCK  == TRUE)	break;		//鎖電功能ON: 不動作
-			if(Flag_IR    == TRUE)	break;		//紅外線觸發: 不動作
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
+			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
+				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
+				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+				break;
+			}
+			if(Flag_IR    == TRUE){				//紅外線觸發: 不動作
+				Buzz_Type = 1;	//蜂鳴器ON/OFF 0.5秒
+				TM_Buzz   = 10;	//蜂鳴器運作 10 sec.
+				break;
+			}
 			
 			if(Flag_Func_JOG == TRUE){
 			// JOG detect
@@ -1289,11 +1303,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				Door_Stop();
 				Delay_ms(100);
 				ST_BTN = TRUE;
-				ACT_Door = 1;	 //開門
-				TM_IR_Lock = 30; // 30 sec.
-				TM_Buzz = 30;	//30 sec.
+				ACT_Door = 1;	 // 開門
+				TM_IR_Lock = 30; // 鎖定時間 30 sec.
+				Buzz_Type = 1;	 // 蜂鳴器ON/OFF 0.5秒
+				TM_Buzz = 30;	 // 蜂鳴器運作 30 sec.
 			}
-		break;
+			break;
 		
 		case W_SMK:
 			Flag_SMK = TRUE;
@@ -1303,7 +1318,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ACT_Door = 1;	 //開門
 			TM_Buzz = TM_MAX;
 
-		break;
+			break;
 		
 		default:
 				break;
@@ -1322,6 +1337,9 @@ static void SMK_CTRL(void){
 		if(SMK_tmp == TRUE){
 			Flag_SMK = FALSE;
 			TM_Buzz = 0;
+		}else{
+			Buzz_Type = 1;
+			TM_Buzz = TM_OPEN;
 		}
 	}
 }
@@ -1623,7 +1641,7 @@ static void Parameter_Load(void){
 		Time_Auto_Close           = 100;   //自動關門延遲時間
 		Time_Light                = 100;   //照明運轉時間
 
-		Volt_StandBy = 0;//0.2;	//0.2 for 測試用
+		Volt_StandBy = 0; //開機自動決定待機值
 		//Volt_StandBy = 0.3;
 		Anti_Weight_Open  = 0.01;   //防夾權重: 開門
 		Anti_Weight_Close = 0.01;   //防夾權重: 關門
@@ -1711,12 +1729,12 @@ static void Anti_Pressure_5(void){
 					//根據防夾參數權重,設定防夾動作值
 					if(TM_OPEN > 0){
 						//Anti_Weight = 1 + (Anti_Weight_Open / 10);
-						Anti_Weight = 1 + Anti_Weight_Open; //(Anti_Weight_Open / 10);
+						Anti_Weight = 1 + Anti_Weight_Open;
 						ADC_Anti_Max = ADC_OPEN_MAX * Anti_Weight;
 						ST_Anti = 2;
 					}else if(TM_CLOSE > 0){
 						//Anti_Weight = 1 + (Anti_Weight_Close / 10);
-						Anti_Weight = 1 + Anti_Weight_Close; //(Anti_Weight_Close / 10);
+						Anti_Weight = 1 + Anti_Weight_Close;
 						ADC_Anti_Max = ADC_CLOSE_MAX * Anti_Weight;
 						ST_Anti = 3;
 					}
@@ -1748,7 +1766,7 @@ static void Anti_Pressure_5(void){
 						TM_OPEN = 0;
 						TM_CLOSE  = 0;
 						
-						TM_AntiDly3 = 0; //10;	//停頓1秒後
+						TM_AntiDly3 = 0; 	//運轉停止,免反轉,不需等待時間
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
@@ -1777,7 +1795,7 @@ static void Anti_Pressure_5(void){
 						//停機
 						TM_OPEN = 0;
 						TM_CLOSE = 0;
-						TM_AntiDly3 = 1;	//停頓1秒後,反轉開門
+						TM_AntiDly3 = 1;	//停頓0.1秒後,反轉開門
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
@@ -1928,19 +1946,20 @@ static void Buzz_off(void){
 }
 
 static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time){
+	uint8_t ST_Buzz;
 	
-	if(TM_Buzz_ON == 0 && TM_Buzz_OFF == 0){
+	ST_Buzz = HAL_GPIO_ReadPin(PORT_Buzzer, Buzzer);
+	
+	printf("\n\n\rBuzz_type = %d", Buzz_Type);
+	
+	if(ST_Buzz == 0 && TM_Buzz_OFF == 0){
 		TM_Buzz_ON = ON_Time;
-		TM_Buzz_OFF = ON_Time + OFF_Time;
-	}
-	
-	if(TM_Buzz_ON > 0){
 		Buzz_on();
-	}
-	
-	if(TM_Buzz_ON == 0 && TM_Buzz_OFF > 0){
+	}else if(ST_Buzz == 1 && TM_Buzz_ON == 0){
+		TM_Buzz_OFF = OFF_Time;
 		Buzz_off();
 	}
+	
 }
  
 #ifdef  USE_FULL_ASSERT
