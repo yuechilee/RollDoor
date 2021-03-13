@@ -131,6 +131,7 @@ uint16_t TM_Printf = 10;
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 uint16_t TM_OPEN = 0;                   //Time: Door open
 uint16_t TM_CLOSE = 0;                  //Time: Door close
+uint16_t TM_CLOSE_b = 0;                  //Time: Door close
 uint16_t TM_AntiDly;
 uint16_t Time_AntiDly = 20;
 uint16_t TM_AntiDly2;
@@ -214,6 +215,7 @@ static void MotorRelay_out_config(void);
 static void StatusRelay_out_config(void);
 static void Anti_Pressure_5(void);
 static void OpEnd_Detect(void);			//Door unload detect
+static void OpEnd_Detect_2(void);			//Door unload detect
 static void Buzzer_Config(void);
 static void ControlBox_Config(void);
 static void Ext_CNTER(void);			//Door unload detect
@@ -522,6 +524,10 @@ static void Operate_ADC_Detect(void){
 		}
 		
 	}else if(ADC_Detect_Start_Flag == 2){
+		printf("\n\n\r TM_ADC_Relaod = %d", TM_ADC_Relaod);
+		printf("\n\n\r Anti_Event_buf = %d", Anti_Event_buf);
+		printf("\n\n\r Flag_Door_UpLimit = %d", Flag_Door_UpLimit);
+		printf("\n\n\r Flag_Door_DownLimit = %d", Flag_Door_DownLimit);
 		if(TM_ADC_Relaod == 0 && Anti_Event_buf == 0){
 			if(Flag_Door_UpLimit == TRUE){
 				ADC_OPEN_MAX= ADC_OPEN_MAX_b;
@@ -722,9 +728,21 @@ void PWR_CTRL(void){
 	//到位偵測
 	if(TM_OPEN > 0 || TM_CLOSE > 0){
 		OpEnd_Detect();
+		OpEnd_Detect_2();
+	}else if(TM_CLOSE == 0 && TM_CLOSE_b != 0){
+			printf("\n\n\rHelloxxx");
+			printf("\n\n\rST_Close = %d", ST_Close);
+			if(ST_Close == 1){
+				Flag_Door_UpLimit   = FALSE;
+				Flag_Door_DownLimit = TRUE;
+				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
+			}else if(ST_Close == 2){
+				ADC_Detect_Start_Flag = 0;
+			}			
 	}else{
 		ADC_Detect_Start_Flag =0;
 	}
+	TM_CLOSE_b = TM_CLOSE;
 	
 	//開門燈光控制
 	if(TM_Light_ON > 0){
@@ -1009,8 +1027,9 @@ void Light_OFF(void){
 
 //******************Relay control end******************//
 
+//無捲窗門限位偵測
 static void OpEnd_Detect(void){
-	if(TM_EndDetec == 0){
+	if(TM_EndDetec == 0 && Flag_WindowsDoor == FALSE){
 		if(OpEnd_Detect_Start_Flag == FALSE){                  //等待
 			TM_DoorOperateDly = 5;                             //Delay 0.5 second後開始確認是否到限位
 			OpEnd_Detect_Start_Flag = TRUE;
@@ -1061,6 +1080,68 @@ static void OpEnd_Detect(void){
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;		
 				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
+			}
+		}
+	}
+}
+
+//有捲窗門限位偵測
+static void OpEnd_Detect_2(void){
+	if(TM_EndDetec == 0 && Flag_WindowsDoor == TRUE){
+		if(OpEnd_Detect_Start_Flag == FALSE){                  //等待
+			TM_DoorOperateDly = 5;                             //Delay 0.5 second後開始確認是否到限位
+			OpEnd_Detect_Start_Flag = TRUE;
+			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
+		}else if(TM_OPEN > 0){
+			Voc = ADC_Calculate() *(3.3/4095);		
+			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
+				printf("\n\n\r門到位-停止運轉!\n\n");
+				
+				//判斷是否開門到位,並且設定照明時間
+				if(TM_OPEN > 0){
+					//設定照明持續時間
+					TM_Light_ON = Time_Light;
+					if(Flag_AutoClose == 1){
+						TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
+						AClose_Flg = TRUE;									//自動關門旗標:ON
+					}
+					
+					//若是關門防夾觸發,恢復成待機正常運轉
+					Anti_Event_buf = Anti_Event;
+					if(Anti_Event == 2){
+						Anti_Event = 0;
+					}
+				}
+								
+				//限位旗標做成
+				Flag_Door_UpLimit   = TRUE;
+				Flag_Door_DownLimit = FALSE;
+				
+				//運轉次數
+				REC_Operate_Times++;
+				
+				ST_Close = 1;
+
+				TM_OPEN = 0;
+				TM_CLOSE = 0;
+				ST_Anti = 0;
+				OpEnd_Detect_Start_Flag = FALSE;		
+				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
+			}
+		}else if(TM_CLOSE > 0){			
+			Voc = ADC_Calculate() *(3.3/4095);		
+			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
+				printf("\n\n\r門到位-停止運轉!\n\n");
+												
+				//限位旗標做成
+				Flag_Door_UpLimit   = FALSE;
+				Flag_Door_DownLimit = TRUE;
+				
+				TM_OPEN = 0;
+				TM_CLOSE = 0;
+				ST_Anti = 0;
+				OpEnd_Detect_Start_Flag = FALSE;
+				
 			}
 		}
 	}
@@ -1624,7 +1705,7 @@ static void Parameter_Load(void){
 	if(EE_Default == TRUE){
 		//Default parameter
 		Flag_CycleTest       = FALSE;   //循環測試(長時測試)
-		Flag_WindowsDoor     = FALSE;   //捲窗門功能
+		Flag_WindowsDoor     = TRUE;   //捲窗門功能
 		Flag_AntiPress       = TRUE;    //防夾功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
 		Flag_Func_JOG        = FALSE;   //吋動功能
