@@ -70,7 +70,9 @@ uint16_t TM_DLY_Value;
 uint16_t Time_Auto_Close;			// 自動關門延遲時間: n * 0.1sec.
 uint16_t Time_Light;				//照明運轉時間n * 0.1sec
 
+uint8_t Anti_Weight_Open_select;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
+uint8_t Anti_Weight_Close_select;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
@@ -111,7 +113,8 @@ uint8_t PWM_Period = 100;
 uint8_t PWM_Duty = 50;
 uint8_t PWM_Count = 0;
 uint8_t TM_IR_Lock = 0;
-uint8_t Auto_Close_Mode;
+//uint8_t Auto_Close_Mode;
+uint16_t Auto_Close_Mode;
 uint8_t CNT_Jog_Press = 0;
 uint8_t CNT_LOCK_Press = 0;
 uint8_t ADC_Detect_Start_Flag = 0;
@@ -121,6 +124,8 @@ uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
 uint8_t Buzz_Type = 0;
+
+uint8_t EE_Addr_P = 0;
 	//16-bits
 
 uint16_t Vadc_buf;
@@ -168,6 +173,8 @@ uint16_t TM_Buzz_ON = 0;
 uint16_t TM_Buzz_OFF = 0;
 uint16_t TM_ADC_Relaod = 0;
 uint16_t TM_Low_Operate = 0;
+uint8_t Time_Low_Operate_Ini;
+uint8_t Time_Low_Operate_Mid;
 
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
@@ -471,7 +478,7 @@ static void Operate_Infor_Save(void){
 		TXBuf[3] = REC_Operate_Times >> 8*3;
 		
 		//
-		if(HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, 50, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf, 4, 10000) != HAL_OK){
+		if(HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, 200, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf, 4, 10000) != HAL_OK){
 			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
 				Error_Handler();
 			}
@@ -1438,17 +1445,17 @@ static void SMK_CTRL(void){
 void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {	
 	if(Flag_Low_Operate == TRUE){
-		if(TM_Low_Operate < 20){
+		if(TM_Low_Operate < Time_Low_Operate_Ini){ //20
 			PWM_Duty = 1;
-			PWM_Period = 3;
+			PWM_Period = 2;
 			ST_Low_Operate = 1;
-		}else if(TM_Low_Operate < 50){
+		}else if(TM_Low_Operate < Time_Low_Operate_Mid){ //
 			PWM_Duty = 99;
 			PWM_Period = 100;
 			ST_Low_Operate = 2;
 		}else{
 			PWM_Duty = 1;
-			PWM_Period = 3;
+			PWM_Period = 2;
 			ST_Low_Operate = 3;
 		}
 		
@@ -1459,42 +1466,7 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		
 	}else{
-		switch(PWM_Grade){
-			case 1:
-				PWM_Duty = 1;
-				PWM_Period = 2;
-				break;
-				
-			case 2:
-				PWM_Duty = 2;
-				PWM_Period = 3;
-				break;
-				
-			case 3:
-				PWM_Duty = 3;
-				PWM_Period = 4;
-				break;
-				
-			case 4:
-				PWM_Duty = 4;
-				PWM_Period = 5;
-				break;
-				
-			case 5:
-				PWM_Duty = 6;
-				PWM_Period = 7;
-				break;
-				
-			case 6:
-				PWM_Duty = 99;
-				PWM_Period = 100;
-				break;
-				
-			default:
-				PWM_Duty = 1;
-				PWM_Period = 2;
-				break;
-		}
+		
 	}
 	
 	PWM_Count++;	
@@ -1702,6 +1674,7 @@ static void Uart_Config(void){
 
 static void Parameter_Load(void){
 	uint8_t i;
+	float iweight;
 	
 	if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 256, 10000) != HAL_OK){
 		if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
@@ -1742,46 +1715,160 @@ static void Parameter_Load(void){
 		PWM_Grade        = 6;   //鐵捲速度
 		Auto_Close_Mode  = 1;	 //自動關門模式設定
 		
+		Time_Low_Operate_Ini = 20;
+		Time_Low_Operate_Mid = 50;
 
 	}else{
 		//******Parameter form EEPROM*****//
 		//Funtion ON/OFF
-		Flag_CycleTest       = aRxBuffer[10];   //循環測試(長時測試)
-		Flag_WindowsDoor     = aRxBuffer[11];   //捲窗門功能
-		Flag_AntiPress       = aRxBuffer[12];   //防夾功能
-		Flag_AutoClose       = aRxBuffer[13];   //自動關門功能
-		Flag_Func_JOG        = aRxBuffer[14];   //吋動功能
-		Flag_Motor_Direction = aRxBuffer[15];   //馬達運轉方向
-		Flag_Remote_Lock     = aRxBuffer[16];   //鎖電功能
-		Flag_Rate_Regulate   = aRxBuffer[17];   //捲門調速
-		Flag_Buzzer          = aRxBuffer[18];   //蜂鳴器
-		Flag_Light           = aRxBuffer[19];    //自動照明
-		Flag_Low_Operate     = aRxBuffer[20];  //緩起步 & 緩停止
+		EE_Addr_P = 20;
+		Flag_CycleTest       = aRxBuffer[EE_Addr_P++];   //循環測試(長時測試)
+		Flag_WindowsDoor     = aRxBuffer[EE_Addr_P++];   //捲窗門功能
+		Flag_AntiPress       = aRxBuffer[EE_Addr_P++];   //防夾功能
+		Flag_AutoClose       = aRxBuffer[EE_Addr_P++];   //自動關門功能
+		Flag_Func_JOG        = aRxBuffer[EE_Addr_P++];   //吋動功能
+		Flag_Motor_Direction = aRxBuffer[EE_Addr_P++];   //馬達運轉方向
+		Flag_Remote_Lock     = aRxBuffer[EE_Addr_P++];   //鎖電功能
+		Flag_Rate_Regulate   = aRxBuffer[EE_Addr_P++];   //捲門調速
+		Flag_Buzzer          = aRxBuffer[EE_Addr_P++];   //蜂鳴器
+		Flag_Light           = aRxBuffer[EE_Addr_P++];    //自動照明
+		Flag_Low_Operate     = aRxBuffer[EE_Addr_P++];  //緩起步 & 緩停止
 		
-		TM_DLY_Value              = (uint16_t)aRxBuffer[30] | (uint16_t)aRxBuffer[31]<<8;   //循環測試間隔時間
-		TM_WindowsDoor_ClosePart1 = (uint16_t)aRxBuffer[32] | (uint16_t)aRxBuffer[33]<<8;   //捲窗門_第一段關門時間
-		TM_MAX                    = (uint16_t)aRxBuffer[34] | (uint16_t)aRxBuffer[35]<<8;   //開關門最長運轉時間
-		Time_Auto_Close           = (uint16_t)aRxBuffer[36] | (uint16_t)aRxBuffer[37]<<8;   //自動關門延遲時間
-		Time_Light                = (uint16_t)aRxBuffer[38] | (uint16_t)aRxBuffer[39]<<8;   //照明運轉時間
+		EE_Addr_P = 40;
+		TM_DLY_Value              = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //循環測試間隔時間
+		EE_Addr_P+=2;
+		
+		TM_WindowsDoor_ClosePart1 = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //循環測試間隔時間
+		EE_Addr_P+=2;
+		
+		TM_MAX                    = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //開關門最長運轉時間
+		EE_Addr_P+=2;
+		
+		Time_Auto_Close           = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //自動關門延遲時間
+		EE_Addr_P+=2;
+		
+		Time_Light                = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //照明運轉時間
+		EE_Addr_P+=2;
+		
+		//EE_Addr_P = 50;
+		Volt_StandBy      = (float)aRxBuffer[EE_Addr_P++]/10;   //待機電壓for到位判定使用
+		Anti_Weight_Open_select  = aRxBuffer[EE_Addr_P++];   //防夾權重: 開門
+		Anti_Weight_Close_select = aRxBuffer[EE_Addr_P++];   //防夾權重: 關門
+		
+		Times_JOG         = aRxBuffer[EE_Addr_P++];   //吋動判定次數
+		Times_Remote_Lock = aRxBuffer[EE_Addr_P++];   //鎖電成立次數
+		
+		PWM_Grade      = aRxBuffer[EE_Addr_P++];   //鐵捲速度
+		
+		//EE_Addr_P = 56;
+		Auto_Close_Mode   = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;	 //自動關門模式設定
+		EE_Addr_P+=2;
 
-		Volt_StandBy      = (float)aRxBuffer[40]/10;   //待機電壓for到位判定使用
-		Anti_Weight_Open  = (float)aRxBuffer[41]/100;   //防夾權重: 開門
-		Anti_Weight_Close = (float)aRxBuffer[42]/100;   //防夾權重: 關門
-		
-		Times_JOG         = aRxBuffer[43];   //吋動判定次數
-		Times_Remote_Lock = aRxBuffer[44];   //鎖電成立次數
-		
-		PWM_Grade      = aRxBuffer[45];   //鐵捲速度
-		Auto_Close_Mode   = aRxBuffer[46];	 //自動關門模式設定
-		
+		//EE_Addr_P = 58;
+		Time_Low_Operate_Ini = aRxBuffer[EE_Addr_P++]; 
+		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]; 
 	}
 	
 	//捲門運行次數
 	REC_Operate_Times = 0;
 	//REC_Operate_Times = (uint32_t)aRxBuffer[30] | (uint32_t)aRxBuffer[31]<<8 | (uint32_t)aRxBuffer[32]<<16 | (uint32_t)aRxBuffer[33]<<24;
 	for(i=0;i<4;i++){
-		REC_Operate_Times = REC_Operate_Times | (uint32_t)aRxBuffer[50+i]<<(8*i);
+		REC_Operate_Times = REC_Operate_Times | (uint32_t)aRxBuffer[200+i]<<(8*i);
 	}
+	
+	//開門防夾權重設定
+	switch(Anti_Weight_Open_select){
+		case 1:
+			iweight = 0.005;
+			break;
+		case 2:
+			iweight = 0.007;
+			break;
+		case 3:
+			iweight = 0.008;
+			break;
+		case 4:
+			iweight = 0.009;
+			break;
+		case 5:
+			iweight = 0.01;
+			break;
+		case 6:
+			iweight = 0.011;
+			break;
+		case 7:
+			iweight = 0.012;
+			break;
+		case 8:
+			iweight = 0.013;
+			break;
+		case 9:
+			iweight = 0.015;
+			break;
+		default:
+			iweight = 0.01;
+			break;
+	}
+	Anti_Weight_Open = iweight;
+	
+	//關門防夾權重設定
+	switch(Anti_Weight_Close_select){
+		case 1:
+			iweight = 0.005;
+			break;
+		case 2:
+			iweight = 0.007;
+			break;
+		case 3:
+			iweight = 0.008;
+			break;
+		case 4:
+			iweight = 0.009;
+			break;
+		case 5:
+			iweight = 0.01;
+			break;
+		case 6:
+			iweight = 0.011;
+			break;
+		case 7:
+			iweight = 0.012;
+			break;
+		case 8:
+			iweight = 0.013;
+			break;
+		case 9:
+			iweight = 0.015;
+			break;
+		default:
+			iweight = 0.01;
+			break;
+	}
+	Anti_Weight_Close = iweight;
+	
+	//PWM速度選擇
+	switch(PWM_Grade){
+		case 0:
+			PWM_Duty = 1;
+			PWM_Period = 2;
+			break;
+			
+		case 1:
+			PWM_Duty = 3;
+			PWM_Period = 4;
+			break;
+			
+		case 2:
+			PWM_Duty = 99;
+			PWM_Period = 100;
+			break;
+		
+		default:
+			PWM_Duty = 1;
+			PWM_Period = 2;
+			break;
+	}
+
 }
 
 static void Anti_Pressure_5(void){
