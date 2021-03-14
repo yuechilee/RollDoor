@@ -74,7 +74,7 @@ uint8_t Anti_Weight_Open_select;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 uint8_t Anti_Weight_Close_select;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
-float Volt_StandBy;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+float Volt_StandBy, Volt_StandBy_b;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
 
 //*******參數設定結束*******//
 
@@ -95,7 +95,7 @@ uint8_t Flag_IR;
 uint8_t Flag_SMK;
 uint8_t Flag_Door_UpLimit;
 uint8_t Flag_Door_DownLimit;
-
+uint8_t Flag_No_VSB; //The default stand-by volt is ZERO.
 
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -103,10 +103,6 @@ uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1
 uint8_t ST_Door_buf, ST_Door_buf2;
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
-uint8_t Vop_Cnt;
-uint8_t OverSlope_Times = 0;
-uint8_t OS_Occur_Times = 2;
-uint8_t Cycle_jumper;
 uint8_t ST_Press;
 uint8_t aRxBuffer[256];
 uint8_t PWM_Period = 100;
@@ -128,10 +124,6 @@ uint8_t Buzz_Type = 0;
 uint8_t EE_Addr_P = 0;
 	//16-bits
 
-uint16_t Vadc_buf;
-uint16_t Calc_Times;
-uint16_t Voc_amt;
-uint16_t Vadc_amt;
 uint16_t TM_Printf = 10;
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 uint16_t TM_OPEN = 0;                   //Time: Door open
@@ -142,7 +134,6 @@ uint16_t TM_AntiDly;
 uint16_t Time_AntiDly = 20;
 uint16_t TM_AntiDly2;
 uint16_t TM_AntiDly3;
-uint16_t Time_AntiDly4 = 1;
 uint16_t TM_EndDetec;
 uint16_t TM_DoorOperateDly = 20;        //到位偵測延遲時間(*100ms)
 uint16_t OpenTM_Remain = 0;             //兩段式開門剩餘時間
@@ -153,7 +144,6 @@ uint16_t CloseTM2;
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
-uint16_t Tim_TEST = 0;
 
 uint16_t ADC_OPEN_MAX = 3700;	//[???]
 //uint16_t ADC_OPEN_MAX;
@@ -185,9 +175,6 @@ uint32_t Ver_date = 20210228;
 uint32_t REC_Operate_Times;
 
 uint8_t TXBuf[4];
-uint16_t ee_address;
-uint8_t x;
-
 
 	//Float
 float Voc_base,Voc_base_;
@@ -256,6 +243,7 @@ static void CtrlBox_Light_Up(void);
 static void CtrlBox_Light_Down(void);
 static void CtrlBox_Light_OFF(void);
 
+static void Low_Operate_Function(void);
 
 
 /* Private functions ---------------------------------------------------------*/
@@ -264,10 +252,7 @@ static void CtrlBox_Light_OFF(void);
 //Variable to ADC conversion
 //uint16_t i,j;
 uint16_t adc_32_amnt = 0;
-uint16_t adc_32_ave;
 float Voc,Voc_;
-float iWeight_;
-float Voc_adc;
 
 uint16_t TM_Buzz;// = 30;
 
@@ -290,6 +275,10 @@ int main(void)
 	
   /* Enable each GPIO Clock */
   CLOCK_Enable();
+
+  // Parameter access
+	EE_Default = FALSE;
+  Parameter_Load();
 	
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
@@ -297,16 +286,13 @@ int main(void)
   Buzzer_Config();	//No used
   ControlBox_Config();	//No used
 
-  // Parameter access
-	EE_Default = FALSE;
-  Parameter_Load();
-
   TM_OPEN = 0;
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - TM_WindowsDoor_ClosePart1;		//section_time_2 of close operation
   if(Flag_WindowsDoor == TRUE && CloseTM2 <= 0){
 		Flag_WindowsDoor = FALSE;
-		printf("\n\r捲窗門功能: OFF\n");
+		printf("\n\r捲窗門功能: OFF");
+		printf("\n");
   }
   ST_Close = 1;
 	
@@ -323,21 +309,24 @@ int main(void)
     Error_Handler();
   }
 
-  if(Volt_StandBy == 0){
-		Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.3;
-  }
-	
-  //Cycle_jumper = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_7);
-	
+  if(Volt_StandBy_b == 0){
+		Flag_No_VSB = TRUE;
+		Volt_StandBy_b = ADC_Calculate() *(3.3/4095);
+		Volt_StandBy = Volt_StandBy_b * 1.3;
+  }else{
+		Flag_No_VSB = FALSE;
+		Volt_StandBy = Volt_StandBy_b;
+	}
+		
   printf("\n\rVer_date.: %d", Ver_date);
 
   if(Flag_CycleTest == TRUE){
-	TM_MAX = 600;
-	TM_OPEN = TM_MAX;
-	Wait_flg = TRUE;
-	ACT_Door = 1;
-	Volt_StandBy = 0.3;
-	printf("\n\r循環測試:有\n");
+		TM_MAX = 600;
+		TM_OPEN = TM_MAX;
+		Wait_flg = TRUE;
+		ACT_Door = 1;
+		Volt_StandBy = 0.3;
+		printf("\n\r循環測試:有\n");
   }
 	
   //開機提示音
@@ -346,25 +335,24 @@ int main(void)
   Buzz_off();
   
   while (1){ 
-	if(Flag_CycleTest == TRUE){
-		//循環測試
-		Cycle_Test();
-		
-	}else{ 
-		//Main function
-		Door_manage();
-		Light_CTRL();
-		IR_CTRL();
-		SMK_CTRL();
-		PWR_CTRL(); 
-		Operate_ADC_Detect();
-		Auto_Close_CTRL();
-		Anti_Pressure_5();
-		Debug_Monitor();
-		Operate_Infor_Save();
-	}
-	
-	
+		if(Flag_CycleTest == TRUE){
+			//循環測試
+			Cycle_Test();
+			
+		}else{ 
+			//Main function
+			Door_manage();
+			Low_Operate_Function();
+			Light_CTRL();
+			IR_CTRL();
+			SMK_CTRL();
+			PWR_CTRL(); 
+			Operate_ADC_Detect();
+			Auto_Close_CTRL();
+			Anti_Pressure_5();
+			Debug_Monitor();
+			Operate_Infor_Save();
+		}
   }
 }
 
@@ -459,6 +447,46 @@ static void Debug_Monitor(void){
 
 		TM_Printf = 10;
 	}	
+}
+
+static void Low_Operate_Function(void){
+	if(Flag_Low_Operate == TRUE){
+		if(TM_OPEN > 0 || TM_CLOSE > 0){
+			if(TM_Low_Operate < Time_Low_Operate_Ini){ //20
+				PWM_Duty = 1;
+				PWM_Period = 2;
+				ST_Low_Operate = 1;
+			}else if(TM_Low_Operate < Time_Low_Operate_Mid){ //
+				PWM_Duty = 99;
+				PWM_Period = 100;
+				ST_Low_Operate = 2;
+			}else{
+				PWM_Duty = 1;
+				PWM_Period = 2;
+				ST_Low_Operate = 3;
+			}
+			
+			if(Flag_No_VSB == TRUE){
+				if(ST_Low_Operate == 2){
+					Volt_StandBy = Volt_StandBy_b * 1.3;
+				}else{
+					Volt_StandBy = Volt_StandBy_b * 1.1;
+				}
+			}else{
+				if(ST_Low_Operate == 2){
+					Volt_StandBy = Volt_StandBy_b * 1.0;
+				}else{
+					Volt_StandBy = Volt_StandBy_b * 0.85;
+				}
+			}
+		}else{
+			if(Flag_No_VSB == TRUE){
+					Volt_StandBy = Volt_StandBy_b * 1.3;
+			}else{
+					Volt_StandBy = Volt_StandBy_b * 1.0;
+			}
+		}
+	}
 }
 
 static void Operate_Infor_Save(void){
@@ -1444,31 +1472,6 @@ static void SMK_CTRL(void){
 //	For PWM output
 void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {	
-	if(Flag_Low_Operate == TRUE){
-		if(TM_Low_Operate < Time_Low_Operate_Ini){ //20
-			PWM_Duty = 1;
-			PWM_Period = 2;
-			ST_Low_Operate = 1;
-		}else if(TM_Low_Operate < Time_Low_Operate_Mid){ //
-			PWM_Duty = 99;
-			PWM_Period = 100;
-			ST_Low_Operate = 2;
-		}else{
-			PWM_Duty = 1;
-			PWM_Period = 2;
-			ST_Low_Operate = 3;
-		}
-		
-		if(ST_Low_Operate == 2){
-			Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.3;
-		}else{
-			Volt_StandBy = ADC_Calculate() *(3.3/4095) * 1.1;
-		}
-		
-	}else{
-		
-	}
-	
 	PWM_Count++;	
 	if(PWM_Count == PWM_Period){
 		PWM_Count = 0;
@@ -1503,7 +1506,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(Tim_cnt_100ms == 100){
 		TM_OPEN 	      = TIMDEC(TM_OPEN);
 		TM_CLOSE 	      = TIMDEC(TM_CLOSE);
-		TM_AntiDly 	      = TIMDEC(TM_AntiDly);
+		TM_AntiDly 	    = TIMDEC(TM_AntiDly);
 		TM_AntiDly2 	  = TIMDEC(TM_AntiDly2);
 		TM_AntiDly3 	  = TIMDEC(TM_AntiDly3);
 		TM_EndDetec 	  = TIMDEC(TM_EndDetec);
@@ -1514,9 +1517,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
 		TM_Buzz_ON        = TIMDEC(TM_Buzz_ON);
-		TM_Buzz_OFF        = TIMDEC(TM_Buzz_OFF);
-		TM_ADC_Relaod        = TIMDEC(TM_ADC_Relaod);
-		TM_CLOSE_EndPart        = TIMDEC(TM_CLOSE_EndPart);
+		TM_Buzz_OFF       = TIMDEC(TM_Buzz_OFF);
+		TM_ADC_Relaod     = TIMDEC(TM_ADC_Relaod);
+		TM_CLOSE_EndPart  = TIMDEC(TM_CLOSE_EndPart);
 		
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
 		Tim_cnt_100ms = 0;
@@ -1694,9 +1697,9 @@ static void Parameter_Load(void){
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
-		Flag_Buzzer          = TRUE;    //蜂鳴器
+		Flag_Buzzer          = FALSE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
-		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
+		Flag_Low_Operate     = TRUE;  //緩起步 & 緩停止
 		
 		TM_DLY_Value              = 300;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = 130;   //捲窗門_第一段關門時間
@@ -1704,19 +1707,19 @@ static void Parameter_Load(void){
 		Time_Auto_Close           = 100;   //自動關門延遲時間
 		Time_Light                = 100;   //照明運轉時間
 
-		Volt_StandBy = 0; //開機自動決定待機值
+		Volt_StandBy_b = 0; //開機自動決定待機值
 		//Volt_StandBy = 0.3;
-		Anti_Weight_Open  = 0.01;   //防夾權重: 開門
-		Anti_Weight_Close = 0.01;   //防夾權重: 關門
+		Anti_Weight_Open_select  = 5;   //防夾權重: 開門
+		Anti_Weight_Close_select = 5;   //防夾權重: 關門
 		
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade        = 6;   //鐵捲速度
+		PWM_Grade        = 2;   //鐵捲速度
 		Auto_Close_Mode  = 1;	 //自動關門模式設定
 		
 		Time_Low_Operate_Ini = 20;
-		Time_Low_Operate_Mid = 50;
+		Time_Low_Operate_Mid = 80;
 
 	}else{
 		//******Parameter form EEPROM*****//
@@ -1751,7 +1754,7 @@ static void Parameter_Load(void){
 		EE_Addr_P+=2;
 		
 		//EE_Addr_P = 50;
-		Volt_StandBy      = (float)aRxBuffer[EE_Addr_P++]/10;   //待機電壓for到位判定使用
+		Volt_StandBy_b     = (float)aRxBuffer[EE_Addr_P++]/10;   //待機電壓for到位判定使用
 		Anti_Weight_Open_select  = aRxBuffer[EE_Addr_P++];   //防夾權重: 開門
 		Anti_Weight_Close_select = aRxBuffer[EE_Addr_P++];   //防夾權重: 關門
 		
@@ -1872,8 +1875,6 @@ static void Parameter_Load(void){
 }
 
 static void Anti_Pressure_5(void){
-	uint16_t TM_Buf;
-	uint16_t ADC_Tmp;
 	uint16_t ADC_Buf;
 	
 	if(Flag_AntiPress == TRUE &&
@@ -1901,7 +1902,7 @@ static void Anti_Pressure_5(void){
 			case 1:		// 過載電流倍率設定
 				if(TM_AntiDly > 0){
 					// Empty
-					ADC_Tmp = 0;
+					
 				}else if(TM_AntiDly == 0){
 					//根據防夾參數權重,設定防夾動作值
 					if(TM_OPEN > 0){
@@ -2029,14 +2030,14 @@ static uint16_t ADC_Calculate(void){
 }
 
 static void Buzzer_Config(void){
-	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	if(Flag_Buzzer == TRUE){
+		GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+		GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
+		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-	GPIO_InitStruct.Pin = Buzzer;
-	HAL_GPIO_Init(PORT_Buzzer, &GPIO_InitStruct);
-
-	//buzz config...end
+		GPIO_InitStruct.Pin = Buzzer;
+		HAL_GPIO_Init(PORT_Buzzer, &GPIO_InitStruct);
+	}
 }
 
 static void ControlBox_Config(void){
