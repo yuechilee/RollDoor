@@ -443,12 +443,12 @@ static void Debug_Monitor(void){
 		if(Flag_IR == TRUE){
 			printf("\n");
 			printf("\n\r //////////紅外線偵測觸發\\\\\\\\\\");
-			//printf("\n\r Flag_IR = %d",Flag_IR);
+			printf("\n\r Flag_IR = %d",Flag_IR);
 		}
 		if(Flag_SMK == TRUE){
 			printf("\n");
 			printf("\n\r //////////煙霧感測器偵測觸發\\\\\\\\\\");
-			//printf("\n\r Flag_SMK = %d",Flag_SMK);
+			printf("\n\r Flag_SMK = %d",Flag_SMK);
 		}
 		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
 		
