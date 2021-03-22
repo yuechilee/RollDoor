@@ -48,6 +48,19 @@ static GPIO_InitTypeDef   GPIO_InitStruct;
 
 /* Private macro -------------------------------------------------------------*/
 //*******參數設定*******//
+uint8_t VER1, VER2;
+uint8_t Maintain_Year; 	
+uint8_t Maintain_Month; 	
+uint8_t Maintain_Day; 	
+uint8_t Warranty_Year; 	
+uint8_t Warranty_Month; 	
+uint8_t Warranty_Day; 	
+uint8_t PN1; 	
+uint8_t PN2; 	
+uint8_t PN3; 	
+uint8_t PN4; 	
+uint8_t PN5; 	
+uint8_t PN6; 	
 uint8_t EE_Default = FALSE;
 uint8_t Flag_WindowsDoor; 		//捲窗門選擇:	
 uint8_t Flag_CycleTest;             //循環測試(長時測試)
@@ -266,6 +279,9 @@ void Relay_ACT_ON(void);
 void Relay_ACT_OFF(void);
 void Relay_POS_ON(void);
 void Relay_POS_OFF(void);
+
+uint8_t PIN_Tmp = 0; //???
+
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -1220,23 +1236,26 @@ static void MotorRelay_out_config(void){
 }
 
 static void StatusRelay_out_config(void){
-	uint8_t PIN_Tmp = 0;
+	//uint8_t PIN_Tmp = 0;
 	
 	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 	
 	if(Flag_Relay_ACT > 0){
-		PIN_Tmp = PIN_Tmp | RL_ACT;
+		GPIO_InitStruct.Pin = RL_ACT;
+		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	if(Flag_Relay_TME > 0){
-		PIN_Tmp = PIN_Tmp | RL_TME;
+		GPIO_InitStruct.Pin = RL_TME;
+		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	if(Flag_Relay_POS > 0){
-		PIN_Tmp = PIN_Tmp | RL_POS;
+		GPIO_InitStruct.Pin = RL_POS;
+		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	
-	GPIO_InitStruct.Pin = PIN_Tmp; //RL_ACT | RL_TME | RL_POS;
+	GPIO_InitStruct.Pin = RL_ACT | RL_TME | RL_POS;
 	HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 		
 	//Initial condition setting.
@@ -1891,6 +1910,11 @@ static void Parameter_Load(void){
 		Flag_Light           = FALSE;    //自動照明
 		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
+		//EE_Addr_P = 31;
+		Flag_Relay_TME      = 0x1F;  //狀態輸出RELAY_TEM: 0~16
+		Flag_Relay_ACT      = 0x1F;  //狀態輸出RELAY_ACT: 0~16
+		Flag_Relay_POS      = 0x1F;  //狀態輸出RELAY_POS: 0~16
+
 		TM_DLY_Value              = 300;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = 130;   //捲窗門_第一段關門時間
 		TM_MAX                    = 600;   //開關門最長運轉時間
@@ -1911,8 +1935,30 @@ static void Parameter_Load(void){
 		Time_Low_Operate_Ini = 20;
 		Time_Low_Operate_Mid = 80;
 
+		Time_Relay_TME = 50;   //
+		Time_Relay_ACT = 50;    //
+		Time_Relay_POS = 50;   //
+
 	}else{
 		//******Parameter form EEPROM*****//
+		EE_Addr_P = 0;
+		VER1       = aRxBuffer[EE_Addr_P++];   //程式編號
+		VER2       = aRxBuffer[EE_Addr_P++];   //程式版次
+		Maintain_Year       = aRxBuffer[EE_Addr_P++];   //維護時間:年
+		Maintain_Month      = aRxBuffer[EE_Addr_P++];   //維護時間:月
+		Maintain_Day        = aRxBuffer[EE_Addr_P++];   //維護時間:日
+		Warranty_Year       = aRxBuffer[EE_Addr_P++];   //保固時間:年
+		Warranty_Month      = aRxBuffer[EE_Addr_P++];   //保固時間:月
+		Warranty_Day        = aRxBuffer[EE_Addr_P++];   //保固時間:日
+		
+		//機板序號
+		PN1 = aRxBuffer[EE_Addr_P++];
+		PN2 = aRxBuffer[EE_Addr_P++];
+		PN3 = aRxBuffer[EE_Addr_P++];
+		PN4 = aRxBuffer[EE_Addr_P++];
+		PN5 = aRxBuffer[EE_Addr_P++];
+		PN6 = aRxBuffer[EE_Addr_P++];
+		
 		//Funtion ON/OFF
 		EE_Addr_P = 20;
 		Flag_CycleTest       = aRxBuffer[EE_Addr_P++];   //循環測試(長時測試)
@@ -1968,13 +2014,13 @@ static void Parameter_Load(void){
 		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]; 
 		
 		EE_Addr_P = 60;
-		Time_Relay_TME = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //循環測試間隔時間
+		Time_Relay_TME = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
 		
-		Time_Relay_ACT = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //循環測試間隔時間
+		Time_Relay_ACT = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
 		EE_Addr_P+=2;
 		
-		Time_Relay_POS = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //開關門最長運轉時間
+		Time_Relay_POS = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
 	}
 	
@@ -2123,6 +2169,60 @@ static void Parameter_List(void){
     printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
 	
     printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
+	
+	//狀態Relay設定值
+	if((Flag_Relay_ACT & 0x01) == 0x01){
+		printf("\n\r Relay-ACT: 中間停止");
+	}
+	if((Flag_Relay_ACT & 0x02) == 0x02){
+		printf("\n\r Relay-ACT: 關門運行");
+	}
+	if((Flag_Relay_ACT & 0x04) == 0x04){
+		printf("\n\r Relay-ACT: 開門運行");
+	}
+	if((Flag_Relay_ACT & 0x08) == 0x08){
+		printf("\n\r Relay-ACT: 下限位");
+	}
+	if((Flag_Relay_ACT & 0x10) == 0x10){
+		printf("\n\r Relay-ACT: 上限位");
+	}
+	printf("\n\r Relay-ACT動作時間: %f 秒", Time_Relay_ACT *0.1);
+	
+	
+	if((Flag_Relay_TME & 0x01) == 0x01){
+		printf("\n\r Relay-TME: 中間停止");
+	}
+	if((Flag_Relay_TME & 0x02) == 0x02){
+		printf("\n\r Relay-TME: 關門運行");
+	}
+	if((Flag_Relay_TME & 0x04) == 0x04){
+		printf("\n\r Relay-TME: 開門運行");
+	}
+	if((Flag_Relay_TME & 0x08) == 0x08){
+		printf("\n\r Relay-TME: 下限位");
+	}
+	if((Flag_Relay_TME & 0x10) == 0x10){
+		printf("\n\r Relay-TME: 上限位");
+	}
+	printf("\n\r Relay-TME動作時間: %f 秒", Time_Relay_TME *0.1);
+
+
+	if((Flag_Relay_POS & 0x01) == 0x01){
+		printf("\n\r Relay-POS: 中間停止");
+	}
+	if((Flag_Relay_POS & 0x02) == 0x02){
+		printf("\n\r Relay-POS: 關門運行");
+	}
+	if((Flag_Relay_POS & 0x04) == 0x04){
+		printf("\n\r Relay-POS: 開門運行");
+	}
+	if((Flag_Relay_POS & 0x08) == 0x08){
+		printf("\n\r Relay-POS: 下限位");
+	}
+	if((Flag_Relay_POS & 0x10) == 0x10){
+		printf("\n\r Relay-POS: 上限位");
+	}
+	printf("\n\r Relay-POS動作時間: %f 秒", Time_Relay_POS *0.1);
 	
 	printf("\n\r========參數設定 End========");
 }

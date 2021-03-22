@@ -181,7 +181,7 @@
 //#define	xxx   	           GPIO_PIN_8
 //#define	xxx   	           GPIO_PIN_9
 #define	RL_ACT   	           GPIO_PIN_10
-#define	RL_TIME   	         GPIO_PIN_11
+#define	RL_TME   	           GPIO_PIN_11
 //#define	xxx   	           GPIO_PIN_12
 #define	W_IR   	             GPIO_PIN_13
 //#define	xxx   	           GPIO_PIN_14
