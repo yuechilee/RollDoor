@@ -1180,7 +1180,11 @@ static void OpEnd_Detect_2(void){
 				//限位旗標做成
 				Flag_Door_UpLimit   = TRUE;
 				Flag_Door_DownLimit = FALSE;
-				
+
+				//RELAY限位旗標做成
+				Flag_Relay_UpLimit   = TRUE;
+				Flag_Relay_DownLimit = FALSE;
+
 				//運轉次數
 				REC_Operate_Times++;
 				
@@ -1201,6 +1205,10 @@ static void OpEnd_Detect_2(void){
 				Flag_Door_UpLimit   = FALSE;
 				Flag_Door_DownLimit = TRUE;
 				
+				//RELAY限位旗標做成
+				Flag_Relay_UpLimit   = FALSE;
+				Flag_Relay_DownLimit = TRUE;
+
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
