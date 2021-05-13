@@ -115,6 +115,8 @@ uint8_t Flag_No_VSB; //The default stand-by volt is ZERO.
 uint8_t Flag_Relay_UpLimit;
 uint8_t Flag_Relay_DownLimit;
 uint8_t Flag_Relay_MidStop;
+uint8_t Flag_Relay_OPEN;
+uint8_t Flag_Relay_CLOSE;
 
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -182,6 +184,10 @@ uint16_t TM_Buzz_ON = 0;
 uint16_t TM_Buzz_OFF = 0;
 uint16_t TM_ADC_Relaod = 0;
 uint16_t TM_Low_Operate = 0;
+
+uint16_t Time_Remain_Open = 0;                   
+uint16_t Time_Remain_Close = 0;          
+
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
 uint8_t TM_Relay_TME;
@@ -237,7 +243,7 @@ static void OpEnd_Detect(void);			//Door unload detect
 static void OpEnd_Detect_2(void);			//Door unload detect
 static void Buzzer_Config(void);
 static void ControlBox_Config(void);
-static void Ext_CNTER(void);			//Door unload detect
+static void Ext_CNTER(void);			//Relay觸發外部計數器
 static uint16_t	TIMDEC(uint16_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
 static uint16_t ADC_Calculate(void);
@@ -484,6 +490,15 @@ static void Debug_Monitor(void){
 		}
 		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
 		
+		if(TM_Relay_ACT > 0){
+			printf("\n\n\r TM_Relay_ACT = %d ms",TM_Relay_ACT);
+		}
+		if(TM_Relay_POS > 0){
+			printf("\n\n\r TM_Relay_POS = %d ms",TM_Relay_POS);
+		}
+		if(TM_Relay_TME > 0){
+			printf("\n\n\r TM_Relay_TME = %d ms",TM_Relay_TME);
+		}
 		
 		printf("\n");
 		printf("\n\r OpEnd_Detect_Start_Flag = %d",OpEnd_Detect_Start_Flag);
@@ -650,9 +665,9 @@ static void Cycle_Test(void){
 		Cycle_times_up++;
 		
 		Ext_CNTER();
-		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_SET);
+		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
 		//Delay_ms(RLY_Delay_ms);
-		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
+		//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
 		printf("\n\rNoise test 2");
 
 	}
@@ -744,9 +759,9 @@ static void Error_Handler(void)
 
 static void Ext_CNTER(void){
 	printf("\n\r----EXT_CNT");
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
 }
 
 void PWR_CTRL(void){
@@ -1123,11 +1138,13 @@ static void OpEnd_Detect(void){
 				if(TM_OPEN > 0){
 					Flag_Relay_UpLimit   = TRUE;
 					Flag_Relay_DownLimit = FALSE;
+					Time_Remain_Open = TM_MAX - TM_OPEN;
 				}
 				
 				if(TM_CLOSE > 0){
 					Flag_Relay_UpLimit   = FALSE;
 					Flag_Relay_DownLimit = TRUE;
+					Time_Remain_Close = TM_MAX - TM_CLOSE;
 				}
 				
 				//運轉次數
@@ -1140,7 +1157,7 @@ static void OpEnd_Detect(void){
 						ST_Close = 1;
 					}
 				}
-				
+								
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
@@ -1189,6 +1206,8 @@ static void OpEnd_Detect_2(void){
 				REC_Operate_Times++;
 				
 				ST_Close = 1;
+
+				Time_Remain_Open = TM_MAX - TM_OPEN;
 
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
@@ -1255,7 +1274,7 @@ static void StatusRelay_out_config(void){
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	if(Flag_Relay_TME > 0){
-		GPIO_InitStruct.Pin = RL_TME;
+		GPIO_InitStruct.Pin = RL_TIME;
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	if(Flag_Relay_POS > 0){
@@ -1263,8 +1282,8 @@ static void StatusRelay_out_config(void){
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	
-	GPIO_InitStruct.Pin = RL_ACT | RL_TME | RL_POS;
-	HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
+	//GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS;
+	//HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 		
 	//Initial condition setting.
 	Relay_ACT_OFF();
@@ -1272,14 +1291,46 @@ static void StatusRelay_out_config(void){
 	Relay_POS_OFF();
 	
 	//HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_RESET);
-	//HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
+	//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
 	//HAL_GPIO_WritePin(PORT_Status_Out, RL_POS, GPIO_PIN_RESET);
 }
 
 static void StatusRelay_Control(void){
+	printf("\n\n\r Flag_Relay_MidStop   = %d", Flag_Relay_MidStop);
+	printf("\n\r Flag_Relay_CLOSE     = %d", Flag_Relay_CLOSE);
+	printf("\n\r Flag_Relay_OPEN      = %d", Flag_Relay_OPEN);
+	printf("\n\r Flag_Relay_DownLimit = %d", Flag_Relay_DownLimit);
+	printf("\n\r Flag_Relay_UpLimit   = %d", Flag_Relay_UpLimit);
+
 	Relay_ACT_Control();
 	Relay_POS_Control();
 	Relay_TME_Control();
+	
+	if((Flag_Relay_ACT & 0x01) == 0x01){
+		if(Flag_Relay_MidStop == TRUE){
+			Flag_Relay_MidStop = FALSE;
+		}		
+	}
+	if((Flag_Relay_ACT & 0x02) == 0x02){
+		if(Flag_Relay_CLOSE == TRUE){
+			Flag_Relay_CLOSE = FALSE;
+		}
+	}
+	if((Flag_Relay_ACT & 0x04) == 0x04){
+		if(Flag_Relay_OPEN == TRUE){
+			Flag_Relay_OPEN = FALSE;
+		}
+	}
+	if((Flag_Relay_ACT & 0x08) == 0x08){
+		if(Flag_Relay_DownLimit == TRUE){
+			Flag_Relay_DownLimit = FALSE;
+		}	
+	}
+	if((Flag_Relay_ACT & 0x10) == 0x10){
+		if(Flag_Relay_UpLimit == TRUE){
+			Flag_Relay_UpLimit = FALSE;
+		}
+	}
 }
 
 static void Relay_ACT_Control(void){
@@ -1287,29 +1338,26 @@ static void Relay_ACT_Control(void){
 	//ACT
 	if((Flag_Relay_ACT & 0x01) == 0x01){
 		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
 			TM_Relay_ACT = Time_Relay_ACT;
 		}		
 	}
 	if((Flag_Relay_ACT & 0x02) == 0x02){
-		if(TM_CLOSE > 0){
+		if(Flag_Relay_CLOSE == TRUE){
 			TM_Relay_ACT = Time_Relay_ACT;
 		}
 	}
 	if((Flag_Relay_ACT & 0x04) == 0x04){
-		if(TM_OPEN > 0){
+		if(Flag_Relay_OPEN == TRUE){
 			TM_Relay_ACT = Time_Relay_ACT;
 		}
 	}
 	if((Flag_Relay_ACT & 0x08) == 0x08){
 		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
 			TM_Relay_ACT = Time_Relay_ACT;
 		}	
 	}
 	if((Flag_Relay_ACT & 0x10) == 0x10){
 		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
 			TM_Relay_ACT = Time_Relay_ACT;
 		}
 	}
@@ -1328,29 +1376,26 @@ static void Relay_POS_Control(void){
 	//POS
 	if((Flag_Relay_POS & 0x01) == 0x01){
 		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
 			TM_Relay_POS = Time_Relay_POS;
 		}		
 	}
 	if((Flag_Relay_POS & 0x02) == 0x02){
-		if(TM_CLOSE > 0){
+		if(Flag_Relay_CLOSE == TRUE){
 			TM_Relay_POS = Time_Relay_POS;
 		}
 	}
 	if((Flag_Relay_POS & 0x04) == 0x04){
-		if(TM_OPEN > 0){
+		if(Flag_Relay_OPEN == TRUE){
 			TM_Relay_POS = Time_Relay_POS;
 		}
 	}
 	if((Flag_Relay_POS & 0x08) == 0x08){
 		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
 			TM_Relay_POS = Time_Relay_POS;
 		}	
 	}
 	if((Flag_Relay_POS & 0x10) == 0x10){
 		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
 			TM_Relay_POS = Time_Relay_POS;
 		}
 	}
@@ -1365,32 +1410,29 @@ static void Relay_POS_Control(void){
 
 static void Relay_TME_Control(void){
 //Relay-Operate management
-	//TME
+	//TME	
 	if((Flag_Relay_TME & 0x01) == 0x01){
 		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
 			TM_Relay_TME = Time_Relay_TME;
 		}		
 	}
 	if((Flag_Relay_TME & 0x02) == 0x02){
-		if(TM_CLOSE > 0){
+		if(Flag_Relay_CLOSE == TRUE){
 			TM_Relay_TME = Time_Relay_TME;
 		}
 	}
 	if((Flag_Relay_TME & 0x04) == 0x04){
-		if(TM_OPEN > 0){
+		if(Flag_Relay_OPEN == TRUE){
 			TM_Relay_TME = Time_Relay_TME;
 		}
 	}
 	if((Flag_Relay_TME & 0x08) == 0x08){
 		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
 			TM_Relay_TME = Time_Relay_TME;
 		}	
 	}
 	if((Flag_Relay_TME & 0x10) == 0x10){
 		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
 			TM_Relay_TME = Time_Relay_TME;
 		}
 	}
@@ -1405,13 +1447,13 @@ static void Relay_TME_Control(void){
 
 // Relay_TME:ON
 void Relay_TME_ON(void){
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
 	//printf("\n\r Relay_TME ON!");
 }
 
 // Relay_TME:OFF
 void Relay_TME_OFF(void){
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
 	//printf("\n\r Relay_TME OFF!");
 }
 
@@ -1552,6 +1594,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			}
 			//***反轉判定 END***//
 			
+			Flag_Relay_OPEN = TRUE;
+			
 			ST_BTN = TRUE;
 			ACT_Door = 1;
 			printf("\n\rOPEN!\n");
@@ -1604,6 +1648,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				OpEnd_Detect_Start_Flag = TRUE;
 			}
 			//***反轉判定 END***//
+			
+			Flag_Relay_CLOSE = TRUE;
 
 			ST_BTN = TRUE;
 			ACT_Door = 2;
@@ -1919,7 +1965,7 @@ static void Parameter_Load(void){
 		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
 		//EE_Addr_P = 31;
-		Flag_Relay_TME      = 0x1F;  //狀態輸出RELAY_TEM: 0~16
+		Flag_Relay_TME      = 0x00;  //狀態輸出RELAY_TEM: 0~16
 		Flag_Relay_ACT      = 0x1F;  //狀態輸出RELAY_ACT: 0~16
 		Flag_Relay_POS      = 0x1F;  //狀態輸出RELAY_POS: 0~16
 
