@@ -1368,9 +1368,9 @@ static void StatusRelay_out_config(void){
 
 static void StatusRelay_Control(void){
 	SR_CTRL_TME_A();
-	//SR_VAL_BUF();
 	SR_TERMINATE_A();
 	SR_OUTPUT_CTRL();
+	SR_VAL_BUF();
 }
 
 //Ä²µo±ø¥óA
@@ -1406,7 +1406,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}			
-				SR_VAL_BUF();
+				//SR_VAL_BUF();
 				break;
 			
 			case SR_Open:
@@ -1415,7 +1415,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				SR_VAL_BUF();
+				//SR_VAL_BUF();
 				break;
 			
 			case SR_Down:
@@ -1424,7 +1424,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				SR_VAL_BUF();
+				//SR_VAL_BUF();
 				break;
 			
 			case SR_CmdOpen:
@@ -1460,7 +1460,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				SR_VAL_BUF();			
+				//SR_VAL_BUF();			
 				break;
 			
 			default:
@@ -2256,8 +2256,8 @@ static void Parameter_Load(void){
 	}
 	
 	//???:DEL AFT TEST
-	Flag_Rly_TME_A_8u = 6;
-	Flag_Rly_TME_TER_8u = 6;
+	Flag_Rly_TME_A_8u = 4;
+	Flag_Rly_TME_TER_8u = 5;
 	Time_RlyEvent_TME_A_16u = 15;
 	Time_RlyOp_TME_16u = 70;
 	
