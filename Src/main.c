@@ -346,9 +346,10 @@ static void Low_Operate_Function(void);
 
 
 static void SR_CTRL_TME_A(void);
-static void SR_TERMINATE_A(void);
-static void SR_VAL_BUF(void);
-static void SR_OUTPUT_CTRL(void);
+static void SR_TERMINATE_TME(void);
+static void SR_OUTPUT_CTRL(void);	//Status-Relay Output Control
+static void SR_VAR_BUF(void);		//Status-Relay Variable Reset
+static void SR_STVAR_RST(void);		//Status-Relay Status-Variable Reset
 
 void Relay_TME_ON(void);
 void Relay_TME_OFF(void);
@@ -1368,9 +1369,10 @@ static void StatusRelay_out_config(void){
 
 static void StatusRelay_Control(void){
 	SR_CTRL_TME_A();
-	SR_TERMINATE_A();
+	SR_TERMINATE_TME();
 	SR_OUTPUT_CTRL();
-	SR_VAL_BUF();
+	SR_STVAR_RST();
+	SR_VAR_BUF();
 }
 
 //觸發條件A
@@ -1381,7 +1383,7 @@ static void SR_CTRL_TME_A(void){
 			case SR_Uplimit:
 				if(Flag2_Door_UpLimit_8u == TRUE){
 					ST_RlyEvent_TME_A_8u = 1;	
-					Flag2_Door_UpLimit_8u = FALSE;
+					//Flag2_Door_UpLimit_8u = FALSE;
 				}else{
 					
 				}
@@ -1391,7 +1393,7 @@ static void SR_CTRL_TME_A(void){
 			case SR_Downlimit:
 				if(Flag2_Door_DownLimit_8u == TRUE){
 					ST_RlyEvent_TME_A_8u = 1;	
-					Flag2_Door_DownLimit_8u = FALSE;
+					//Flag2_Door_DownLimit_8u = FALSE;
 				}else{
 					
 				}
@@ -1406,7 +1408,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}			
-				//SR_VAL_BUF();
+				//SR_VAR_BUF();
 				break;
 			
 			case SR_Open:
@@ -1415,7 +1417,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				//SR_VAL_BUF();
+				//SR_VAR_BUF();
 				break;
 			
 			case SR_Down:
@@ -1424,13 +1426,13 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				//SR_VAL_BUF();
+				//SR_VAR_BUF();
 				break;
 			
 			case SR_CmdOpen:
 				if(BTST(Trig_RM_8u,BIT0) != 0){
 					ST_RlyEvent_TME_A_8u = 1;	
-					BCLR(Trig_RM_8u,BIT0);
+					//BCLR(Trig_RM_8u,BIT0);
 				}else{
 					//empty
 				}
@@ -1439,7 +1441,7 @@ static void SR_CTRL_TME_A(void){
 			case SR_CmdStop:
 				if(BTST(Trig_RM_8u,BIT1) != 0){
 					ST_RlyEvent_TME_A_8u = 1;	
-					BCLR(Trig_RM_8u,BIT1);
+					//BCLR(Trig_RM_8u,BIT1);
 				}else{
 					//empty
 				}
@@ -1448,7 +1450,7 @@ static void SR_CTRL_TME_A(void){
 			case SR_CmdClose:
 				if(BTST(Trig_RM_8u,BIT2) != 0){
 					ST_RlyEvent_TME_A_8u = 1;	
-					BCLR(Trig_RM_8u,BIT2);
+					//BCLR(Trig_RM_8u,BIT2);
 				}else{
 					//empty
 				}
@@ -1460,7 +1462,7 @@ static void SR_CTRL_TME_A(void){
 				}else{
 					//empty
 				}
-				//SR_VAL_BUF();			
+				//SR_VAR_BUF();			
 				break;
 			
 			default:
@@ -1504,14 +1506,34 @@ static void SR_CTRL_TME_A(void){
 }
 
 //變數暫存區
-static void SR_VAL_BUF(void){
+static void SR_VAR_BUF(void){
 	TMP_TM_OPEN_16u = TM_OPEN;
 	TMP_TM_CLOSE_16u = TM_CLOSE;
 	TMP_Flag_LOCK_8u = Flag_LOCK;
 }
 
+static void SR_STVAR_RST(void){
+	//狀態變數RESET
+	if(Flag2_Door_UpLimit_8u == TRUE){
+		Flag2_Door_UpLimit_8u = FALSE;
+	}
+	if(Flag2_Door_DownLimit_8u == TRUE){
+		Flag2_Door_DownLimit_8u = FALSE;
+	}
+	if(BTST(Trig_RM_8u,BIT0) != 0){
+		BCLR(Trig_RM_8u,BIT0);
+	}
+	if(BTST(Trig_RM_8u,BIT1) != 0){
+		BCLR(Trig_RM_8u,BIT1);
+	}
+	if(BTST(Trig_RM_8u,BIT2) != 0){
+		BCLR(Trig_RM_8u,BIT2);
+	}
+
+}
+
 //解除條件
-static void SR_TERMINATE_A(void){
+static void SR_TERMINATE_TME(void){
 	if(Rly_TME_A_8u == TRUE){
 		switch(Flag_Rly_TME_TER_8u){
 			case SR_Uplimit:
@@ -2256,8 +2278,8 @@ static void Parameter_Load(void){
 	}
 	
 	//???:DEL AFT TEST
-	Flag_Rly_TME_A_8u = 4;
-	Flag_Rly_TME_TER_8u = 5;
+	Flag_Rly_TME_A_8u = 1;
+	Flag_Rly_TME_TER_8u = 1;
 	Time_RlyEvent_TME_A_16u = 15;
 	Time_RlyOp_TME_16u = 70;
 	
