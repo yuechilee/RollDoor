@@ -3176,16 +3176,7 @@ static void Parameter_Load(void){
 		Flag_Buzzer          = aRxBuffer[EE_Addr_P++];   //蜂鳴器
 		Flag_Light           = aRxBuffer[EE_Addr_P++];   //自動照明
 		Flag_Low_Operate     = aRxBuffer[EE_Addr_P++];   //緩起步 & 緩停止
-		//EE_Addr_P = 31;
-		Flag_Rly_TME_A_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_TME_B_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_ACT_A_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_ACT_B_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_POS_A_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_POS_B_8u    = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_TME_TER_8u  = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_ACT_TER_8u  = aRxBuffer[EE_Addr_P++];   //
-		Flag_Rly_POS_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+
 
 		EE_Addr_P = 40;
 		TM_DLY_Value              = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //循環測試間隔時間
@@ -3263,6 +3254,18 @@ static void Parameter_Load(void){
 		
 		Time_RlyEvent_TER_POS_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
+		
+		//狀態RELAY成立條件
+		EE_Addr_P = 100;
+		Flag_Rly_TME_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_TME_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_TME_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_TER_8u  = aRxBuffer[EE_Addr_P++];   //
 
 	}
 	
