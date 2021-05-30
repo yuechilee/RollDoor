@@ -162,7 +162,6 @@ uint8_t Times_OverADC_Target = 2;	//防夾被觸發次數
 uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
-uint8_t Buzz_Type = 0;
 
 uint8_t EE_Addr_P = 0;
 	//16-bits
@@ -202,8 +201,6 @@ uint16_t ADC_Anti_Max;
 
 uint16_t TM_Anti_Occur = 0;
 uint16_t TM_Save = 2*60*60;			//運轉次數儲存ˊ週期
-uint16_t TM_Buzz_ON = 0;
-uint16_t TM_Buzz_OFF = 0;
 uint16_t TM_ADC_Relaod = 0;
 uint16_t TM_Low_Operate = 0;
 
@@ -212,9 +209,7 @@ uint16_t Time_Remain_Close = 0;
 
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
-uint8_t TM_Relay_TME;
-uint8_t TM_Relay_ACT;
-uint8_t TM_Relay_POS;
+
 uint8_t Time_Relay_TME;
 uint8_t Time_Relay_ACT;
 uint8_t Time_Relay_POS;
@@ -257,7 +252,6 @@ uint8_t ST_RlyEvent_TER_TME_8u;
 uint16_t TM_RlyEventDelay_TME_A_16u;
 uint16_t TM_RlyEventDelay_TME_B_16u;
 uint16_t TM_RlyEventDelay_TER_TME_16u;
-
 
 //Relay輸出判斷TIMER
 uint16_t TM_Relay_TME_16u;
@@ -321,6 +315,18 @@ uint8_t Flag2_Door_DownLimit_8u;
 uint8_t Trig_RM_8u;
 
 
+//蜂鳴器
+uint8_t ST_BUZZ_8u;
+uint8_t ST_BUZZ_A_8u;
+uint8_t TM_Buzz_ON_8u;
+uint8_t TM_Buzz_ON_Buf_8u;
+uint8_t TM_Buzz_OFF_8u;
+uint8_t TM_Buzz_OFF_Buf_8u;
+uint8_t Flag3_Door_UpLimit_8u;
+uint8_t CNT_Buzz_8u;
+uint16_t TM_Buzz_16u;
+
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Door_Open(void);
@@ -356,9 +362,9 @@ static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
 static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);	// Confirm the I2C R/W datas.
 
-static void Buzz_on(void);
-static void Buzz_off(void);
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time);
+static void Buzzer_CTRL(void);
+static void Buzz_ON(void);
+static void Buzz_OFF(void);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
 static void Parameter_List(void);	//EEPROM參數顯示
@@ -406,9 +412,6 @@ void Relay_ACT_OFF(void);
 void Relay_POS_ON(void);
 void Relay_POS_OFF(void);
 
-uint8_t PIN_Tmp = 0; //???
-
-
 /* Private functions ---------------------------------------------------------*/
 
 
@@ -416,8 +419,6 @@ uint8_t PIN_Tmp = 0; //???
 //uint16_t i,j;
 uint16_t adc_32_amnt = 0;
 float Voc,Voc_;
-
-uint16_t TM_Buzz;// = 30;
 
 // Main Loop
 int main(void)
@@ -495,10 +496,12 @@ int main(void)
   }
 	
   //開機提示音
-  Buzz_on();
-  Delay_ms(500);
-  Buzz_off();
-  
+  //Buzz_ON();
+  //Delay_ms(500);
+  //Buzz_OFF();
+  //_Buzz_ON_8u = 5;
+  ST_BUZZ_8u = 1;
+	
   Rly_TME_A_8u = FALSE;
   Rly_TME_B_8u = FALSE;
   Rly_ACT_A_8u = FALSE;
@@ -524,6 +527,7 @@ int main(void)
 			Debug_Monitor();
 			Operate_Infor_Save();
 			StatusRelay_Control();
+			Buzzer_CTRL();
 		}
   }
 }
@@ -617,17 +621,7 @@ static void Debug_Monitor(void){
 			printf("\n\r //////////煙霧感測器偵測觸發\\\\\\\\\\");
 			printf("\n\r Flag_SMK = %d",Flag_SMK);
 		}
-		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
-		
-		if(TM_Relay_ACT > 0){
-			printf("\n\n\r TM_Relay_ACT = %d ms",TM_Relay_ACT);
-		}
-		if(TM_Relay_POS > 0){
-			printf("\n\n\r TM_Relay_POS = %d ms",TM_Relay_POS);
-		}
-		if(TM_Relay_TME > 0){
-			printf("\n\n\r TM_Relay_TME = %d ms",TM_Relay_TME);
-		}
+
 		
 		printf("\n");
 		printf("\n\r OpEnd_Detect_Start_Flag = %d",OpEnd_Detect_Start_Flag);
@@ -977,19 +971,7 @@ void PWR_CTRL(void){
 	}else{
 		CtrlBox_Light_OFF();
 	}
-	
-	if(TM_Buzz > 0){
-		if(Buzz_Type == 1){
-			Buzz_out(3,3);
-		}else if(Buzz_Type == 2){
-			Buzz_out(5,5);
-		}else{
-			//TBD
-		}
-	}else{
-		Buzz_off();
-	}
-		
+			
 }
 
 void Door_manage(void){	
@@ -1260,6 +1242,7 @@ static void OpEnd_Detect(void){
 					Flag_Door_DownLimit = FALSE;
 					Flag2_Door_UpLimit_8u   = TRUE;
 					Flag2_Door_DownLimit_8u = FALSE;
+					Flag3_Door_UpLimit_8u = TRUE;
 				}else if(TM_CLOSE > 0){
 					Flag_Door_UpLimit   = FALSE;
 					Flag_Door_DownLimit = TRUE;
@@ -1329,7 +1312,8 @@ static void OpEnd_Detect_2(void){
 				Flag_Door_DownLimit = FALSE;
 				Flag2_Door_UpLimit_8u   = TRUE;
 				Flag2_Door_DownLimit_8u = FALSE;
-
+				Flag3_Door_UpLimit_8u = TRUE;
+				
 				//運轉次數
 				REC_Operate_Times++;
 				
@@ -1392,7 +1376,6 @@ static void MotorRelay_out_config(void){
 }
 
 static void StatusRelay_out_config(void){
-	//uint8_t PIN_Tmp = 0;
 	
 	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
@@ -2672,8 +2655,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_STOP:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
 				break;
 			}
 			ST_BTN = TRUE;
@@ -2714,8 +2695,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_OPEN:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
 			
@@ -2768,13 +2748,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
 			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
 			if(Flag_IR    == TRUE){				//紅外線觸發: 不動作
-				Buzz_Type = 1;	//蜂鳴器ON/OFF 0.5秒
-				TM_Buzz   = 10;	//蜂鳴器運作 10 sec.
+				ST_BUZZ_8u = 3;
 				break;
 			}
 			
@@ -2839,6 +2817,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						}else{
 							Flag_LOCK = TRUE;
 							ST_Press = 1;
+							ST_BUZZ_8u = 5;
 							printf("\n\rLOCK~~~~~~!\n");
 						}
 					}
@@ -2855,9 +2834,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				ST_BTN = TRUE;
 				ACT_Door = 1;	 // 開門
 				TM_IR_Lock = 30; // 鎖定時間 30 sec.
-				Buzz_Type = 1;	 // 蜂鳴器ON/OFF 0.5秒
-				TM_Buzz = 30;	 // 蜂鳴器運作 30 sec.
 				ST_ONEKEY_8u = 1;
+				ST_BUZZ_8u = 2;
 			}
 			break;
 		
@@ -2867,7 +2845,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			Delay_ms(100);
 			ST_BTN = TRUE;
 			ACT_Door = 1;	 //開門
-			TM_Buzz = TM_MAX;
 			ST_ONEKEY_8u = 1;
 			break;
 		
@@ -2918,10 +2895,8 @@ static void SMK_CTRL(void){
 		SMK_tmp = HAL_GPIO_ReadPin(PORT_SMK, W_SMK);
 		if(SMK_tmp == TRUE){
 			Flag_SMK = FALSE;
-			TM_Buzz = 0;
 		}else{
-			Buzz_Type = 1;
-			TM_Buzz = TM_OPEN;
+			//empty
 		}
 	}
 }
@@ -2974,13 +2949,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DLY 	          = TIMDEC(TM_DLY);
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
-		TM_Buzz_ON        = TIMDEC(TM_Buzz_ON);
-		TM_Buzz_OFF       = TIMDEC(TM_Buzz_OFF);
+		TM_Buzz_ON_8u        = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u       = TIMDEC(TM_Buzz_OFF_8u);
 		TM_ADC_Relaod     = TIMDEC(TM_ADC_Relaod);
 		TM_CLOSE_EndPart  = TIMDEC(TM_CLOSE_EndPart);
-		TM_Relay_TME      = TIMDEC(TM_Relay_TME);
-		TM_Relay_ACT      = TIMDEC(TM_Relay_ACT);
-		TM_Relay_POS      = TIMDEC(TM_Relay_POS);
 
 		TM_Relay_TME_16u  = TIMDEC(TM_Relay_TME_16u);
 		TM_Relay_ACT_16u  = TIMDEC(TM_Relay_ACT_16u);
@@ -2999,6 +2971,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_RlyEventDelay_TER_POS_16u  = TIMDEC(TM_RlyEventDelay_TER_POS_16u);
 		
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
+		
+		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
+		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
+
+		
 		Tim_cnt_100ms = 0;
 
 	}
@@ -3008,8 +2986,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		Tim_cnt_1s = 0;
 		TM_IR_Lock 	      = TIMDEC(TM_IR_Lock);
 		TM_Save 	      	= TIMDEC(TM_Save);
-		TM_Buzz 	      	= TIMDEC(TM_Buzz);
 	}
+	
+	if(TM_Buzz_ON_8u > 0){
+		Buzz_ON();
+	}else if(TM_Buzz_OFF_8u > 0){
+		Buzz_OFF();
+	}
+
 
 }
 
@@ -3332,6 +3316,7 @@ static void Parameter_Load(void){
 	}
 	
 	//???:DEL AFT TEST
+	/*
 	Flag_Rly_TME_A_8u = 1;
 	Flag_Rly_TME_B_8u = 8;
 	Flag_Rly_TME_TER_8u = 3;
@@ -3355,8 +3340,8 @@ static void Parameter_Load(void){
 	Time_RlyEvent_POS_B_16u = 10;
 	Time_RlyEvent_TER_POS_16u = 5;
 	Time_RlyOp_POS_16u = 100;
-
-	
+	*/
+	Flag_Buzzer = TRUE;
 	//=====???=====//
 	
 	//捲門運行次數
@@ -3580,6 +3565,8 @@ static void Anti_Pressure_5(void){
 						TM_CLOSE  = 0;
 						
 						TM_AntiDly3 = 0; 	//運轉停止,免反轉,不需等待時間
+						
+						ST_BUZZ_8u = 6;
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
@@ -3614,6 +3601,7 @@ static void Anti_Pressure_5(void){
 							TM_OPEN = 0;
 							TM_CLOSE = 0;
 							TM_AntiDly3 = 1;	//停頓0.1秒後,反轉開門
+							ST_BUZZ_8u = 7;
 						}
 					}else{
 						//ST_Anti = 2;
@@ -3752,35 +3740,209 @@ void Delay_ms(int32_t nms)
      SysTick->VAL =0X00; 		//清空計數器 
  } 
 
- //Name: Buzz_on
+ //Name: Buzz_ON
  //Description: Buzzer ON
-static void Buzz_on(void){
+static void Buzz_ON(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_SET);
 }
 
-//Name: Buzz_off
+//Name: Buzz_OFF
 //Description: Buzzer OFF
-static void Buzz_off(void){
+static void Buzz_OFF(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_RESET);
 }
 
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time){
-	uint8_t ST_Buzz;
+ 
+static void Buzzer_CTRL(void){
 	
-	ST_Buzz = HAL_GPIO_ReadPin(PORT_Buzzer, Buzzer);
-	
-	printf("\n\n\rBuzz_type = %d", Buzz_Type);
-	
-	if(ST_Buzz == 0 && TM_Buzz_OFF == 0){
-		TM_Buzz_ON = ON_Time;
-		Buzz_on();
-	}else if(ST_Buzz == 1 && TM_Buzz_ON == 0){
-		TM_Buzz_OFF = OFF_Time;
-		Buzz_off();
+	switch(ST_BUZZ_8u){
+		case 1:	//初送電
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				TM_Buzz_16u = 8;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}
+			
+			break;
+			
+		case 2://紅外線觸發+開門中
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				TM_Buzz_16u = 300;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+			}
+			break;
+			
+		case 3://紅外線觸發+控制器關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+			}
+			break;
+			
+		case 4://煙霧感測器ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				//TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+			}
+			break;
+			
+		case 5://鎖電ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				CNT_Buzz_8u = 2;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(CNT_Buzz_8u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+				CNT_Buzz_8u--;
+			}
+			break;
+			
+		case 6://防夾ON:開門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+			}
+			break;
+			
+		case 7://防夾ON:關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5;
+			}			break;
+		
+		default:
+			
+			break;
 	}
 	
+	TM_Buzz_ON_Buf_8u = TM_Buzz_ON_8u;
+	TM_Buzz_OFF_Buf_8u = TM_Buzz_OFF_8u;
+	
 }
- 
+
 #ifdef  USE_FULL_ASSERT
 
 /**
