@@ -154,7 +154,7 @@
           <Type>0</Type>
           <LineNumber>1302</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134233972</Address>
+          <Address>134233858</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -170,7 +170,7 @@
           <Type>0</Type>
           <LineNumber>142</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134224262</Address>
+          <Address>134224170</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -186,7 +186,12 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>TM_RlyEventDelay_TME_B_16u,0x0A</ItemText>
+          <ItemText>ST_BUZZ_8u</ItemText>
+        </Ww>
+        <Ww>
+          <count>1</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>ST_BUZZ_A_8u</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
