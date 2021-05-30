@@ -91,15 +91,18 @@
 
 //==========================EXTI ==================================================//
 //EXTI param
-#define EXTI_CTRL_PIN														W_OPEN | W_STOP | W_CLOSE		//[YC001]
-#define EXTI_CTRL_PORT				                  PORT_Control_1
-#define EXTI_CTRL_PIN_2													W_IR | W_SMK	//[YC001]
-#define EXTI_CTRL_PORT_2			                  PORT_Control_2
-#define EXTI_CTRL_GPIO_CLK_ENABLE()  	          GPIOC_CLK_ENABLE()   
+#define EXTI_CTRL_PIN							W_OPEN | W_STOP | W_CLOSE		//[YC001]
+#define EXTI_CTRL_PORT							PORT_Control_1
+#define EXTI_CTRL_PIN_2							W_IR | W_SMK	//[YC001]
+#define EXTI_CTRL_PORT_2						PORT_Control_2
+#define EXTI_CTRL_PIN_3							W_ONEKEY	//[YC001]
+#define EXTI_CTRL_PORT_3						PORT_ONEKEY
+#define EXTI_CTRL_GPIO_CLK_ENABLE()				GPIOC_CLK_ENABLE()   
 #define EXTI_CTRL_GPIO_CLK_DISABLE()            GPIOC_CLK_DISABLE()  
 #define EXTI_CTRL_GPIO2_CLK_ENABLE()  	        GPIOB_CLK_ENABLE()   
 #define EXTI_CTRL_GPIO2_CLK_DISABLE()           GPIOB_CLK_DISABLE()  
-#define EXTI_CTRL_LOCK_CLK_ENABLE()  	          GPIOF_CLK_ENABLE()   
+#define EXTI_CTRL_ONEKEY_CLK_ENABLE()  	        ONEKEY_CLK_ENABLE()   
+#define EXTI_CTRL_LOCK_CLK_ENABLE()				GPIOF_CLK_ENABLE()   
 #define EXTI_CTRL_LOCK_CLK_DISABLE()            GPIOF_CLK_DISABLE()  
 //#define WIRE_CTRL_LINE                          EXTI_CTRL_PIN
 //#define EXTI_CTRL_EXTI_IRQn                     EXTI4_15_IRQn
@@ -181,7 +184,7 @@
 //#define	xxx   	           GPIO_PIN_8
 //#define	xxx   	           GPIO_PIN_9
 #define	RL_ACT   	           GPIO_PIN_10
-#define	RL_TIME   	           GPIO_PIN_11
+#define	RL_TME   	           GPIO_PIN_11
 //#define	xxx   	           GPIO_PIN_12
 #define	W_IR   	             GPIO_PIN_13
 //#define	xxx   	           GPIO_PIN_14
