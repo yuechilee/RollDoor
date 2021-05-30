@@ -142,6 +142,7 @@ uint8_t Flag_Relay_CLOSE;
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
+uint8_t ST_ONEKEY_8u = 0;               //
 uint8_t ST_Door_buf, ST_Door_buf2;
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
@@ -330,6 +331,7 @@ void PWR_CTRL(void);                                       //Power ON to motor
 void Delay_ms(int32_t nms);
 //static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
+static void EXTI2_3_IRQHandler_Config(void);
 static void TIM16_Config(void);
 static void TIM17_Config(void);
 static void ADC_Config(void);
@@ -429,6 +431,7 @@ int main(void)
   /* Configure */
   ADC_Config();
   EXTI4_15_IRQHandler_Config();
+  EXTI2_3_IRQHandler_Config();
   TIM16_Config();
   TIM17_Config();
   Uart_Config();
@@ -468,6 +471,7 @@ int main(void)
   }
   ST_Close = 1;
 	
+  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);  
 
@@ -1266,9 +1270,11 @@ static void OpEnd_Detect(void){
 				//運轉剩餘時間
 				if(TM_OPEN > 0){
 					Time_Remain_Open = TM_MAX - TM_OPEN;
+					ST_ONEKEY_8u = 2;
 				}
 				if(TM_CLOSE > 0){
 					Time_Remain_Close = TM_MAX - TM_CLOSE;
+					ST_ONEKEY_8u = 4;
 				}
 				
 				//運轉次數
@@ -1336,6 +1342,8 @@ static void OpEnd_Detect_2(void){
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;		
 				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
+				
+				ST_ONEKEY_8u = 2;
 			}
 		}else if(TM_CLOSE > 0){			
 			Voc = ADC_Calculate() *(3.3/4095);		
@@ -1353,6 +1361,7 @@ static void OpEnd_Detect_2(void){
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;
 				
+				ST_ONEKEY_8u = 4;
 			}
 		}
 	}
@@ -2611,6 +2620,18 @@ void Relay_POS_OFF(void){
 	//printf("\n\r Relay_POS OFF!");
 }
 
+static void EXTI2_3_IRQHandler_Config(void){
+  GPIO_InitTypeDef   GPIO_InitStructure;
+	EXTI_CTRL_ONEKEY_CLK_ENABLE();
+	
+  GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+
+  GPIO_InitStructure.Pin = W_ONEKEY;
+  HAL_GPIO_Init(PORT_ONEKEY, &GPIO_InitStructure);
+	
+	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 2, 0);
+}
 
 //EXIT Configures
 static void EXTI4_15_IRQHandler_Config(void)
@@ -2624,6 +2645,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
+  
   GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
   HAL_GPIO_Init(EXTI_CTRL_PORT, &GPIO_InitStructure);
 
@@ -2679,6 +2701,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				Flag_Relay_MidStop = TRUE;
 			}
 			
+			if(TM_OPEN > 0){
+				ST_ONEKEY_8u = 2;
+			}else if(TM_CLOSE > 0){
+				ST_ONEKEY_8u = 4;
+			}
+			
 			Anti_Event = 0;
 			printf("\n\rSTOP!\n");
 			break;
@@ -2732,6 +2760,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			
 			ST_BTN = TRUE;
 			ACT_Door = 1;
+			ST_ONEKEY_8u = 1;
 			printf("\n\rOPEN!\n");
 			break;
 
@@ -2789,6 +2818,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 			ST_BTN = TRUE;
 			ACT_Door = 2;
+			ST_ONEKEY_8u = 3;
 			printf("\n\rClose!\n");
 			break;
 		
@@ -2827,6 +2857,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				TM_IR_Lock = 30; // 鎖定時間 30 sec.
 				Buzz_Type = 1;	 // 蜂鳴器ON/OFF 0.5秒
 				TM_Buzz = 30;	 // 蜂鳴器運作 30 sec.
+				ST_ONEKEY_8u = 1;
 			}
 			break;
 		
@@ -2837,7 +2868,38 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ST_BTN = TRUE;
 			ACT_Door = 1;	 //開門
 			TM_Buzz = TM_MAX;
-
+			ST_ONEKEY_8u = 1;
+			break;
+		
+		case W_ONEKEY:
+			ST_ONEKEY_8u++;
+			if(ST_ONEKEY_8u > 4){
+				ST_ONEKEY_8u = 1;
+			}
+			
+			switch(ST_ONEKEY_8u){
+				case 1:
+					ACT_Door = 1;
+					break;
+				
+				case 2:
+					ACT_Door = 0;
+					break;
+				
+				case 3:
+					ACT_Door = 2;
+					break;
+				
+				case 4:
+					ACT_Door = 0;
+					break;
+				
+				default:
+					//empty
+					break;
+			}
+			ST_BTN = TRUE;
+			
 			break;
 		
 		default:
