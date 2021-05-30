@@ -3944,6 +3944,7 @@ static void Buzzer_CTRL(void){
 			if(Flag3_Door_UpLimit_8u == TRUE){
 				ST_BUZZ_8u = 0;
 				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
