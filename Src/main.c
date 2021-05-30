@@ -210,9 +210,6 @@ uint16_t Time_Remain_Close = 0;
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
 
-uint8_t Time_Relay_TME;
-uint8_t Time_Relay_ACT;
-uint8_t Time_Relay_POS;
 
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
@@ -3184,11 +3181,33 @@ static void Parameter_Load(void){
 		
 		Time_Low_Operate_Ini = 20;
 		Time_Low_Operate_Mid = 80;
-
-		Time_Relay_TME = 50;   //
-		Time_Relay_ACT = 50;    //
-		Time_Relay_POS = 50;   //
-
+		
+		//TME-RELAY
+		Flag_Rly_TME_A_8u = 0;			//成立條件A
+		Flag_Rly_TME_B_8u = 0;			//成立條件B
+		Flag_Rly_TME_TER_8u = 0;		//解除條件
+		Time_RlyEvent_TME_A_16u = 10;	//成立時間A
+		Time_RlyEvent_TME_B_16u = 30;	//成立時間B
+		Time_RlyEvent_TER_TME_16u = 15;	//解除時間
+		Time_RlyOp_TME_16u = 100;		//輸出時間
+		
+		//ACT-RELAY
+		Flag_Rly_ACT_A_8u = 0;			//成立條件A
+		Flag_Rly_ACT_B_8u = 0;			//成立條件B
+		Flag_Rly_ACT_TER_8u = 0;		//解除條件
+		Time_RlyEvent_ACT_A_16u = 20;	//成立時間A
+		Time_RlyEvent_ACT_B_16u = 20;	//成立時間B
+		Time_RlyEvent_TER_ACT_16u = 10;	//解除時間
+		Time_RlyOp_ACT_16u = 100;		//輸出時間
+		
+		//POS-RELAY
+		Flag_Rly_POS_A_8u = 0;			//成立條件A
+		Flag_Rly_POS_B_8u = 0;			//成立條件B
+		Flag_Rly_POS_TER_8u = 0;		//解除條件
+		Time_RlyEvent_POS_A_16u = 30;	//成立時間A
+		Time_RlyEvent_POS_B_16u = 10;	//成立時間B
+		Time_RlyEvent_TER_POS_16u = 5;	//解除時間
+		Time_RlyOp_POS_16u = 100;		//輸出時間
 	}else{
 		//******Parameter form EEPROM*****//
 		EE_Addr_P = 0;
@@ -3341,7 +3360,7 @@ static void Parameter_Load(void){
 	Time_RlyEvent_TER_POS_16u = 5;
 	Time_RlyOp_POS_16u = 100;
 	*/
-	Flag_Buzzer = TRUE;
+	//Flag_Buzzer = TRUE;
 	//=====???=====//
 	
 	//捲門運行次數
