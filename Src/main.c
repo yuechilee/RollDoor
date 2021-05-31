@@ -1139,6 +1139,11 @@ static void Auto_Close_CTRL(void){
 			//Empty
 		}
 	}
+	
+	//蜂鳴器動作判斷
+	if(TM_Auto_Close > 0 && TM_Auto_Close < 50){
+		ST_BUZZ_8u = 8;
+	}
 }
 
 static void IR_CTRL(void){
@@ -2930,6 +2935,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
+		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
 		Tim_cnt_10ms = 0;
 	}
 	
@@ -2970,8 +2977,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
 		
 		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
-		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
-		TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
+		//TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		//TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
 
 		
 		Tim_cnt_100ms = 0;
@@ -3360,7 +3367,7 @@ static void Parameter_Load(void){
 	Time_RlyEvent_TER_POS_16u = 5;
 	Time_RlyOp_POS_16u = 100;
 	*/
-	//Flag_Buzzer = TRUE;
+	Flag_Buzzer = TRUE;
 	//=====???=====//
 	
 	//捲門運行次數
@@ -3777,7 +3784,7 @@ static void Buzzer_CTRL(void){
 	switch(ST_BUZZ_8u){
 		case 1:	//初送電
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				TM_Buzz_16u = 8;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3794,14 +3801,14 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}
 			
 			break;
 			
 		case 2://紅外線觸發+開門中
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				TM_Buzz_16u = 300;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3818,15 +3825,15 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 			}
 			break;
 			
 		case 3://紅外線觸發+控制器關門
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				TM_Buzz_16u = 100;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3843,15 +3850,15 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 			}
 			break;
 			
 		case 4://煙霧感測器ON
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				//TM_Buzz_16u = 100;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3870,15 +3877,15 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 			}
 			break;
 			
 		case 5://鎖電ON
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				CNT_Buzz_8u = 2;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3895,16 +3902,16 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				CNT_Buzz_8u--;
 			}
 			break;
 			
 		case 6://防夾ON:開門
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				TM_Buzz_16u = 100;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3921,15 +3928,15 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 			}
 			break;
 			
 		case 7://防夾ON:關門
 			if(ST_BUZZ_A_8u == 0){
-				TM_Buzz_ON_8u = 5;
+				TM_Buzz_ON_8u = 5*10;
 				TM_Buzz_16u = 100;
 				ST_BUZZ_A_8u = 1;
 			}
@@ -3948,13 +3955,41 @@ static void Buzzer_CTRL(void){
 			}
 			
 			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
-				TM_Buzz_OFF_8u = 5;
+				TM_Buzz_OFF_8u = 5*10;
 			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
-				TM_Buzz_ON_8u = 5;
-			}			break;
+				TM_Buzz_ON_8u = 5*10;
+			}
+
+			break;
 		
-		default:
+		case 8://自動關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 50;
+				ST_BUZZ_A_8u = 1;
+			}
 			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 10*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+		
+			break;
+			
+		default:
+			Buzz_OFF();
 			break;
 	}
 	
