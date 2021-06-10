@@ -216,7 +216,7 @@ uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210313;
+uint32_t Ver_date = 20210608;
 uint32_t REC_Operate_Times;
 
 uint8_t TXBuf[4];
@@ -323,6 +323,7 @@ uint8_t Flag3_Door_UpLimit_8u;
 uint8_t CNT_Buzz_8u;
 uint16_t TM_Buzz_16u;
 
+int i,j;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -438,20 +439,23 @@ int main(void)
   /* Enable each GPIO Clock */
   CLOCK_Enable();
   
-  //程式最後修改日期
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  printf("\n\r* Final Modify Date: %d     *", Ver_date);
-  printf("\n\r* Model: TYG-NCP-R01              *");
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  
 
   // Parameter access
   //EE_Default = FALSE;
   Parameter_Load();
-  Parameter_List();	
   
+
+  //程式最後修改日期
+  printf("\n\r***********************************"); 
+  printf("\n\r***********************************"); 
+  printf("\n\r* Final Modify Date: %d           *", Ver_date);
+  printf("\n\r* Model: TYG-NCP-R01              *");
+  printf("\n\r**Version: H%dV%d                 *",VER1,VER2); 
+  printf("\n\r***********************************"); 
+  
+  Parameter_List();	
+
+
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
@@ -3162,7 +3166,7 @@ static void Parameter_Load(void){
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
-		Flag_Buzzer          = FALSE;    //蜂鳴器
+		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
 		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
@@ -3341,34 +3345,6 @@ static void Parameter_Load(void){
 
 	}
 	
-	//???:DEL AFT TEST
-	/*
-	Flag_Rly_TME_A_8u = 1;
-	Flag_Rly_TME_B_8u = 8;
-	Flag_Rly_TME_TER_8u = 3;
-	Time_RlyEvent_TME_A_16u = 10;
-	Time_RlyEvent_TME_B_16u = 30;
-	Time_RlyEvent_TER_TME_16u = 15;
-	Time_RlyOp_TME_16u = 100;
-	
-	Flag_Rly_ACT_A_8u = 2;
-	Flag_Rly_ACT_B_8u = 7;
-	Flag_Rly_ACT_TER_8u = 2;
-	Time_RlyEvent_ACT_A_16u = 20;
-	Time_RlyEvent_ACT_B_16u = 20;
-	Time_RlyEvent_TER_ACT_16u = 10;
-	Time_RlyOp_ACT_16u = 100;
-
-	Flag_Rly_POS_A_8u = 3;
-	Flag_Rly_POS_B_8u = 6;
-	Flag_Rly_POS_TER_8u = 1;
-	Time_RlyEvent_POS_A_16u = 30;
-	Time_RlyEvent_POS_B_16u = 10;
-	Time_RlyEvent_TER_POS_16u = 5;
-	Time_RlyOp_POS_16u = 100;
-	*/
-	Flag_Buzzer = TRUE;
-	//=====???=====//
 	
 	//捲門運行次數
 	REC_Operate_Times = 0;
@@ -3484,7 +3460,11 @@ static void Parameter_Load(void){
 }
 
 static void Parameter_List(void){
+	//int i,j;
+	
+	printf("\n\r============================");
 	printf("\n\r==========參數設定==========");
+	printf("\n\r============================");
 	printf("\n\r*****功能開關(0:關閉 / 1:開啟)");
 	printf("\n\r 長期測試  : %d", Flag_CycleTest);
 	printf("\n\r 捲窗門功能: %d", Flag_WindowsDoor);
@@ -3498,25 +3478,65 @@ static void Parameter_List(void){
 	printf("\n\r 自動照明  : %d", Flag_Light);
 	printf("\n\r 緩啟動功能: %d", Flag_Low_Operate);
 	
-	printf("\n\r*****運轉參數");
-	printf("\n\r 開關門最大運轉時間      : %f 秒", TM_MAX *0.1);
-	printf("\n\r 長期測試開關門間隔時間  : %f 秒", TM_DLY_Value *0.1);
-	printf("\n\r 捲窗門關門時間(Part 1)  : %f 秒", TM_WindowsDoor_ClosePart1 *0.1);
-	printf("\n\r 自動關門時間            : %f 秒", Time_Auto_Close *0.1);
-	printf("\n\r 照明時間                : %f 秒", Time_Light *0.1);
-	printf("\n\r 緩步運轉(第1段)         : %f 秒", Time_Low_Operate_Ini *0.1);
-	printf("\n\r 緩步運轉(第2段)         : %f 秒", Time_Low_Operate_Mid *0.1);
+	printf("\n\n\r*****運轉參數");
+	printf("\n\r 開關門最大運轉時間      : %4.1f 秒", TM_MAX *0.1);
+	printf("\n\r 長期測試開關門間隔時間  : %4.1f 秒", TM_DLY_Value *0.1);
+	printf("\n\r 捲窗門關門時間(Part 1)  : %4.1f 秒", TM_WindowsDoor_ClosePart1 *0.1);
+	printf("\n\r 自動關門時間            : %4.1f 秒", Time_Auto_Close *0.1);
+	printf("\n\r 照明時間                : %4.1f 秒", Time_Light *0.1);
+	printf("\n\r 緩步運轉(第1段)         : %4.1f 秒", Time_Low_Operate_Ini *0.1);
+	printf("\n\r 緩步運轉(第2段)         : %4.1f 秒", Time_Low_Operate_Mid *0.1);
 
-	printf("\n\r 待機Volt                : %f(V)", Volt_StandBy);
-	printf("\n\r 防夾權重(OPEN)          : %f", Anti_Weight_Open);
-	printf("\n\r 防夾權重(CLOSE)         : %f", Anti_Weight_Close);
+	printf("\n\r 待機Volt                : %1.2f(V)", Volt_StandBy);
+	printf("\n\r 防夾權重(OPEN)          : %2.3f", Anti_Weight_Open);
+	printf("\n\r 防夾權重(CLOSE)         : %2.3f", Anti_Weight_Close);
 	
-    printf("\n\r 吋動判定參數    : %d", Times_JOG);
-    printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
+	printf("\n\r 吋動判定參數    : %d", Times_JOG);
+	printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
 	
-    printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
+	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
-	printf("\n\r========參數設定 End========");
+	
+	//外部狀態Relay參數
+	printf("\n\n\r*****State-Relay parameter*****");
+	printf("\n\r===TME-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_TME_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_TME_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_TME_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_TME_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_TME_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_TME_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_TME_16u*0.1);
+
+	printf("\n\n\r===ACT-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_ACT_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_ACT_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_ACT_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_ACT_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_ACT_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_ACT_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_ACT_16u*0.1);
+
+	printf("\n\n\r===POS-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_POS_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_POS_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_POS_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_POS_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_POS_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_POS_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_POS_16u*0.1);
+
+	printf("\n\n\r========參數設定 End========");
+	
+	printf("\n\n\r======== EEPROM Print ========");	
+	for(i=0;i<32;i++){
+		printf("\n\r R%02d: ",i);
+		for(j=i*8;j<(i*8+8);j++){
+			printf("%02X, ",aRxBuffer[j]);
+		}
+	}
+	printf("\n\n\r======== EEPROM Finish ========");	
+
 }
 
 
