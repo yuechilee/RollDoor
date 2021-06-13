@@ -24,6 +24,32 @@
 #define I2C_ADDRESS        0xA0	//0x30F
 #define I2C_TIMING      0x00A51314
 
+//Status Relay
+#define	None         0
+#define	SR_Uplimit   1
+#define	SR_Downlimit 2
+#define	SR_MidStop   3
+#define	SR_Open      4
+#define	SR_Down      5
+#define	SR_CmdOpen   6
+#define	SR_CmdStop   7
+#define	SR_CmdClose  8
+#define	SR_CmdLock   9
+
+//Bit process
+#define	BIT0	0x01
+#define	BIT1	0x02
+#define	BIT2	0x04
+#define	BIT3	0x08
+#define	BIT4	0x10
+#define	BIT5	0x20
+#define	BIT6	0x40
+#define	BIT7	0x80
+
+#define	BSET(x,y)	(x |= y)
+#define	BTST(x,y)	(x & y)
+#define	BCLR(x,y)	(x &= (y ^ 0xFF))
+#define	BNOT(x,y)	(x ^= y)
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
@@ -75,9 +101,6 @@ uint8_t Flag_Func_JOG;				//吋動功能
 uint8_t Flag_Motor_Direction;		//馬達運轉方向
 uint8_t Flag_Remote_Lock;				//鎖電功能
 uint8_t Flag_Low_Operate;				//
-uint8_t Flag_Relay_ACT;				//
-uint8_t Flag_Relay_TME;				//
-uint8_t Flag_Relay_POS;				//
 
 uint16_t TM_MAX;                  //開關門最長運轉時間 TM_MAX * 100ms
 uint16_t TM_WindowsDoor_ClosePart1;			 // 捲窗門第一段關門時間: n*0.1sec
@@ -112,8 +135,6 @@ uint8_t Flag_SMK;
 uint8_t Flag_Door_UpLimit;
 uint8_t Flag_Door_DownLimit;
 uint8_t Flag_No_VSB; //The default stand-by volt is ZERO.
-uint8_t Flag_Relay_UpLimit;
-uint8_t Flag_Relay_DownLimit;
 uint8_t Flag_Relay_MidStop;
 uint8_t Flag_Relay_OPEN;
 uint8_t Flag_Relay_CLOSE;
@@ -121,6 +142,7 @@ uint8_t Flag_Relay_CLOSE;
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
 uint8_t ST_Door = 0;                    //Operating status (0:Stop or standby /1:Opening /2:Closing)
+uint8_t ST_ONEKEY_8u = 0;               //
 uint8_t ST_Door_buf, ST_Door_buf2;
 uint8_t ST_Close;                       //Recode the 2-seg close cmd
 uint8_t	ST_Anti;
@@ -140,7 +162,6 @@ uint8_t Times_OverADC_Target = 2;	//防夾被觸發次數
 uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
-uint8_t Buzz_Type = 0;
 
 uint8_t EE_Addr_P = 0;
 	//16-bits
@@ -180,8 +201,6 @@ uint16_t ADC_Anti_Max;
 
 uint16_t TM_Anti_Occur = 0;
 uint16_t TM_Save = 2*60*60;			//運轉次數儲存ˊ週期
-uint16_t TM_Buzz_ON = 0;
-uint16_t TM_Buzz_OFF = 0;
 uint16_t TM_ADC_Relaod = 0;
 uint16_t TM_Low_Operate = 0;
 
@@ -190,19 +209,14 @@ uint16_t Time_Remain_Close = 0;
 
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
-uint8_t TM_Relay_TME;
-uint8_t TM_Relay_ACT;
-uint8_t TM_Relay_POS;
-uint8_t Time_Relay_TME;
-uint8_t Time_Relay_ACT;
-uint8_t Time_Relay_POS;
+
 
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210313;
+uint32_t Ver_date = 20210608;
 uint32_t REC_Operate_Times;
 
 uint8_t TXBuf[4];
@@ -215,6 +229,101 @@ float V_Diff,V_Diff_1,V_Diff_2;
 float Anti_Weight;
 float Vadc_ave;
 
+//===============================================================//
+//繼電器TME 
+//EEPROM
+uint8_t Flag_Rly_TME_A_8u;			//TME成立條件A
+uint8_t Flag_Rly_TME_B_8u;			//TME成立條件B
+uint8_t Flag_Rly_TME_TER_8u;		//TME解除條件
+uint16_t Time_RlyEvent_TME_A_16u;	//繼電器TME成立時間A
+uint16_t Time_RlyEvent_TME_B_16u;	//繼電器TME成立時間B
+uint16_t Time_RlyEvent_TER_TME_16u;	//繼電器TME解除時間
+uint16_t Time_RlyOp_TME_16u;			//繼電器TME動作時間
+
+//輸出Relay
+uint8_t Rly_TME_A_8u;
+uint8_t Rly_TME_B_8u;
+uint8_t ST_RlyEvent_TME_A_8u;
+uint8_t ST_RlyEvent_TME_B_8u;
+uint8_t ST_RlyEvent_TER_TME_8u;
+uint16_t TM_RlyEventDelay_TME_A_16u;
+uint16_t TM_RlyEventDelay_TME_B_16u;
+uint16_t TM_RlyEventDelay_TER_TME_16u;
+
+//Relay輸出判斷TIMER
+uint16_t TM_Relay_TME_16u;
+
+//===============================================================//
+//繼電器ACT 
+//EEPROM
+uint8_t Flag_Rly_ACT_A_8u;			//ACT成立條件A
+uint8_t Flag_Rly_ACT_B_8u;			//ACT成立條件B
+uint8_t Flag_Rly_ACT_TER_8u;		//ACT解除條件
+uint16_t Time_RlyEvent_ACT_A_16u;	//繼電器ACT成立時間A
+uint16_t Time_RlyEvent_ACT_B_16u;	//繼電器ACT成立時間B
+uint16_t Time_RlyEvent_TER_ACT_16u;	//繼電器ACT解除時間
+uint16_t Time_RlyOp_ACT_16u;			//繼電器ACT動作時間
+
+//輸出Relay
+uint8_t Rly_ACT_A_8u;
+uint8_t Rly_ACT_B_8u;
+uint8_t ST_RlyEvent_ACT_A_8u;
+uint8_t ST_RlyEvent_ACT_B_8u;
+uint8_t ST_RlyEvent_TER_ACT_8u;
+uint16_t TM_RlyEventDelay_ACT_A_16u;
+uint16_t TM_RlyEventDelay_ACT_B_16u;
+uint16_t TM_RlyEventDelay_TER_ACT_16u;
+
+//Relay輸出判斷TIMER
+uint16_t TM_Relay_ACT_16u;
+//===============================================================//
+//繼電器POS 
+//EEPROM
+uint8_t Flag_Rly_POS_A_8u;			//POS成立條件A
+uint8_t Flag_Rly_POS_B_8u;			//POS成立條件B
+uint8_t Flag_Rly_POS_TER_8u;		//POS解除條件
+uint16_t Time_RlyEvent_POS_A_16u;	//繼電器POS成立時間A
+uint16_t Time_RlyEvent_POS_B_16u;	//繼電器POS成立時間B
+uint16_t Time_RlyEvent_TER_POS_16u;	//繼電器POS解除時間
+uint16_t Time_RlyOp_POS_16u;			//繼電器POS動作時間
+
+//輸出Relay
+uint8_t Rly_POS_A_8u;
+uint8_t Rly_POS_B_8u;
+uint8_t ST_RlyEvent_POS_A_8u;
+uint8_t ST_RlyEvent_POS_B_8u;
+uint8_t ST_RlyEvent_TER_POS_8u;
+uint16_t TM_RlyEventDelay_POS_A_16u;
+uint16_t TM_RlyEventDelay_POS_B_16u;
+uint16_t TM_RlyEventDelay_TER_POS_16u;
+
+//Relay輸出判斷TIMER
+uint16_t TM_Relay_POS_16u;
+
+
+//共用: 緩衝暫存區
+uint8_t TMP_Flag_LOCK_8u;
+uint16_t TMP_TM_OPEN_16u;
+uint16_t TMP_TM_CLOSE_16u;
+
+//共用
+uint8_t Flag2_Door_UpLimit_8u;
+uint8_t Flag2_Door_DownLimit_8u;
+uint8_t Trig_RM_8u;
+
+
+//蜂鳴器
+uint8_t ST_BUZZ_8u;
+uint8_t ST_BUZZ_A_8u;
+uint8_t TM_Buzz_ON_8u;
+uint8_t TM_Buzz_ON_Buf_8u;
+uint8_t TM_Buzz_OFF_8u;
+uint8_t TM_Buzz_OFF_Buf_8u;
+uint8_t Flag3_Door_UpLimit_8u;
+uint8_t CNT_Buzz_8u;
+uint16_t TM_Buzz_16u;
+
+int i,j;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -226,6 +335,7 @@ void PWR_CTRL(void);                                       //Power ON to motor
 void Delay_ms(int32_t nms);
 //static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
+static void EXTI2_3_IRQHandler_Config(void);
 static void TIM16_Config(void);
 static void TIM17_Config(void);
 static void ADC_Config(void);
@@ -250,9 +360,9 @@ static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
 static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);	// Confirm the I2C R/W datas.
 
-static void Buzz_on(void);
-static void Buzz_off(void);
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time);
+static void Buzzer_CTRL(void);
+static void Buzz_ON(void);
+static void Buzz_OFF(void);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
 static void Parameter_List(void);	//EEPROM參數顯示
@@ -276,18 +386,29 @@ static void CtrlBox_Light_OFF(void);
 static void Low_Operate_Function(void);
 
 
-static void Relay_ACT_Control(void);
-static void Relay_POS_Control(void);
-static void Relay_TME_Control(void);
+static void SR_CTRL_TME_A(void);
+static void SR_CTRL_TME_B(void);
+static void SR_TERMINATE_TME(void);
+
+static void SR_CTRL_ACT_A(void);
+static void SR_CTRL_ACT_B(void);
+static void SR_TERMINATE_ACT(void);
+
+static void SR_CTRL_POS_A(void);
+static void SR_CTRL_POS_B(void);
+static void SR_TERMINATE_POS(void);
+
+
+static void SR_OUTPUT_CTRL(void);	//Status-Relay Output Control
+static void SR_VAR_BUF(void);		//Status-Relay Variable Reset
+static void SR_STVAR_RST(void);		//Status-Relay Status-Variable Reset
+
 void Relay_TME_ON(void);
 void Relay_TME_OFF(void);
 void Relay_ACT_ON(void);
 void Relay_ACT_OFF(void);
 void Relay_POS_ON(void);
 void Relay_POS_OFF(void);
-
-uint8_t PIN_Tmp = 0; //???
-
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -296,8 +417,6 @@ uint8_t PIN_Tmp = 0; //???
 //uint16_t i,j;
 uint16_t adc_32_amnt = 0;
 float Voc,Voc_;
-
-uint16_t TM_Buzz;// = 30;
 
 // Main Loop
 int main(void)
@@ -311,6 +430,7 @@ int main(void)
   /* Configure */
   ADC_Config();
   EXTI4_15_IRQHandler_Config();
+  EXTI2_3_IRQHandler_Config();
   TIM16_Config();
   TIM17_Config();
   Uart_Config();
@@ -319,20 +439,23 @@ int main(void)
   /* Enable each GPIO Clock */
   CLOCK_Enable();
   
-  //程式最後修改日期
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  printf("\n\r* Final Modify Date: %d     *", Ver_date);
-  printf("\n\r* Model: TYG-NCP-R01              *");
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  
 
   // Parameter access
   //EE_Default = FALSE;
   Parameter_Load();
-  Parameter_List();	
   
+
+  //程式最後修改日期
+  printf("\n\r***********************************"); 
+  printf("\n\r***********************************"); 
+  printf("\n\r* Final Modify Date: %d           *", Ver_date);
+  printf("\n\r* Model: TYG-NCP-R01              *");
+  printf("\n\r**Version: H%dV%d                 *",VER1,VER2); 
+  printf("\n\r***********************************"); 
+  
+  Parameter_List();	
+
+
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
@@ -343,13 +466,14 @@ int main(void)
   TM_CLOSE = 0;
   CloseTM2 = TM_MAX - TM_WindowsDoor_ClosePart1;		//section_time_2 of close operation
   if(Flag_WindowsDoor == TRUE && CloseTM2 <= 0){
-	Flag_WindowsDoor = FALSE;
-	printf("\n\r捲窗門功能第二段關門時間 = %d", CloseTM2);
-	printf("\n\r捲窗門功能: %d", Flag_WindowsDoor);
-	printf("\n");
+		Flag_WindowsDoor = FALSE;
+		printf("\n\r捲窗門功能第二段關門時間 = %d", CloseTM2);
+		printf("\n\r捲窗門功能: %d", Flag_WindowsDoor);
+		printf("\n");
   }
   ST_Close = 1;
 	
+  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);  
 
@@ -373,11 +497,20 @@ int main(void)
   }
 	
   //開機提示音
-  Buzz_on();
-  Delay_ms(500);
-  Buzz_off();
+  //Buzz_ON();
+  //Delay_ms(500);
+  //Buzz_OFF();
+  //_Buzz_ON_8u = 5;
+  ST_BUZZ_8u = 1;
+	
+  Rly_TME_A_8u = FALSE;
+  Rly_TME_B_8u = FALSE;
+  Rly_ACT_A_8u = FALSE;
+  Rly_ACT_B_8u = FALSE;
+  Rly_POS_A_8u = FALSE;
+  Rly_POS_B_8u = FALSE;
   
-  while (1){ 
+  while(1){ 
 		if(Flag_CycleTest == TRUE){
 			//循環測試
 			Cycle_Test();
@@ -395,6 +528,7 @@ int main(void)
 			Debug_Monitor();
 			Operate_Infor_Save();
 			StatusRelay_Control();
+			Buzzer_CTRL();
 		}
   }
 }
@@ -487,17 +621,6 @@ static void Debug_Monitor(void){
 			printf("\n");
 			printf("\n\r //////////煙霧感測器偵測觸發\\\\\\\\\\");
 			printf("\n\r Flag_SMK = %d",Flag_SMK);
-		}
-		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
-		
-		if(TM_Relay_ACT > 0){
-			printf("\n\n\r TM_Relay_ACT = %d ms",TM_Relay_ACT);
-		}
-		if(TM_Relay_POS > 0){
-			printf("\n\n\r TM_Relay_POS = %d ms",TM_Relay_POS);
-		}
-		if(TM_Relay_TME > 0){
-			printf("\n\n\r TM_Relay_TME = %d ms",TM_Relay_TME);
 		}
 
 		
@@ -760,9 +883,9 @@ static void Error_Handler(void)
 
 static void Ext_CNTER(void){
 	printf("\n\r----EXT_CNT");
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
 }
 
 void PWR_CTRL(void){
@@ -849,19 +972,7 @@ void PWR_CTRL(void){
 	}else{
 		CtrlBox_Light_OFF();
 	}
-	
-	if(TM_Buzz > 0){
-		if(Buzz_Type == 1){
-			Buzz_out(3,3);
-		}else if(Buzz_Type == 2){
-			Buzz_out(5,5);
-		}else{
-			//TBD
-		}
-	}else{
-		Buzz_off();
-	}
-		
+			
 }
 
 void Door_manage(void){	
@@ -1032,6 +1143,11 @@ static void Auto_Close_CTRL(void){
 			//Empty
 		}
 	}
+	
+	//蜂鳴器動作判斷
+	if(TM_Auto_Close > 0 && TM_Auto_Close < 50){
+		ST_BUZZ_8u = 8;
+	}
 }
 
 static void IR_CTRL(void){
@@ -1130,22 +1246,24 @@ static void OpEnd_Detect(void){
 				if(TM_OPEN > 0){
 					Flag_Door_UpLimit   = TRUE;
 					Flag_Door_DownLimit = FALSE;
+					Flag2_Door_UpLimit_8u   = TRUE;
+					Flag2_Door_DownLimit_8u = FALSE;
+					Flag3_Door_UpLimit_8u = TRUE;
 				}else if(TM_CLOSE > 0){
 					Flag_Door_UpLimit   = FALSE;
 					Flag_Door_DownLimit = TRUE;
+					Flag2_Door_UpLimit_8u   = FALSE;
+					Flag2_Door_DownLimit_8u = TRUE;
 				}
 				
-				//RELAY限位旗標做成
+				//運轉剩餘時間
 				if(TM_OPEN > 0){
-					Flag_Relay_UpLimit   = TRUE;
-					Flag_Relay_DownLimit = FALSE;
 					Time_Remain_Open = TM_MAX - TM_OPEN;
+					ST_ONEKEY_8u = 2;
 				}
-				
 				if(TM_CLOSE > 0){
-					Flag_Relay_UpLimit   = FALSE;
-					Flag_Relay_DownLimit = TRUE;
 					Time_Remain_Close = TM_MAX - TM_CLOSE;
+					ST_ONEKEY_8u = 4;
 				}
 				
 				//運轉次數
@@ -1198,23 +1316,24 @@ static void OpEnd_Detect_2(void){
 				//限位旗標做成
 				Flag_Door_UpLimit   = TRUE;
 				Flag_Door_DownLimit = FALSE;
-
-				//RELAY限位旗標做成
-				Flag_Relay_UpLimit   = TRUE;
-				Flag_Relay_DownLimit = FALSE;
-
+				Flag2_Door_UpLimit_8u   = TRUE;
+				Flag2_Door_DownLimit_8u = FALSE;
+				Flag3_Door_UpLimit_8u = TRUE;
+				
 				//運轉次數
 				REC_Operate_Times++;
 				
 				ST_Close = 1;
 
-				Time_Remain_Open = TM_MAX - TM_OPEN;
+				Time_Remain_Open = TM_MAX - TM_OPEN;	//運轉剩餘時間
 
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;		
 				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
+				
+				ST_ONEKEY_8u = 2;
 			}
 		}else if(TM_CLOSE > 0){			
 			Voc = ADC_Calculate() *(3.3/4095);		
@@ -1224,16 +1343,15 @@ static void OpEnd_Detect_2(void){
 				//限位旗標做成
 				Flag_Door_UpLimit   = FALSE;
 				Flag_Door_DownLimit = TRUE;
+				Flag2_Door_UpLimit_8u   = FALSE;
+				Flag2_Door_DownLimit_8u = TRUE;
 				
-				//RELAY限位旗標做成
-				Flag_Relay_UpLimit   = FALSE;
-				Flag_Relay_DownLimit = TRUE;
-
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;
 				
+				ST_ONEKEY_8u = 4;
 			}
 		}
 	}
@@ -1264,214 +1382,1245 @@ static void MotorRelay_out_config(void){
 }
 
 static void StatusRelay_out_config(void){
-	//uint8_t PIN_Tmp = 0;
 	
 	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 	
-	if(Flag_Relay_ACT > 0){
+	
+	//當成立條件A or B啟用時: Enable
+
+	if(Flag_Rly_ACT_A_8u > 0 || Flag_Rly_ACT_B_8u > 0){
 		GPIO_InitStruct.Pin = RL_ACT;
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
-	if(Flag_Relay_TME > 0){
-		GPIO_InitStruct.Pin = RL_TIME;
+	if(Flag_Rly_TME_A_8u > 0 || Flag_Rly_TME_B_8u > 0){
+		GPIO_InitStruct.Pin = RL_TME;
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
-	if(Flag_Relay_POS > 0){
+	if(Flag_Rly_POS_A_8u > 0 || Flag_Rly_POS_B_8u > 0){
 		GPIO_InitStruct.Pin = RL_POS;
 		HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 	}
 	
-	//GPIO_InitStruct.Pin = RL_ACT | RL_TIME | RL_POS;
+	//GPIO_InitStruct.Pin = RL_ACT | RL_TME | RL_POS;
 	//HAL_GPIO_Init(PORT_Status_Out, &GPIO_InitStruct);
 		
-	//Initial condition setting.
+	//Initial condition setting: OFF.
 	Relay_ACT_OFF();
 	Relay_TME_OFF();
 	Relay_POS_OFF();
 	
 	//HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_RESET);
-	//HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+	//HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
 	//HAL_GPIO_WritePin(PORT_Status_Out, RL_POS, GPIO_PIN_RESET);
 }
 
 static void StatusRelay_Control(void){
-	Relay_ACT_Control();
-	Relay_POS_Control();
-	Relay_TME_Control();
+	//Relay TME 控制
+	SR_CTRL_TME_A();
+	SR_CTRL_TME_B();
+	SR_TERMINATE_TME();
+	
+	//Relay ACT 控制
+	SR_CTRL_ACT_A();
+	SR_CTRL_ACT_B();
+	SR_TERMINATE_ACT();
+
+	//Relay POS 控制
+	SR_CTRL_POS_A();
+	SR_CTRL_POS_B();
+	SR_TERMINATE_POS();
+
+	//Relay 輸出控制
+	SR_OUTPUT_CTRL();
+	
+	//判斷用參數RESET
+	SR_STVAR_RST();
+	
+	//Edge變數緩衝區
+	SR_VAR_BUF();
 }
 
-static void Relay_ACT_Control(void){
-//Relay-Operate management
-	//ACT
-	if((Flag_Relay_ACT & 0x01) == 0x01){
-		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
-			TM_Relay_ACT = Time_Relay_ACT;
-		}		
+//觸發條件A
+static void SR_CTRL_TME_A(void){
+	//觸發條件判斷
+	if(Rly_TME_A_8u == FALSE){
+		switch(Flag_Rly_TME_A_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_TME_A_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_TME_A_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_TME_A_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_TME_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_TME_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_TME_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_TME_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_TME_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_TME_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_TME_A_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_TME_A_16u = Time_RlyEvent_TME_A_16u;
+				ST_RlyEvent_TME_A_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_TME_A_16u == 0){
+					ST_RlyEvent_TME_A_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_TME_16u == 0){
+					TM_Relay_TME_16u = Time_RlyOp_TME_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_TME_A_8u = 0;
+				Rly_TME_A_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
 	}
-	if((Flag_Relay_ACT & 0x02) == 0x02){
-		if(Flag_Relay_CLOSE == TRUE){
-			Flag_Relay_CLOSE = FALSE;
-			TM_Relay_ACT = Time_Relay_ACT;
+}
+
+//觸發條件B
+static void SR_CTRL_TME_B(void){
+	//觸發條件判斷
+	if(Rly_TME_B_8u == FALSE){
+		switch(Flag_Rly_TME_B_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_TME_B_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_TME_B_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_TME_B_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_TME_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_TME_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_TME_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_TME_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_TME_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_TME_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_TME_B_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_TME_B_16u = Time_RlyEvent_TME_B_16u;
+				ST_RlyEvent_TME_B_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_TME_B_16u == 0){
+					ST_RlyEvent_TME_B_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_TME_16u == 0){
+					TM_Relay_TME_16u = Time_RlyOp_TME_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_TME_B_8u = 0;
+				Rly_TME_B_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
+	}
+}
+
+static void SR_CTRL_ACT_A(void){
+	//觸發條件判斷
+	if(Rly_ACT_A_8u == FALSE){
+		switch(Flag_Rly_ACT_A_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_ACT_A_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_ACT_A_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_ACT_A_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_ACT_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_ACT_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_ACT_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_ACT_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_ACT_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_ACT_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_ACT_A_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_ACT_A_16u = Time_RlyEvent_ACT_A_16u;
+				ST_RlyEvent_ACT_A_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_ACT_A_16u == 0){
+					ST_RlyEvent_ACT_A_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_ACT_16u == 0){
+					TM_Relay_ACT_16u = Time_RlyOp_ACT_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_ACT_A_8u = 0;
+				Rly_ACT_A_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
+	}
+}
+
+//觸發條件B
+static void SR_CTRL_ACT_B(void){
+	//觸發條件判斷
+	if(Rly_ACT_B_8u == FALSE){
+		switch(Flag_Rly_ACT_B_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_ACT_B_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_ACT_B_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_ACT_B_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_ACT_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_ACT_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_ACT_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_ACT_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_ACT_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_ACT_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_ACT_B_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_ACT_B_16u = Time_RlyEvent_ACT_B_16u;
+				ST_RlyEvent_ACT_B_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_ACT_B_16u == 0){
+					ST_RlyEvent_ACT_B_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_ACT_16u == 0){
+					TM_Relay_ACT_16u = Time_RlyOp_ACT_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_ACT_B_8u = 0;
+				Rly_ACT_B_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
+	}
+}
+
+static void SR_CTRL_POS_A(void){
+	//觸發條件判斷
+	if(Rly_POS_A_8u == FALSE){
+		switch(Flag_Rly_POS_A_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_POS_A_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_POS_A_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_POS_A_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_POS_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_POS_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_POS_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_POS_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_POS_A_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_POS_A_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_POS_A_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_POS_A_16u = Time_RlyEvent_POS_A_16u;
+				ST_RlyEvent_POS_A_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_POS_A_16u == 0){
+					ST_RlyEvent_POS_A_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_POS_16u == 0){
+					TM_Relay_POS_16u = Time_RlyOp_POS_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_POS_A_8u = 0;
+				Rly_POS_A_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
+	}
+}
+
+//觸發條件B
+static void SR_CTRL_POS_B(void){
+	//觸發條件判斷
+	if(Rly_POS_B_8u == FALSE){
+		switch(Flag_Rly_POS_B_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_POS_B_8u = 1;	
+					//Flag2_Door_UpLimit_8u = FALSE;
+				}else{
+					
+				}
+				
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_POS_B_8u = 1;	
+					//Flag2_Door_DownLimit_8u = FALSE;
+				}else{
+					
+				}
+
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_POS_B_8u = 1;
+					   }
+				}else{
+					//empty
+				}			
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_POS_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_POS_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_POS_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT0);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_POS_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT1);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_POS_B_8u = 1;	
+					//BCLR(Trig_RM_8u,BIT2);
+				}else{
+					//empty
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_POS_B_8u = 1;	
+				}else{
+					//empty
+				}
+				//SR_VAR_BUF();			
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		//=========================================//
+		//輸出等待時間
+		switch(ST_RlyEvent_POS_B_8u){
+			case 0:
+				//empty
+				break;
+			
+			case 1:
+				TM_RlyEventDelay_POS_B_16u = Time_RlyEvent_POS_B_16u;
+				ST_RlyEvent_POS_B_8u = 2;
+				break;
+			
+			case 2:
+				if(TM_RlyEventDelay_POS_B_16u == 0){
+					ST_RlyEvent_POS_B_8u = 3;
+				}
+				break;
+			
+			case 3:
+				if(TM_Relay_POS_16u == 0){
+					TM_Relay_POS_16u = Time_RlyOp_POS_16u;
+				}else{
+					//Empty
+				}
+				ST_RlyEvent_POS_B_8u = 0;
+				Rly_POS_B_8u = TRUE;
+				break;
+			
+			default:
+				//empty
+				break;
+		}
+		//=========================================//
+	}
+}
+
+//解除條件
+static void SR_TERMINATE_TME(void){
+	if(Rly_TME_A_8u == TRUE || Rly_TME_B_8u == TRUE){
+		switch(Flag_Rly_TME_TER_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_TER_TME_8u = 1;
+					   }
+				}
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_TER_TME_8u = 1;
+				}
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		
+		switch(ST_RlyEvent_TER_TME_8u){
+			case 0:
+				//Empty
+				break;
+				
+			case 1:	//設定延遲時間
+				TM_RlyEventDelay_TER_TME_16u = Time_RlyEvent_TER_TME_16u;
+				ST_RlyEvent_TER_TME_8u = 2;
+				break;
+				
+			case 2:
+				if(TM_RlyEventDelay_TER_TME_16u == 0){
+					ST_RlyEvent_TER_TME_8u = 3;
+				}
+				break;
+				
+			case 3:
+				TM_Relay_TME_16u = 0;
+				//ST_RlyEvent_TER_TME_8u = 0;
+				break;
+				
+			
+			default:
+				//Empty
+				break;
 		}
 	}
-	if((Flag_Relay_ACT & 0x04) == 0x04){
-		if(Flag_Relay_OPEN == TRUE){
-			Flag_Relay_OPEN = FALSE;
-			TM_Relay_ACT = Time_Relay_ACT;
+}
+
+static void SR_TERMINATE_ACT(void){
+	if(Rly_ACT_A_8u == TRUE || Rly_ACT_B_8u == TRUE){
+		switch(Flag_Rly_ACT_TER_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_TER_ACT_8u = 1;
+					   }
+				}
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_TER_ACT_8u = 1;
+				}
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		
+		switch(ST_RlyEvent_TER_ACT_8u){
+			case 0:
+				//Empty
+				break;
+				
+			case 1:	//設定延遲時間
+				TM_RlyEventDelay_TER_ACT_16u = Time_RlyEvent_TER_ACT_16u;
+				ST_RlyEvent_TER_ACT_8u = 2;
+				break;
+				
+			case 2:
+				if(TM_RlyEventDelay_TER_ACT_16u == 0){
+					ST_RlyEvent_TER_ACT_8u = 3;
+				}
+				break;
+				
+			case 3:
+				TM_Relay_ACT_16u = 0;
+				//ST_RlyEvent_TER_ACT_8u = 0;
+				break;
+				
+			
+			default:
+				//Empty
+				break;
 		}
 	}
-	if((Flag_Relay_ACT & 0x08) == 0x08){
-		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
-			TM_Relay_ACT = Time_Relay_ACT;
-		}	
-	}
-	if((Flag_Relay_ACT & 0x10) == 0x10){
-		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
-			TM_Relay_ACT = Time_Relay_ACT;
+}
+
+static void SR_TERMINATE_POS(void){
+	if(Rly_POS_A_8u == TRUE || Rly_POS_B_8u == TRUE){
+		switch(Flag_Rly_POS_TER_8u){
+			case SR_Uplimit:
+				if(Flag2_Door_UpLimit_8u == TRUE){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_Downlimit:
+				if(Flag2_Door_DownLimit_8u == TRUE){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_MidStop:
+				if( TM_OPEN == 0  && 
+					TM_CLOSE == 0 &&
+				   (TMP_TM_OPEN_16u != 0 || TMP_TM_CLOSE_16u != 0)){
+					   if(Flag2_Door_UpLimit_8u != TRUE && Flag2_Door_DownLimit_8u != TRUE){
+							ST_RlyEvent_TER_POS_8u = 1;
+					   }
+				}
+				break;
+			
+			case SR_Open:
+				if(TM_OPEN > 0 && TMP_TM_OPEN_16u == 0){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_Down:
+				if(TM_CLOSE > 0 && TMP_TM_CLOSE_16u == 0){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_CmdOpen:
+				if(BTST(Trig_RM_8u,BIT0) != 0){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_CmdStop:
+				if(BTST(Trig_RM_8u,BIT1) != 0){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_CmdClose:
+				if(BTST(Trig_RM_8u,BIT2) != 0){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			case SR_CmdLock:
+				if(Flag_LOCK == TRUE && TMP_Flag_LOCK_8u == FALSE){
+					ST_RlyEvent_TER_POS_8u = 1;
+				}
+				break;
+			
+			default:
+				//Empty
+				break;
+		}
+		
+		switch(ST_RlyEvent_TER_POS_8u){
+			case 0:
+				//Empty
+				break;
+				
+			case 1:	//設定延遲時間
+				TM_RlyEventDelay_TER_POS_16u = Time_RlyEvent_TER_POS_16u;
+				ST_RlyEvent_TER_POS_8u = 2;
+				break;
+				
+			case 2:
+				if(TM_RlyEventDelay_TER_POS_16u == 0){
+					ST_RlyEvent_TER_POS_8u = 3;
+				}
+				break;
+				
+			case 3:
+				TM_Relay_POS_16u = 0;
+				//ST_RlyEvent_TER_POS_8u = 0;
+				break;
+				
+			
+			default:
+				//Empty
+				break;
 		}
 	}
-	
-//Relay out
-	if(TM_Relay_ACT > 0){
-		Relay_ACT_ON();
-	}else{
-		Relay_ACT_OFF();
+}
+
+//變數暫存區
+static void SR_VAR_BUF(void){
+	TMP_TM_OPEN_16u = TM_OPEN;
+	TMP_TM_CLOSE_16u = TM_CLOSE;
+	TMP_Flag_LOCK_8u = Flag_LOCK;
+}
+
+static void SR_STVAR_RST(void){
+	//狀態變數RESET
+	if(Flag2_Door_UpLimit_8u == TRUE){
+		Flag2_Door_UpLimit_8u = FALSE;
+	}
+	if(Flag2_Door_DownLimit_8u == TRUE){
+		Flag2_Door_DownLimit_8u = FALSE;
+	}
+	if(BTST(Trig_RM_8u,BIT0) != 0){
+		BCLR(Trig_RM_8u,BIT0);
+	}
+	if(BTST(Trig_RM_8u,BIT1) != 0){
+		BCLR(Trig_RM_8u,BIT1);
+	}
+	if(BTST(Trig_RM_8u,BIT2) != 0){
+		BCLR(Trig_RM_8u,BIT2);
 	}
 
 }
 
-static void Relay_POS_Control(void){
-//Relay-Operate management
-	//POS
-	if((Flag_Relay_POS & 0x01) == 0x01){
-		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
-			TM_Relay_POS = Time_Relay_POS;
-		}		
-	}
-	if((Flag_Relay_POS & 0x02) == 0x02){
-		if(Flag_Relay_CLOSE == TRUE){
-			Flag_Relay_CLOSE = FALSE;
-			TM_Relay_POS = Time_Relay_POS;
-		}
-	}
-	if((Flag_Relay_POS & 0x04) == 0x04){
-		if(Flag_Relay_OPEN == TRUE){
-			Flag_Relay_OPEN = FALSE;
-			TM_Relay_POS = Time_Relay_POS;
-		}
-	}
-	if((Flag_Relay_POS & 0x08) == 0x08){
-		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
-			TM_Relay_POS = Time_Relay_POS;
-		}	
-	}
-	if((Flag_Relay_POS & 0x10) == 0x10){
-		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
-			TM_Relay_POS = Time_Relay_POS;
-		}
-	}
-	
-//Relay out
-	if(TM_Relay_POS > 0){
-		Relay_POS_ON();
-	}else{
-		Relay_POS_OFF();
-	}
-}
-
-static void Relay_TME_Control(void){
-//Relay-Operate management
-	//TME
-	
-	printf("\n\n\r Flag_Relay_MidStop   = %d", Flag_Relay_MidStop);
-	printf("\n\r Flag_Relay_CLOSE     = %d", Flag_Relay_CLOSE);
-	printf("\n\r Flag_Relay_OPEN      = %d", Flag_Relay_OPEN);
-	printf("\n\r Flag_Relay_DownLimit = %d", Flag_Relay_DownLimit);
-	printf("\n\r Flag_Relay_UpLimit   = %d", Flag_Relay_UpLimit);
-	
-	if((Flag_Relay_TME & 0x01) == 0x01){
-		if(Flag_Relay_MidStop == TRUE){
-			Flag_Relay_MidStop = FALSE;
-			TM_Relay_TME = Time_Relay_TME;
-		}		
-	}
-	if((Flag_Relay_TME & 0x02) == 0x02){
-		if(Flag_Relay_CLOSE == TRUE){
-			Flag_Relay_CLOSE = FALSE;
-			TM_Relay_TME = Time_Relay_TME;
-		}
-	}
-	if((Flag_Relay_TME & 0x04) == 0x04){
-		if(Flag_Relay_OPEN == TRUE){
-			Flag_Relay_OPEN = FALSE;
-			TM_Relay_TME = Time_Relay_TME;
-		}
-	}
-	if((Flag_Relay_TME & 0x08) == 0x08){
-		if(Flag_Relay_DownLimit == TRUE){
-			Flag_Relay_DownLimit = FALSE;
-			TM_Relay_TME = Time_Relay_TME;
-		}	
-	}
-	if((Flag_Relay_TME & 0x10) == 0x10){
-		if(Flag_Relay_UpLimit == TRUE){
-			Flag_Relay_UpLimit = FALSE;
-			TM_Relay_TME = Time_Relay_TME;
-		}
-	}
-	
-//Relay out
-	if(TM_Relay_TME > 0){
+static void SR_OUTPUT_CTRL(void){
+	if(TM_Relay_TME_16u > 0){
 		Relay_TME_ON();
 	}else{
 		Relay_TME_OFF();
+		Rly_TME_A_8u = FALSE;
+		Rly_TME_B_8u = FALSE;
+		ST_RlyEvent_TER_TME_8u = 0;
 	}
+	
+	if(TM_Relay_ACT_16u > 0){
+		Relay_ACT_ON();
+	}else{
+		Relay_ACT_OFF();
+		Rly_ACT_A_8u = FALSE;
+		Rly_ACT_B_8u = FALSE;
+		ST_RlyEvent_TER_ACT_8u = 0;
+	}
+
+
+	if(TM_Relay_POS_16u > 0){
+		Relay_POS_ON();
+	}else{
+		Relay_POS_OFF();
+		Rly_POS_A_8u = FALSE;
+		Rly_POS_B_8u = FALSE;
+		ST_RlyEvent_TER_POS_8u = 0;
+	}
+
 }
 
-// Relay_TME:ON
+// Relay_TME:ON /OFF
 void Relay_TME_ON(void){
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_SET);
 	//printf("\n\r Relay_TME ON!");
 }
 
-// Relay_TME:OFF
 void Relay_TME_OFF(void){
-	HAL_GPIO_WritePin(PORT_Status_Out, RL_TIME, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PORT_Status_Out, RL_TME, GPIO_PIN_RESET);
 	//printf("\n\r Relay_TME OFF!");
 }
 
-// Relay_ACT:ON
+// Relay_ACT:ON /OFF
 void Relay_ACT_ON(void){
 	HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_SET);
 	//printf("\n\r Relay_ACT ON!");
 }
 
-// Relay_ACT:OFF
 void Relay_ACT_OFF(void){
 	HAL_GPIO_WritePin(PORT_Status_Out, RL_ACT, GPIO_PIN_RESET);
 	//printf("\n\r Relay_ACT OFF!");
 }
 
-// Relay_POS:ON
+// Relay_POS:ON /OFF
 void Relay_POS_ON(void){
 	HAL_GPIO_WritePin(PORT_Status_Out, RL_POS, GPIO_PIN_SET);
 	//printf("\n\r Relay_POS  ON!");
 }
 
-// Relay_POS:OFF
 void Relay_POS_OFF(void){
 	HAL_GPIO_WritePin(PORT_Status_Out, RL_POS, GPIO_PIN_RESET);
 	//printf("\n\r Relay_POS OFF!");
 }
 
+static void EXTI2_3_IRQHandler_Config(void){
+  GPIO_InitTypeDef   GPIO_InitStructure;
+	EXTI_CTRL_ONEKEY_CLK_ENABLE();
+	
+  GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+
+  GPIO_InitStructure.Pin = W_ONEKEY;
+  HAL_GPIO_Init(PORT_ONEKEY, &GPIO_InitStructure);
+	
+	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 2, 0);
+}
 
 //EXIT Configures
 static void EXTI4_15_IRQHandler_Config(void)
@@ -1485,6 +2634,7 @@ static void EXTI4_15_IRQHandler_Config(void)
 
   GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
   GPIO_InitStructure.Pull = GPIO_NOPULL;
+  
   GPIO_InitStructure.Pin = EXTI_CTRL_PIN;
   HAL_GPIO_Init(EXTI_CTRL_PORT, &GPIO_InitStructure);
 
@@ -1511,8 +2661,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_STOP:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
 				break;
 			}
 			ST_BTN = TRUE;
@@ -1520,6 +2668,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ST_Anti = 0;
 			ADC_Detect_Start_Flag = 0;
 			
+			BSET(Trig_RM_8u,BIT1);
+
 			//自動關門等待時間載入
 			if(AClose_Flg == TRUE){
 				printf("\n\r重新載入等待關門時間: %d ms", TM_Auto_Close);
@@ -1538,6 +2688,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				Flag_Relay_MidStop = TRUE;
 			}
 			
+			if(TM_OPEN > 0){
+				ST_ONEKEY_8u = 2;
+			}else if(TM_CLOSE > 0){
+				ST_ONEKEY_8u = 4;
+			}
+			
 			Anti_Event = 0;
 			printf("\n\rSTOP!\n");
 			break;
@@ -1545,10 +2701,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_OPEN:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
+			
+			BSET(Trig_RM_8u,BIT0);
 			
 			//吋動功能
 			if(Flag_Func_JOG == TRUE){
@@ -1589,6 +2746,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			
 			ST_BTN = TRUE;
 			ACT_Door = 1;
+			ST_ONEKEY_8u = 1;
 			printf("\n\rOPEN!\n");
 			break;
 
@@ -1596,15 +2754,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
 			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
 			if(Flag_IR    == TRUE){				//紅外線觸發: 不動作
-				Buzz_Type = 1;	//蜂鳴器ON/OFF 0.5秒
-				TM_Buzz   = 10;	//蜂鳴器運作 10 sec.
+				ST_BUZZ_8u = 3;
 				break;
 			}
+			
+			BSET(Trig_RM_8u,BIT2);
 			
 			if(Flag_Func_JOG == TRUE){
 			// JOG detect
@@ -1644,6 +2802,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 			ST_BTN = TRUE;
 			ACT_Door = 2;
+			ST_ONEKEY_8u = 3;
 			printf("\n\rClose!\n");
 			break;
 		
@@ -1664,6 +2823,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						}else{
 							Flag_LOCK = TRUE;
 							ST_Press = 1;
+							ST_BUZZ_8u = 5;
 							printf("\n\rLOCK~~~~~~!\n");
 						}
 					}
@@ -1680,8 +2840,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				ST_BTN = TRUE;
 				ACT_Door = 1;	 // 開門
 				TM_IR_Lock = 30; // 鎖定時間 30 sec.
-				Buzz_Type = 1;	 // 蜂鳴器ON/OFF 0.5秒
-				TM_Buzz = 30;	 // 蜂鳴器運作 30 sec.
+				ST_ONEKEY_8u = 1;
+				ST_BUZZ_8u = 2;
 			}
 			break;
 		
@@ -1691,8 +2851,38 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			Delay_ms(100);
 			ST_BTN = TRUE;
 			ACT_Door = 1;	 //開門
-			TM_Buzz = TM_MAX;
-
+			ST_ONEKEY_8u = 1;
+			break;
+		
+		case W_ONEKEY:
+			ST_ONEKEY_8u++;
+			if(ST_ONEKEY_8u > 4){
+				ST_ONEKEY_8u = 1;
+			}
+			
+			switch(ST_ONEKEY_8u){
+				case 1:
+					ACT_Door = 1;
+					break;
+				
+				case 2:
+					ACT_Door = 0;
+					break;
+				
+				case 3:
+					ACT_Door = 2;
+					break;
+				
+				case 4:
+					ACT_Door = 0;
+					break;
+				
+				default:
+					//empty
+					break;
+			}
+			ST_BTN = TRUE;
+			
 			break;
 		
 		default:
@@ -1711,10 +2901,8 @@ static void SMK_CTRL(void){
 		SMK_tmp = HAL_GPIO_ReadPin(PORT_SMK, W_SMK);
 		if(SMK_tmp == TRUE){
 			Flag_SMK = FALSE;
-			TM_Buzz = 0;
 		}else{
-			Buzz_Type = 1;
-			TM_Buzz = TM_OPEN;
+			//empty
 		}
 	}
 }
@@ -1751,6 +2939,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
+		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
 		Tim_cnt_10ms = 0;
 	}
 	
@@ -1767,15 +2957,34 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DLY 	          = TIMDEC(TM_DLY);
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
-		TM_Buzz_ON        = TIMDEC(TM_Buzz_ON);
-		TM_Buzz_OFF       = TIMDEC(TM_Buzz_OFF);
+		TM_Buzz_ON_8u        = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u       = TIMDEC(TM_Buzz_OFF_8u);
 		TM_ADC_Relaod     = TIMDEC(TM_ADC_Relaod);
 		TM_CLOSE_EndPart  = TIMDEC(TM_CLOSE_EndPart);
-		TM_Relay_TME      = TIMDEC(TM_Relay_TME);
-		TM_Relay_ACT      = TIMDEC(TM_Relay_ACT);
-		TM_Relay_POS      = TIMDEC(TM_Relay_POS);
+
+		TM_Relay_TME_16u  = TIMDEC(TM_Relay_TME_16u);
+		TM_Relay_ACT_16u  = TIMDEC(TM_Relay_ACT_16u);
+		TM_Relay_POS_16u  = TIMDEC(TM_Relay_POS_16u);
+		
+		TM_RlyEventDelay_TME_A_16u = TIMDEC(TM_RlyEventDelay_TME_A_16u);
+		TM_RlyEventDelay_TME_B_16u = TIMDEC(TM_RlyEventDelay_TME_B_16u);
+		TM_RlyEventDelay_TER_TME_16u  = TIMDEC(TM_RlyEventDelay_TER_TME_16u);
+		
+		TM_RlyEventDelay_ACT_A_16u = TIMDEC(TM_RlyEventDelay_ACT_A_16u);
+		TM_RlyEventDelay_ACT_B_16u = TIMDEC(TM_RlyEventDelay_ACT_B_16u);
+		TM_RlyEventDelay_TER_ACT_16u  = TIMDEC(TM_RlyEventDelay_TER_ACT_16u);
+		
+		TM_RlyEventDelay_POS_A_16u = TIMDEC(TM_RlyEventDelay_POS_A_16u);
+		TM_RlyEventDelay_POS_B_16u = TIMDEC(TM_RlyEventDelay_POS_B_16u);
+		TM_RlyEventDelay_TER_POS_16u  = TIMDEC(TM_RlyEventDelay_TER_POS_16u);
 		
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
+		
+		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
+		//TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		//TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
+
+		
 		Tim_cnt_100ms = 0;
 
 	}
@@ -1785,8 +2994,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		Tim_cnt_1s = 0;
 		TM_IR_Lock 	      = TIMDEC(TM_IR_Lock);
 		TM_Save 	      	= TIMDEC(TM_Save);
-		TM_Buzz 	      	= TIMDEC(TM_Buzz);
 	}
+	
+	if(TM_Buzz_ON_8u > 0){
+		Buzz_ON();
+	}else if(TM_Buzz_OFF_8u > 0){
+		Buzz_OFF();
+	}
+
 
 }
 
@@ -1951,14 +3166,12 @@ static void Parameter_Load(void){
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
-		Flag_Buzzer          = FALSE;    //蜂鳴器
+		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
 		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
 		//EE_Addr_P = 31;
-		Flag_Relay_TME      = 0x1F;  //狀態輸出RELAY_TEM: 0~16
-		Flag_Relay_ACT      = 0x1F;  //狀態輸出RELAY_ACT: 0~16
-		Flag_Relay_POS      = 0x1F;  //狀態輸出RELAY_POS: 0~16
+
 
 		TM_DLY_Value              = 300;   //循環測試間隔時間
 		TM_WindowsDoor_ClosePart1 = 130;   //捲窗門_第一段關門時間
@@ -1979,10 +3192,33 @@ static void Parameter_Load(void){
 		
 		Time_Low_Operate_Ini = 20;
 		Time_Low_Operate_Mid = 80;
-
-		Time_Relay_TME = 50;   //
-		Time_Relay_ACT = 50;    //
-		Time_Relay_POS = 50;   //
+		
+		//TME-RELAY
+		Flag_Rly_TME_A_8u = 0;			//成立條件A
+		Flag_Rly_TME_B_8u = 0;			//成立條件B
+		Flag_Rly_TME_TER_8u = 0;		//解除條件
+		Time_RlyEvent_TME_A_16u = 0;	//成立時間A
+		Time_RlyEvent_TME_B_16u = 0;	//成立時間B
+		Time_RlyEvent_TER_TME_16u = 0;	//解除時間
+		Time_RlyOp_TME_16u = 0;		//輸出時間
+		
+		//ACT-RELAY
+		Flag_Rly_ACT_A_8u = 0;			//成立條件A
+		Flag_Rly_ACT_B_8u = 0;			//成立條件B
+		Flag_Rly_ACT_TER_8u = 0;		//解除條件
+		Time_RlyEvent_ACT_A_16u = 0;	//成立時間A
+		Time_RlyEvent_ACT_B_16u = 0;	//成立時間B
+		Time_RlyEvent_TER_ACT_16u = 0;	//解除時間
+		Time_RlyOp_ACT_16u = 0;		//輸出時間
+		
+		//POS-RELAY
+		Flag_Rly_POS_A_8u = 0;			//成立條件A
+		Flag_Rly_POS_B_8u = 0;			//成立條件B
+		Flag_Rly_POS_TER_8u = 0;		//解除條件
+		Time_RlyEvent_POS_A_16u = 0;	//成立時間A
+		Time_RlyEvent_POS_B_16u = 0;	//成立時間B
+		Time_RlyEvent_TER_POS_16u = 0;	//解除時間
+		Time_RlyOp_POS_16u = 0;		//輸出時間
 
 	}else{
 		//******Parameter form EEPROM*****//
@@ -2015,13 +3251,8 @@ static void Parameter_Load(void){
 		Flag_Remote_Lock     = aRxBuffer[EE_Addr_P++];   //鎖電功能
 		Flag_Rate_Regulate   = aRxBuffer[EE_Addr_P++];   //捲門調速
 		Flag_Buzzer          = aRxBuffer[EE_Addr_P++];   //蜂鳴器
-		Flag_Light           = aRxBuffer[EE_Addr_P++];    //自動照明
-		Flag_Low_Operate     = aRxBuffer[EE_Addr_P++];  //緩起步 & 緩停止
-		
-		//EE_Addr_P = 31;
-		Flag_Relay_TME      = aRxBuffer[EE_Addr_P++];  //狀態輸出RELAY_TEM: 0~16
-		Flag_Relay_ACT      = aRxBuffer[EE_Addr_P++];  //狀態輸出RELAY_ACT: 0~16
-		Flag_Relay_POS      = aRxBuffer[EE_Addr_P++];  //狀態輸出RELAY_POS: 0~16
+		Flag_Light           = aRxBuffer[EE_Addr_P++];   //自動照明
+		Flag_Low_Operate     = aRxBuffer[EE_Addr_P++];   //緩起步 & 緩停止
 
 
 		EE_Addr_P = 40;
@@ -2058,16 +3289,63 @@ static void Parameter_Load(void){
 		Time_Low_Operate_Ini = aRxBuffer[EE_Addr_P++]; 
 		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]; 
 		
+		//繼電器時間參數 TME/ACT/POS 
 		EE_Addr_P = 60;
-		Time_Relay_TME = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		//TME成立時間
+		Time_RlyEvent_TME_A_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
 		
-		Time_Relay_ACT = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
+		Time_RlyEvent_TME_B_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
 		EE_Addr_P+=2;
 		
-		Time_Relay_POS = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		//ACT成立時間
+		Time_RlyEvent_ACT_A_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
+		
+		Time_RlyEvent_ACT_B_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
+		EE_Addr_P+=2;
+		
+		//POS成立時間
+		Time_RlyEvent_POS_A_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		EE_Addr_P+=2;
+		
+		Time_RlyEvent_POS_B_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
+		EE_Addr_P+=2;
+		
+		//輸出時間 TME/ACT/POS
+		Time_RlyOp_TME_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
+		EE_Addr_P+=2;
+		
+		Time_RlyOp_ACT_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		EE_Addr_P+=2;
+		
+		Time_RlyOp_POS_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		EE_Addr_P+=2;
+
+		//解除成立時間 TME/ACT/POS
+		Time_RlyEvent_TER_TME_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;    //
+		EE_Addr_P+=2;
+		
+		Time_RlyEvent_TER_ACT_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		EE_Addr_P+=2;
+		
+		Time_RlyEvent_TER_POS_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
+		EE_Addr_P+=2;
+		
+		//狀態RELAY成立條件
+		EE_Addr_P = 100;
+		Flag_Rly_TME_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_TME_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_A_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_B_8u    = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_TME_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_ACT_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+		Flag_Rly_POS_TER_8u  = aRxBuffer[EE_Addr_P++];   //
+
 	}
+	
 	
 	//捲門運行次數
 	REC_Operate_Times = 0;
@@ -2183,7 +3461,11 @@ static void Parameter_Load(void){
 }
 
 static void Parameter_List(void){
+	//int i,j;
+	
+	printf("\n\r============================");
 	printf("\n\r==========參數設定==========");
+	printf("\n\r============================");
 	printf("\n\r*****功能開關(0:關閉 / 1:開啟)");
 	printf("\n\r 長期測試  : %d", Flag_CycleTest);
 	printf("\n\r 捲窗門功能: %d", Flag_WindowsDoor);
@@ -2197,79 +3479,65 @@ static void Parameter_List(void){
 	printf("\n\r 自動照明  : %d", Flag_Light);
 	printf("\n\r 緩啟動功能: %d", Flag_Low_Operate);
 	
-	printf("\n\r*****運轉參數");
-	printf("\n\r 開關門最大運轉時間      : %f 秒", TM_MAX *0.1);
-	printf("\n\r 長期測試開關門間隔時間  : %f 秒", TM_DLY_Value *0.1);
-	printf("\n\r 捲窗門關門時間(Part 1)  : %f 秒", TM_WindowsDoor_ClosePart1 *0.1);
-	printf("\n\r 自動關門時間            : %f 秒", Time_Auto_Close *0.1);
-	printf("\n\r 照明時間                : %f 秒", Time_Light *0.1);
-	printf("\n\r 緩步運轉(第1段)         : %f 秒", Time_Low_Operate_Ini *0.1);
-	printf("\n\r 緩步運轉(第2段)         : %f 秒", Time_Low_Operate_Mid *0.1);
+	printf("\n\n\r*****運轉參數");
+	printf("\n\r 開關門最大運轉時間      : %4.1f 秒", TM_MAX *0.1);
+	printf("\n\r 長期測試開關門間隔時間  : %4.1f 秒", TM_DLY_Value *0.1);
+	printf("\n\r 捲窗門關門時間(Part 1)  : %4.1f 秒", TM_WindowsDoor_ClosePart1 *0.1);
+	printf("\n\r 自動關門時間            : %4.1f 秒", Time_Auto_Close *0.1);
+	printf("\n\r 照明時間                : %4.1f 秒", Time_Light *0.1);
+	printf("\n\r 緩步運轉(第1段)         : %4.1f 秒", Time_Low_Operate_Ini *0.1);
+	printf("\n\r 緩步運轉(第2段)         : %4.1f 秒", Time_Low_Operate_Mid *0.1);
 
-	printf("\n\r 待機Volt                : %f(V)", Volt_StandBy);
-	printf("\n\r 防夾權重(OPEN)          : %f", Anti_Weight_Open);
-	printf("\n\r 防夾權重(CLOSE)         : %f", Anti_Weight_Close);
+	printf("\n\r 待機Volt                : %1.2f(V)", Volt_StandBy);
+	printf("\n\r 防夾權重(OPEN)          : %2.3f", Anti_Weight_Open);
+	printf("\n\r 防夾權重(CLOSE)         : %2.3f", Anti_Weight_Close);
 	
-    printf("\n\r 吋動判定參數    : %d", Times_JOG);
-    printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
+	printf("\n\r 吋動判定參數    : %d", Times_JOG);
+	printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
 	
-    printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
-	
-	//狀態Relay設定值
-	if((Flag_Relay_ACT & 0x01) == 0x01){
-		printf("\n\r Relay-ACT: 中間停止");
-	}
-	if((Flag_Relay_ACT & 0x02) == 0x02){
-		printf("\n\r Relay-ACT: 關門運行");
-	}
-	if((Flag_Relay_ACT & 0x04) == 0x04){
-		printf("\n\r Relay-ACT: 開門運行");
-	}
-	if((Flag_Relay_ACT & 0x08) == 0x08){
-		printf("\n\r Relay-ACT: 下限位");
-	}
-	if((Flag_Relay_ACT & 0x10) == 0x10){
-		printf("\n\r Relay-ACT: 上限位");
-	}
-	printf("\n\r Relay-ACT動作時間: %f 秒", Time_Relay_ACT *0.1);
+	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
 	
-	if((Flag_Relay_TME & 0x01) == 0x01){
-		printf("\n\r Relay-TME: 中間停止");
-	}
-	if((Flag_Relay_TME & 0x02) == 0x02){
-		printf("\n\r Relay-TME: 關門運行");
-	}
-	if((Flag_Relay_TME & 0x04) == 0x04){
-		printf("\n\r Relay-TME: 開門運行");
-	}
-	if((Flag_Relay_TME & 0x08) == 0x08){
-		printf("\n\r Relay-TME: 下限位");
-	}
-	if((Flag_Relay_TME & 0x10) == 0x10){
-		printf("\n\r Relay-TME: 上限位");
-	}
-	printf("\n\r Relay-TME動作時間: %f 秒", Time_Relay_TME *0.1);
+	//外部狀態Relay參數
+	printf("\n\n\r*****State-Relay parameter*****");
+	printf("\n\r===TME-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_TME_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_TME_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_TME_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_TME_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_TME_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_TME_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_TME_16u*0.1);
 
+	printf("\n\n\r===ACT-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_ACT_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_ACT_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_ACT_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_ACT_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_ACT_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_ACT_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_ACT_16u*0.1);
 
-	if((Flag_Relay_POS & 0x01) == 0x01){
-		printf("\n\r Relay-POS: 中間停止");
-	}
-	if((Flag_Relay_POS & 0x02) == 0x02){
-		printf("\n\r Relay-POS: 關門運行");
-	}
-	if((Flag_Relay_POS & 0x04) == 0x04){
-		printf("\n\r Relay-POS: 開門運行");
-	}
-	if((Flag_Relay_POS & 0x08) == 0x08){
-		printf("\n\r Relay-POS: 下限位");
-	}
-	if((Flag_Relay_POS & 0x10) == 0x10){
-		printf("\n\r Relay-POS: 上限位");
-	}
-	printf("\n\r Relay-POS動作時間: %f 秒", Time_Relay_POS *0.1);
+	printf("\n\n\r===POS-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_POS_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_POS_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_POS_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_POS_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_POS_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_POS_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_POS_16u*0.1);
+
+	printf("\n\n\r========參數設定 End========");
 	
-	printf("\n\r========參數設定 End========");
+	printf("\n\n\r======== EEPROM Print ========");	
+	for(i=0;i<32;i++){
+		printf("\n\r R%02d: ",i);
+		for(j=i*8;j<(i*8+8);j++){
+			printf("%02X, ",aRxBuffer[j]);
+		}
+	}
+	printf("\n\n\r======== EEPROM Finish ========");	
+
 }
 
 
@@ -2344,6 +3612,8 @@ static void Anti_Pressure_5(void){
 						TM_CLOSE  = 0;
 						
 						TM_AntiDly3 = 0; 	//運轉停止,免反轉,不需等待時間
+						
+						ST_BUZZ_8u = 6;
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
@@ -2378,6 +3648,7 @@ static void Anti_Pressure_5(void){
 							TM_OPEN = 0;
 							TM_CLOSE = 0;
 							TM_AntiDly3 = 1;	//停頓0.1秒後,反轉開門
+							ST_BUZZ_8u = 7;
 						}
 					}else{
 						//ST_Anti = 2;
@@ -2516,35 +3787,238 @@ void Delay_ms(int32_t nms)
      SysTick->VAL =0X00; 		//清空計數器 
  } 
 
- //Name: Buzz_on
+ //Name: Buzz_ON
  //Description: Buzzer ON
-static void Buzz_on(void){
+static void Buzz_ON(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_SET);
 }
 
-//Name: Buzz_off
+//Name: Buzz_OFF
 //Description: Buzzer OFF
-static void Buzz_off(void){
+static void Buzz_OFF(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_RESET);
 }
 
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time){
-	uint8_t ST_Buzz;
+ 
+static void Buzzer_CTRL(void){
 	
-	ST_Buzz = HAL_GPIO_ReadPin(PORT_Buzzer, Buzzer);
-	
-	printf("\n\n\rBuzz_type = %d", Buzz_Type);
-	
-	if(ST_Buzz == 0 && TM_Buzz_OFF == 0){
-		TM_Buzz_ON = ON_Time;
-		Buzz_on();
-	}else if(ST_Buzz == 1 && TM_Buzz_ON == 0){
-		TM_Buzz_OFF = OFF_Time;
-		Buzz_off();
+	switch(ST_BUZZ_8u){
+		case 1:	//初送電
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 8;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}
+			
+			break;
+			
+		case 2://紅外線觸發+開門中
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 300;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 3://紅外線觸發+控制器關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 4://煙霧感測器ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				//TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 5://鎖電ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				CNT_Buzz_8u = 2;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(CNT_Buzz_8u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+				CNT_Buzz_8u--;
+			}
+			break;
+			
+		case 6://防夾ON:開門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 7://防夾ON:關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+
+			break;
+		
+		case 8://自動關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 50;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 10*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+		
+			break;
+			
+		default:
+			Buzz_OFF();
+			break;
 	}
 	
+	TM_Buzz_ON_Buf_8u = TM_Buzz_ON_8u;
+	TM_Buzz_OFF_Buf_8u = TM_Buzz_OFF_8u;
+	
 }
- 
+
 #ifdef  USE_FULL_ASSERT
 
 /**
