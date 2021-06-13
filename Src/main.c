@@ -2758,6 +2758,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case W_OPEN:
+			ST_BUZZ_8u = 9;
+
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
 
@@ -2765,7 +2767,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			}
 			
 			BSET(Trig_RM_8u,BIT0);
-			
+
 			//吋動功能
 			if(Flag_Func_JOG == TRUE){
 				//吋動偵測
@@ -2810,6 +2812,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 
 		case W_CLOSE:			
+			ST_BUZZ_8u = 9;
+
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
 			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
@@ -3017,8 +3021,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DLY 	          = TIMDEC(TM_DLY);
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
-		TM_Buzz_ON_8u        = TIMDEC(TM_Buzz_ON_8u);
-		TM_Buzz_OFF_8u       = TIMDEC(TM_Buzz_OFF_8u);
 		TM_ADC_Relaod     = TIMDEC(TM_ADC_Relaod);
 		TM_CLOSE_EndPart  = TIMDEC(TM_CLOSE_EndPart);
 
@@ -3041,9 +3043,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
 		
 		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
-		//TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
-		//TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
-
 		
 		Tim_cnt_100ms = 0;
 
@@ -4068,6 +4067,30 @@ static void Buzzer_CTRL(void){
 				TM_Buzz_ON_8u = 5*10;
 			}
 		
+			break;
+			
+		case 9:	//控制器指令(OPEN/CLOSE)
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 3*10;
+				TM_Buzz_16u = 8;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 3*10;
+			}
+			
 			break;
 			
 		default:
