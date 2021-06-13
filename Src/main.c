@@ -162,7 +162,6 @@ uint8_t Times_OverADC_Target = 2;	//防夾被觸發次數
 uint8_t Anti_Event = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
-uint8_t Buzz_Type = 0;
 
 uint8_t EE_Addr_P = 0;
 	//16-bits
@@ -188,11 +187,11 @@ uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
 
-uint16_t ADC_OPEN_MAX = 3700;	//[???]
-//uint16_t ADC_OPEN_MAX;
+uint16_t ADC_OPEN_MAX_16u = 3700;	//[???]
+//uint16_t ADC_OPEN_MAX_16u;
 uint16_t ADC_OPEN_MIN;
-uint16_t ADC_CLOSE_MAX = 3700;	//[???]
-//uint16_t ADC_CLOSE_MAX;
+uint16_t ADC_CLOSE_MAX_16u = 3700;	//[???]
+//uint16_t ADC_CLOSE_MAX_16u;
 uint16_t ADC_CLOSE_MIN;
 uint16_t ADC_OPEN_MAX_b;
 uint16_t ADC_OPEN_MIN_b;
@@ -202,29 +201,27 @@ uint16_t ADC_Anti_Max;
 
 uint16_t TM_Anti_Occur = 0;
 uint16_t TM_Save = 2*60*60;			//運轉次數儲存ˊ週期
-uint16_t TM_Buzz_ON = 0;
-uint16_t TM_Buzz_OFF = 0;
 uint16_t TM_ADC_Relaod = 0;
 uint16_t TM_Low_Operate = 0;
+
+uint16_t TM_Save_1st_16u = 60;
+uint8_t Flag_60s_Save = FALSE;
+
+uint16_t TM_SAVE_Buf;
 
 uint16_t Time_Remain_Open = 0;                   
 uint16_t Time_Remain_Close = 0;          
 
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
-uint8_t TM_Relay_TME;
-uint8_t TM_Relay_ACT;
-uint8_t TM_Relay_POS;
-uint8_t Time_Relay_TME;
-uint8_t Time_Relay_ACT;
-uint8_t Time_Relay_POS;
+
 
 	//32-bits
 uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210313;
+uint32_t Ver_date = 20210608;
 uint32_t REC_Operate_Times;
 
 uint8_t TXBuf[4];
@@ -257,7 +254,6 @@ uint8_t ST_RlyEvent_TER_TME_8u;
 uint16_t TM_RlyEventDelay_TME_A_16u;
 uint16_t TM_RlyEventDelay_TME_B_16u;
 uint16_t TM_RlyEventDelay_TER_TME_16u;
-
 
 //Relay輸出判斷TIMER
 uint16_t TM_Relay_TME_16u;
@@ -321,6 +317,23 @@ uint8_t Flag2_Door_DownLimit_8u;
 uint8_t Trig_RM_8u;
 
 
+//蜂鳴器
+uint8_t ST_BUZZ_8u;
+uint8_t ST_BUZZ_A_8u;
+uint8_t TM_Buzz_ON_8u;
+uint8_t TM_Buzz_ON_Buf_8u;
+uint8_t TM_Buzz_OFF_8u;
+uint8_t TM_Buzz_OFF_Buf_8u;
+uint8_t Flag3_Door_UpLimit_8u;
+uint8_t CNT_Buzz_8u;
+uint16_t TM_Buzz_16u;
+
+uint8_t W_IR_Buf0;
+uint8_t W_IR_Buf1;
+
+
+int i,j;
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Door_Open(void);
@@ -356,9 +369,9 @@ static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
 static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);	// Confirm the I2C R/W datas.
 
-static void Buzz_on(void);
-static void Buzz_off(void);
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time);
+static void Buzzer_CTRL(void);
+static void Buzz_ON(void);
+static void Buzz_OFF(void);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
 static void Parameter_List(void);	//EEPROM參數顯示
@@ -406,9 +419,6 @@ void Relay_ACT_OFF(void);
 void Relay_POS_ON(void);
 void Relay_POS_OFF(void);
 
-uint8_t PIN_Tmp = 0; //???
-
-
 /* Private functions ---------------------------------------------------------*/
 
 
@@ -416,8 +426,6 @@ uint8_t PIN_Tmp = 0; //???
 //uint16_t i,j;
 uint16_t adc_32_amnt = 0;
 float Voc,Voc_;
-
-uint16_t TM_Buzz;// = 30;
 
 // Main Loop
 int main(void)
@@ -440,20 +448,23 @@ int main(void)
   /* Enable each GPIO Clock */
   CLOCK_Enable();
   
-  //程式最後修改日期
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  printf("\n\r* Final Modify Date: %d     *", Ver_date);
-  printf("\n\r* Model: TYG-NCP-R01              *");
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  
 
   // Parameter access
   //EE_Default = FALSE;
   Parameter_Load();
-  Parameter_List();	
   
+
+  //程式最後修改日期
+  printf("\n\r***********************************"); 
+  printf("\n\r***********************************"); 
+  printf("\n\r* Final Modify Date: %d           *", Ver_date);
+  printf("\n\r* Model: TYG-NCP-R01              *");
+  printf("\n\r**Version: H%dV%d                 *",VER1,VER2); 
+  printf("\n\r***********************************"); 
+  
+  Parameter_List();	
+
+
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
@@ -495,10 +506,12 @@ int main(void)
   }
 	
   //開機提示音
-  Buzz_on();
-  Delay_ms(500);
-  Buzz_off();
-  
+  //Buzz_ON();
+  //Delay_ms(500);
+  //Buzz_OFF();
+  //_Buzz_ON_8u = 5;
+  ST_BUZZ_8u = 1;
+	
   Rly_TME_A_8u = FALSE;
   Rly_TME_B_8u = FALSE;
   Rly_ACT_A_8u = FALSE;
@@ -524,6 +537,7 @@ int main(void)
 			Debug_Monitor();
 			Operate_Infor_Save();
 			StatusRelay_Control();
+			Buzzer_CTRL();
 		}
   }
 }
@@ -585,8 +599,8 @@ static void Debug_Monitor(void){
 		printf("\n");
 		printf("\n\r ******當前AD = %d",ADC_Calculate());
 		printf("\n\r 防夾基準AD值:");
-		printf("\n\r ADC_OPEN_MAX = %d",ADC_OPEN_MAX);
-		printf("\n\r ADC_CLOSE_MAX = %d",ADC_CLOSE_MAX);
+		printf("\n\r ADC_OPEN_MAX_16u = %d",ADC_OPEN_MAX_16u);
+		printf("\n\r ADC_CLOSE_MAX_16u = %d",ADC_CLOSE_MAX_16u);
 		
 		if(ADC_Detect_Start_Flag == 1){
 			printf("\n");
@@ -617,17 +631,7 @@ static void Debug_Monitor(void){
 			printf("\n\r //////////煙霧感測器偵測觸發\\\\\\\\\\");
 			printf("\n\r Flag_SMK = %d",Flag_SMK);
 		}
-		//printf("\r\n\nAnti_Weight = %f", Anti_Weight = 1.5);
-		
-		if(TM_Relay_ACT > 0){
-			printf("\n\n\r TM_Relay_ACT = %d ms",TM_Relay_ACT);
-		}
-		if(TM_Relay_POS > 0){
-			printf("\n\n\r TM_Relay_POS = %d ms",TM_Relay_POS);
-		}
-		if(TM_Relay_TME > 0){
-			printf("\n\n\r TM_Relay_TME = %d ms",TM_Relay_TME);
-		}
+
 		
 		printf("\n");
 		printf("\n\r OpEnd_Detect_Start_Flag = %d",OpEnd_Detect_Start_Flag);
@@ -688,6 +692,22 @@ static void Operate_Infor_Save(void){
 	TXBuf[3] = REC_Operate_Times >> 8*3;
 		*/
 	
+	
+	if((TM_Save == 1 && 	TM_SAVE_Buf == 2)||
+		 (TM_Save_1st_16u == 0 && Flag_60s_Save == FALSE)){
+		TXBuf[0] = ADC_OPEN_MAX_16u;
+		TXBuf[1] = ADC_OPEN_MAX_16u >> 8;
+		TXBuf[2] = ADC_CLOSE_MAX_16u;
+		TXBuf[3] = ADC_CLOSE_MAX_16u >> 8;
+			 
+		if(HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, 208, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf, 4, 10000) != HAL_OK){
+			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
+				Error_Handler();
+			}
+		}
+		Flag_60s_Save = TRUE;
+	}
+	
 	if(TM_Save == 0){
 		TXBuf[0] = REC_Operate_Times;
 		TXBuf[1] = REC_Operate_Times >> 8;
@@ -701,7 +721,7 @@ static void Operate_Infor_Save(void){
 			}
 		}
 		//HAL_Delay(5);
-			
+					
 		/*
 		if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 256, 10000) != HAL_OK){
 			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
@@ -712,6 +732,9 @@ static void Operate_Infor_Save(void){
 		
 		TM_Save = 2*60*60;
 	}
+	
+	TM_SAVE_Buf = TM_Save;
+
 }
 
 //紀錄開關門時的最大與最小ADC值
@@ -750,10 +773,10 @@ static void Operate_ADC_Detect(void){
 	}else if(ADC_Detect_Start_Flag == 2){
 		if(TM_ADC_Relaod == 0 && Anti_Event_buf == 0){
 			if(Flag_Door_UpLimit == TRUE){
-				ADC_OPEN_MAX= ADC_OPEN_MAX_b;
+				ADC_OPEN_MAX_16u= ADC_OPEN_MAX_b;
 				ADC_OPEN_MIN = ADC_OPEN_MIN_b;
 			}else if(Flag_Door_DownLimit == TRUE){
-				ADC_CLOSE_MAX= ADC_CLOSE_MAX_b;
+				ADC_CLOSE_MAX_16u= ADC_CLOSE_MAX_b;
 				ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
 			}
 		}else{
@@ -761,11 +784,11 @@ static void Operate_ADC_Detect(void){
 		}
 		
 		//防壓參考值下限
-		if(ADC_OPEN_MAX < 1000){
-			ADC_OPEN_MAX = 3700;
+		if(ADC_OPEN_MAX_16u < 1000){
+			ADC_OPEN_MAX_16u = 3700;
 		}
-		if(ADC_CLOSE_MAX < 1000){
-			ADC_CLOSE_MAX = 3700;
+		if(ADC_CLOSE_MAX_16u < 1000){
+			ADC_CLOSE_MAX_16u = 3700;
 		}
 		
 		ADC_Detect_Start_Flag = 0;
@@ -894,6 +917,8 @@ static void Ext_CNTER(void){
 }
 
 void PWR_CTRL(void){
+	uint8_t iIR_tmp_8u;	
+	
 	if(TM_CLOSE > 0 && TM_OPEN > 0){
 		//Avoid both of OPEN and CLOSE have be trigger simultaneously.		
 		Door_Stop();
@@ -902,6 +927,13 @@ void PWR_CTRL(void){
 		printf("\n\n\rNG:運轉時間同時>0");
 
 	}else{	
+		
+		//關門前讀取紅外線感測器,當ON時取消關門
+		iIR_tmp_8u = HAL_GPIO_ReadPin(PORT_IR, W_IR);
+		if(TM_CLOSE > 0 && iIR_tmp_8u == FALSE){
+			TM_CLOSE = 0;
+		}
+		
 		ST_Door_buf = ST_Door;
 		if(Flag_WindowsDoor == FALSE){		//正常開關門模式
 			if(TM_OPEN > 0){
@@ -977,19 +1009,7 @@ void PWR_CTRL(void){
 	}else{
 		CtrlBox_Light_OFF();
 	}
-	
-	if(TM_Buzz > 0){
-		if(Buzz_Type == 1){
-			Buzz_out(3,3);
-		}else if(Buzz_Type == 2){
-			Buzz_out(5,5);
-		}else{
-			//TBD
-		}
-	}else{
-		Buzz_off();
-	}
-		
+			
 }
 
 void Door_manage(void){	
@@ -1131,6 +1151,16 @@ void Door_manage(void){
 }	
 
 static void Auto_Close_CTRL(void){
+	
+	//當紅外線解除時 + 自動關門功能有, 重新自動關門倒數
+	W_IR_Buf0 = HAL_GPIO_ReadPin(PORT_IR, W_IR);
+	if(W_IR_Buf0 == TRUE && W_IR_Buf1 == FALSE){
+		if(Flag_AutoClose != 0){
+			AClose_Flg = TRUE;
+			TM_Auto_Close = Time_Auto_Close;
+		}
+	}
+	
 	//自動關門功能
 	if(Flag_SMK == FALSE){
 		// 開門後延遲時間經過自動關門
@@ -1144,9 +1174,14 @@ static void Auto_Close_CTRL(void){
 		}else if(Flag_AutoClose == 2){							//自動關門功能: ON
 			if(Flag_WindowsDoor == FALSE){								//兩段關門功能:無
 				if(	ST_Door == 0 && ST_Door_buf == 1){					//判斷門停止前的狀態是否為開門
-					printf("\n\r自動關門旗標 & 等待時間設立");
+					printf("\n\r自動關門旗標1 & 等待時間設立");
 					TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
 					AClose_Flg = TRUE;									//自動關門旗標:ON
+				}else if( ST_Door == 0 && ST_Door_buf2 == 1){					//判斷門停止前的狀態是否為開門
+					printf("\n\r自動關門旗標2 & 等待時間設立");
+					TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
+					AClose_Flg = TRUE;									//自動關門旗標:ON
+					ST_Door_buf2 = 0;
 				}else if(AClose_Flg == TRUE && TM_Auto_Close == 0){		//自動關門倒數時間結束
 					printf("\n\r自動關門等待時間到達");
 					printf("\n\r關門時間設立");
@@ -1160,6 +1195,15 @@ static void Auto_Close_CTRL(void){
 			//Empty
 		}
 	}
+	
+	//蜂鳴器動作判斷
+	if(TM_Auto_Close > 0 && TM_Auto_Close < 50){
+		if(W_IR_Buf0 == TRUE){
+			ST_BUZZ_8u = 8;
+		}
+	}
+	
+	W_IR_Buf1 = W_IR_Buf0;
 }
 
 static void IR_CTRL(void){
@@ -1260,6 +1304,7 @@ static void OpEnd_Detect(void){
 					Flag_Door_DownLimit = FALSE;
 					Flag2_Door_UpLimit_8u   = TRUE;
 					Flag2_Door_DownLimit_8u = FALSE;
+					Flag3_Door_UpLimit_8u = TRUE;
 				}else if(TM_CLOSE > 0){
 					Flag_Door_UpLimit   = FALSE;
 					Flag_Door_DownLimit = TRUE;
@@ -1329,7 +1374,8 @@ static void OpEnd_Detect_2(void){
 				Flag_Door_DownLimit = FALSE;
 				Flag2_Door_UpLimit_8u   = TRUE;
 				Flag2_Door_DownLimit_8u = FALSE;
-
+				Flag3_Door_UpLimit_8u = TRUE;
+				
 				//運轉次數
 				REC_Operate_Times++;
 				
@@ -1392,7 +1438,6 @@ static void MotorRelay_out_config(void){
 }
 
 static void StatusRelay_out_config(void){
-	//uint8_t PIN_Tmp = 0;
 	
 	GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull  = GPIO_PULLDOWN;
@@ -2667,19 +2712,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	CNT_LOCK_Press = 0;
 	Flag_JOG = FALSE;
 	ST_Door_buf = ST_Door;
+	ST_Door_buf2 = ST_Door;
 	
 	switch(GPIO_Pin){
 		case W_STOP:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
 				break;
 			}
 			ST_BTN = TRUE;
 			ACT_Door = 0;
 			ST_Anti = 0;
 			ADC_Detect_Start_Flag = 0;
+			
+			ST_BUZZ_8u = 0;
 			
 			BSET(Trig_RM_8u,BIT1);
 
@@ -2714,8 +2760,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case W_OPEN:
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
 			
@@ -2768,13 +2813,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
 			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
-				Buzz_Type = 2;	    // 蜂鳴器ON/OFF 1秒
-				TM_Buzz = 2;	    // 蜂鳴器運作 4 sec.
+
 				break;
 			}
 			if(Flag_IR    == TRUE){				//紅外線觸發: 不動作
-				Buzz_Type = 1;	//蜂鳴器ON/OFF 0.5秒
-				TM_Buzz   = 10;	//蜂鳴器運作 10 sec.
+				ST_BUZZ_8u = 3;
 				break;
 			}
 			
@@ -2839,6 +2882,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						}else{
 							Flag_LOCK = TRUE;
 							ST_Press = 1;
+							ST_BUZZ_8u = 5;
 							printf("\n\rLOCK~~~~~~!\n");
 						}
 					}
@@ -2848,16 +2892,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case W_IR:	//紅外線偵測
-			if(ST_Door == 2){
+			if(ST_Door == 2 || TM_CLOSE > 0){
+				TM_CLOSE = 0;
 				Flag_IR = TRUE;
 				Door_Stop();
 				Delay_ms(100);
 				ST_BTN = TRUE;
 				ACT_Door = 1;	 // 開門
 				TM_IR_Lock = 30; // 鎖定時間 30 sec.
-				Buzz_Type = 1;	 // 蜂鳴器ON/OFF 0.5秒
-				TM_Buzz = 30;	 // 蜂鳴器運作 30 sec.
 				ST_ONEKEY_8u = 1;
+				ST_BUZZ_8u = 2;
 			}
 			break;
 		
@@ -2867,7 +2911,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			Delay_ms(100);
 			ST_BTN = TRUE;
 			ACT_Door = 1;	 //開門
-			TM_Buzz = TM_MAX;
 			ST_ONEKEY_8u = 1;
 			break;
 		
@@ -2918,10 +2961,8 @@ static void SMK_CTRL(void){
 		SMK_tmp = HAL_GPIO_ReadPin(PORT_SMK, W_SMK);
 		if(SMK_tmp == TRUE){
 			Flag_SMK = FALSE;
-			TM_Buzz = 0;
 		}else{
-			Buzz_Type = 1;
-			TM_Buzz = TM_OPEN;
+			//empty
 		}
 	}
 }
@@ -2958,6 +2999,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
+		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
 		Tim_cnt_10ms = 0;
 	}
 	
@@ -2974,13 +3017,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_DLY 	          = TIMDEC(TM_DLY);
 		TM_Auto_Close     = TIMDEC(TM_Auto_Close);
 		TM_Anti_Occur     = TIMDEC(TM_Anti_Occur);
-		TM_Buzz_ON        = TIMDEC(TM_Buzz_ON);
-		TM_Buzz_OFF       = TIMDEC(TM_Buzz_OFF);
+		TM_Buzz_ON_8u        = TIMDEC(TM_Buzz_ON_8u);
+		TM_Buzz_OFF_8u       = TIMDEC(TM_Buzz_OFF_8u);
 		TM_ADC_Relaod     = TIMDEC(TM_ADC_Relaod);
 		TM_CLOSE_EndPart  = TIMDEC(TM_CLOSE_EndPart);
-		TM_Relay_TME      = TIMDEC(TM_Relay_TME);
-		TM_Relay_ACT      = TIMDEC(TM_Relay_ACT);
-		TM_Relay_POS      = TIMDEC(TM_Relay_POS);
 
 		TM_Relay_TME_16u  = TIMDEC(TM_Relay_TME_16u);
 		TM_Relay_ACT_16u  = TIMDEC(TM_Relay_ACT_16u);
@@ -2999,6 +3039,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_RlyEventDelay_TER_POS_16u  = TIMDEC(TM_RlyEventDelay_TER_POS_16u);
 		
 		TM_Low_Operate    = TIMINC(TM_Low_Operate);
+		
+		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
+		//TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
+		//TM_Buzz_OFF_8u  = TIMDEC(TM_Buzz_OFF_8u);
+
+		
 		Tim_cnt_100ms = 0;
 
 	}
@@ -3008,8 +3054,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		Tim_cnt_1s = 0;
 		TM_IR_Lock 	      = TIMDEC(TM_IR_Lock);
 		TM_Save 	      	= TIMDEC(TM_Save);
-		TM_Buzz 	      	= TIMDEC(TM_Buzz);
+		TM_Save_1st_16u   = TIMDEC(TM_Save_1st_16u);
 	}
+	
+	if(TM_Buzz_ON_8u > 0){
+		Buzz_ON();
+	}else if(TM_Buzz_OFF_8u > 0){
+		Buzz_OFF();
+	}
+
 
 }
 
@@ -3174,7 +3227,7 @@ static void Parameter_Load(void){
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
 		Flag_Remote_Lock     = TRUE;   //鎖電功能
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
-		Flag_Buzzer          = FALSE;    //蜂鳴器
+		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
 		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
@@ -3200,11 +3253,33 @@ static void Parameter_Load(void){
 		
 		Time_Low_Operate_Ini = 20;
 		Time_Low_Operate_Mid = 80;
-
-		Time_Relay_TME = 50;   //
-		Time_Relay_ACT = 50;    //
-		Time_Relay_POS = 50;   //
-
+		
+		//TME-RELAY
+		Flag_Rly_TME_A_8u = 0;			//成立條件A
+		Flag_Rly_TME_B_8u = 0;			//成立條件B
+		Flag_Rly_TME_TER_8u = 0;		//解除條件
+		Time_RlyEvent_TME_A_16u = 10;	//成立時間A
+		Time_RlyEvent_TME_B_16u = 30;	//成立時間B
+		Time_RlyEvent_TER_TME_16u = 15;	//解除時間
+		Time_RlyOp_TME_16u = 100;		//輸出時間
+		
+		//ACT-RELAY
+		Flag_Rly_ACT_A_8u = 0;			//成立條件A
+		Flag_Rly_ACT_B_8u = 0;			//成立條件B
+		Flag_Rly_ACT_TER_8u = 0;		//解除條件
+		Time_RlyEvent_ACT_A_16u = 20;	//成立時間A
+		Time_RlyEvent_ACT_B_16u = 20;	//成立時間B
+		Time_RlyEvent_TER_ACT_16u = 10;	//解除時間
+		Time_RlyOp_ACT_16u = 100;		//輸出時間
+		
+		//POS-RELAY
+		Flag_Rly_POS_A_8u = 0;			//成立條件A
+		Flag_Rly_POS_B_8u = 0;			//成立條件B
+		Flag_Rly_POS_TER_8u = 0;		//解除條件
+		Time_RlyEvent_POS_A_16u = 30;	//成立時間A
+		Time_RlyEvent_POS_B_16u = 10;	//成立時間B
+		Time_RlyEvent_TER_POS_16u = 5;	//解除時間
+		Time_RlyOp_POS_16u = 100;		//輸出時間
 	}else{
 		//******Parameter form EEPROM*****//
 		EE_Addr_P = 0;
@@ -3331,33 +3406,6 @@ static void Parameter_Load(void){
 
 	}
 	
-	//???:DEL AFT TEST
-	Flag_Rly_TME_A_8u = 1;
-	Flag_Rly_TME_B_8u = 8;
-	Flag_Rly_TME_TER_8u = 3;
-	Time_RlyEvent_TME_A_16u = 10;
-	Time_RlyEvent_TME_B_16u = 30;
-	Time_RlyEvent_TER_TME_16u = 15;
-	Time_RlyOp_TME_16u = 100;
-	
-	Flag_Rly_ACT_A_8u = 2;
-	Flag_Rly_ACT_B_8u = 7;
-	Flag_Rly_ACT_TER_8u = 2;
-	Time_RlyEvent_ACT_A_16u = 20;
-	Time_RlyEvent_ACT_B_16u = 20;
-	Time_RlyEvent_TER_ACT_16u = 10;
-	Time_RlyOp_ACT_16u = 100;
-
-	Flag_Rly_POS_A_8u = 3;
-	Flag_Rly_POS_B_8u = 6;
-	Flag_Rly_POS_TER_8u = 1;
-	Time_RlyEvent_POS_A_16u = 30;
-	Time_RlyEvent_POS_B_16u = 10;
-	Time_RlyEvent_TER_POS_16u = 5;
-	Time_RlyOp_POS_16u = 100;
-
-	
-	//=====???=====//
 	
 	//捲門運行次數
 	REC_Operate_Times = 0;
@@ -3473,7 +3521,11 @@ static void Parameter_Load(void){
 }
 
 static void Parameter_List(void){
+	//int i,j;
+	
+	printf("\n\r============================");
 	printf("\n\r==========參數設定==========");
+	printf("\n\r============================");
 	printf("\n\r*****功能開關(0:關閉 / 1:開啟)");
 	printf("\n\r 長期測試  : %d", Flag_CycleTest);
 	printf("\n\r 捲窗門功能: %d", Flag_WindowsDoor);
@@ -3487,25 +3539,66 @@ static void Parameter_List(void){
 	printf("\n\r 自動照明  : %d", Flag_Light);
 	printf("\n\r 緩啟動功能: %d", Flag_Low_Operate);
 	
-	printf("\n\r*****運轉參數");
-	printf("\n\r 開關門最大運轉時間      : %f 秒", TM_MAX *0.1);
-	printf("\n\r 長期測試開關門間隔時間  : %f 秒", TM_DLY_Value *0.1);
-	printf("\n\r 捲窗門關門時間(Part 1)  : %f 秒", TM_WindowsDoor_ClosePart1 *0.1);
-	printf("\n\r 自動關門時間            : %f 秒", Time_Auto_Close *0.1);
-	printf("\n\r 照明時間                : %f 秒", Time_Light *0.1);
-	printf("\n\r 緩步運轉(第1段)         : %f 秒", Time_Low_Operate_Ini *0.1);
-	printf("\n\r 緩步運轉(第2段)         : %f 秒", Time_Low_Operate_Mid *0.1);
+	printf("\n\n\r*****運轉參數");
+	printf("\n\r 開關門最大運轉時間      : %4.1f 秒", TM_MAX *0.1);
+	printf("\n\r 長期測試開關門間隔時間  : %4.1f 秒", TM_DLY_Value *0.1);
+	printf("\n\r 捲窗門關門時間(Part 1)  : %4.1f 秒", TM_WindowsDoor_ClosePart1 *0.1);
+	printf("\n\r 自動關門時間            : %4.1f 秒", Time_Auto_Close *0.1);
+	printf("\n\r 照明時間                : %4.1f 秒", Time_Light *0.1);
+	printf("\n\r 緩步運轉(第1段)         : %4.1f 秒", Time_Low_Operate_Ini *0.1);
+	printf("\n\r 緩步運轉(第2段)         : %4.1f 秒", Time_Low_Operate_Mid *0.1);
 
-	printf("\n\r 待機Volt                : %f(V)", Volt_StandBy);
-	printf("\n\r 防夾權重(OPEN)          : %f", Anti_Weight_Open);
-	printf("\n\r 防夾權重(CLOSE)         : %f", Anti_Weight_Close);
+	printf("\n\r 待機Volt                : %1.2f(V)", Volt_StandBy);
+	printf("\n\r 防夾權重(OPEN)          : %2.3f", Anti_Weight_Open);
+	printf("\n\r 防夾權重(CLOSE)         : %2.3f", Anti_Weight_Close);
 	
-    printf("\n\r 吋動判定參數    : %d", Times_JOG);
-    printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
+	printf("\n\r 吋動判定參數    : %d", Times_JOG);
+	printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
 	
-    printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
+	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
-	printf("\n\r========參數設定 End========");
+	printf("\n\n\r運轉次數  :%d", REC_Operate_Times);
+	
+	//外部狀態Relay參數
+	printf("\n\n\r*****State-Relay parameter*****");
+	printf("\n\r===TME-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_TME_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_TME_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_TME_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_TME_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_TME_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_TME_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_TME_16u*0.1);
+
+	printf("\n\n\r===ACT-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_ACT_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_ACT_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_ACT_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_ACT_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_ACT_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_ACT_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_ACT_16u*0.1);
+
+	printf("\n\n\r===POS-Relay===");
+	printf("\n\r 成立條件A: %d", Flag_Rly_POS_A_8u);
+	printf("\n\r 成立條件B: %d", Flag_Rly_POS_B_8u);
+	printf("\n\r 解除條件 : %d", Flag_Rly_POS_TER_8u);
+	printf("\n\r 成立時間A: %4.1f 秒", Time_RlyEvent_POS_A_16u*0.1);
+	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_POS_B_16u*0.1);
+	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_POS_16u*0.1);
+	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_POS_16u*0.1);
+
+	printf("\n\n\r========參數設定 End========");
+	
+	printf("\n\n\r======== EEPROM Print ========");	
+	for(i=0;i<32;i++){
+		printf("\n\r R%02d: ",i);
+		for(j=i*8;j<(i*8+8);j++){
+			printf("%02X, ",aRxBuffer[j]);
+		}
+	}
+	printf("\n\n\r======== EEPROM Finish ========");	
+
 }
 
 
@@ -3513,7 +3606,7 @@ static void Anti_Pressure_5(void){
 	uint16_t ADC_Buf;
 	
 	if(Flag_AntiPress == TRUE &&
-		 (ADC_OPEN_MAX != 0 && ADC_CLOSE_MAX != 0)){
+		 (ADC_OPEN_MAX_16u != 0 && ADC_CLOSE_MAX_16u != 0)){
 		
 		//printf("\r\nAnti_ST = %d",ST_Anti);
 		
@@ -3543,12 +3636,12 @@ static void Anti_Pressure_5(void){
 					if(TM_OPEN > 0){
 						//Anti_Weight = 1 + (Anti_Weight_Open / 10);
 						Anti_Weight = 1 + Anti_Weight_Open;
-						ADC_Anti_Max = ADC_OPEN_MAX * Anti_Weight;
+						ADC_Anti_Max = ADC_OPEN_MAX_16u * Anti_Weight;
 						ST_Anti = 2;
 					}else if(TM_CLOSE > 0){
 						//Anti_Weight = 1 + (Anti_Weight_Close / 10);
 						Anti_Weight = 1 + Anti_Weight_Close;
-						ADC_Anti_Max = ADC_CLOSE_MAX * Anti_Weight;
+						ADC_Anti_Max = ADC_CLOSE_MAX_16u * Anti_Weight;
 						ST_Anti = 3;
 					}
 					
@@ -3580,6 +3673,8 @@ static void Anti_Pressure_5(void){
 						TM_CLOSE  = 0;
 						
 						TM_AntiDly3 = 0; 	//運轉停止,免反轉,不需等待時間
+						
+						ST_BUZZ_8u = 6;
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
@@ -3614,6 +3709,7 @@ static void Anti_Pressure_5(void){
 							TM_OPEN = 0;
 							TM_CLOSE = 0;
 							TM_AntiDly3 = 1;	//停頓0.1秒後,反轉開門
+							ST_BUZZ_8u = 7;
 						}
 					}else{
 						//ST_Anti = 2;
@@ -3752,35 +3848,238 @@ void Delay_ms(int32_t nms)
      SysTick->VAL =0X00; 		//清空計數器 
  } 
 
- //Name: Buzz_on
+ //Name: Buzz_ON
  //Description: Buzzer ON
-static void Buzz_on(void){
+static void Buzz_ON(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_SET);
 }
 
-//Name: Buzz_off
+//Name: Buzz_OFF
 //Description: Buzzer OFF
-static void Buzz_off(void){
+static void Buzz_OFF(void){
 	HAL_GPIO_WritePin(PORT_Buzzer, Buzzer, GPIO_PIN_RESET);
 }
 
-static void Buzz_out(uint16_t ON_Time, uint16_t OFF_Time){
-	uint8_t ST_Buzz;
+ 
+static void Buzzer_CTRL(void){
 	
-	ST_Buzz = HAL_GPIO_ReadPin(PORT_Buzzer, Buzzer);
-	
-	printf("\n\n\rBuzz_type = %d", Buzz_Type);
-	
-	if(ST_Buzz == 0 && TM_Buzz_OFF == 0){
-		TM_Buzz_ON = ON_Time;
-		Buzz_on();
-	}else if(ST_Buzz == 1 && TM_Buzz_ON == 0){
-		TM_Buzz_OFF = OFF_Time;
-		Buzz_off();
+	switch(ST_BUZZ_8u){
+		case 1:	//初送電
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 8;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}
+			
+			break;
+			
+		case 2://紅外線觸發+開門中
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 300;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 3://紅外線觸發+控制器關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 2*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 2*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 2*10;
+			}
+			break;
+			
+		case 4://煙霧感測器ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				//TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 5://鎖電ON
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				CNT_Buzz_8u = 2;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(CNT_Buzz_8u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+				CNT_Buzz_8u--;
+			}
+			break;
+			
+		case 6://防夾ON:開門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 5*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+			break;
+			
+		case 7://防夾ON:關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 2*10;
+				TM_Buzz_16u = 100;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			//if(TM_Buzz_16u == 0){
+			if(Flag3_Door_UpLimit_8u == TRUE){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+				Flag3_Door_UpLimit_8u = FALSE;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 2*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 2*10;
+			}
+
+			break;
+		
+		case 8://自動關門
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 5*10;
+				TM_Buzz_16u = 50;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 10*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 5*10;
+			}
+		
+			break;
+			
+		default:
+			Buzz_OFF();
+			break;
 	}
 	
+	TM_Buzz_ON_Buf_8u = TM_Buzz_ON_8u;
+	TM_Buzz_OFF_Buf_8u = TM_Buzz_OFF_8u;
+	
 }
- 
+
 #ifdef  USE_FULL_ASSERT
 
 /**
