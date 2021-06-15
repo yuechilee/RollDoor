@@ -3574,6 +3574,7 @@ static void Parameter_List(void){
 	printf("\n\r 捲窗門關門時間(Part 1)  : %4.1f 秒", TM_WindowsDoor_ClosePart1 *0.1);
 	printf("\n\r 自動關門時間            : %4.1f 秒", Time_Auto_Close *0.1);
 	printf("\n\r 照明時間                : %4.1f 秒", Time_Light *0.1);
+	printf("\n\r 待機電壓成立延遲時間    : %4.1f 秒", Time_Vstb_Extend_8u *0.1);
 	printf("\n\r 緩步運轉(第1段)         : %4.1f 秒", Time_Low_Operate_Ini *0.1);
 	printf("\n\r 緩步運轉(第2段)         : %4.1f 秒", Time_Low_Operate_Mid *0.1);
 
