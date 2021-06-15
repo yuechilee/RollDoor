@@ -1177,7 +1177,7 @@ static void Auto_Close_CTRL(void){
 					printf("\n\r自動關門旗標1 & 等待時間設立");
 					TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
 					AClose_Flg = TRUE;									//自動關門旗標:ON
-				}else if( ST_Door == 0 && ST_Door_buf2 == 1){					//判斷門停止前的狀態是否為開門
+				}else if( ST_Door == 0 && ST_Door_buf2 == 1){			//控制器指令上->停
 					printf("\n\r自動關門旗標2 & 等待時間設立");
 					TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
 					AClose_Flg = TRUE;									//自動關門旗標:ON
