@@ -186,6 +186,8 @@ uint16_t CloseTM2;
 uint16_t Tim_cnt_1s = 0;
 uint16_t Tim_cnt_100ms = 0;
 uint16_t Tim_cnt_10ms = 0;
+uint8_t TM_Vstb_Extend_8u = 0;
+uint8_t Time_Vstb_Extend_8u = 0;
 
 uint16_t ADC_OPEN_MAX_16u = 3700;	//[???]
 //uint16_t ADC_OPEN_MAX_16u;
@@ -1281,7 +1283,12 @@ static void OpEnd_Detect(void){
 			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
 		}else{
 			Voc = ADC_Calculate() *(3.3/4095);		
-			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
+			
+			if(Voc > Volt_StandBy && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
+			}
+			
+			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0){
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				
 				//判斷是否開門到位,並且設定照明時間
@@ -1352,7 +1359,12 @@ static void OpEnd_Detect_2(void){
 			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
 		}else if(TM_OPEN > 0){
 			Voc = ADC_Calculate() *(3.3/4095);		
-			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
+			
+			if(Voc > Volt_StandBy && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
+			}
+			
+			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0){
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				
 				//判斷是否開門到位,並且設定照明時間
@@ -1393,7 +1405,12 @@ static void OpEnd_Detect_2(void){
 			}
 		}else if(TM_CLOSE > 0){			
 			Voc = ADC_Calculate() *(3.3/4095);		
-			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0){
+						
+			if(Voc > Volt_StandBy && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
+			}
+			
+			if(Voc <= Volt_StandBy && TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0){
 				printf("\n\n\r門到位-停止運轉!\n\n");
 												
 				//限位旗標做成
@@ -3044,6 +3061,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		
 		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
 		
+		TM_Vstb_Extend_8u = TIMDEC(TM_Vstb_Extend_8u);
+		
 		Tim_cnt_100ms = 0;
 
 	}
@@ -3390,6 +3409,11 @@ static void Parameter_Load(void){
 		
 		Time_RlyEvent_TER_POS_16u = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;   //
 		EE_Addr_P+=2;
+		
+		//待機電壓判定延遲時間
+		EE_Addr_P = 84;
+		Time_Vstb_Extend_8u = (uint16_t)aRxBuffer[EE_Addr_P];
+
 		
 		//狀態RELAY成立條件
 		EE_Addr_P = 100;
