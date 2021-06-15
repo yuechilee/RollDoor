@@ -3416,34 +3416,37 @@ static void Parameter_Load(void){
 	//開門防夾權重設定
 	switch(Anti_Weight_Open_select){
 		case 1:
-			iweight = 0.005;
+			iweight = 0.001;
 			break;
 		case 2:
-			iweight = 0.007;
+			iweight = 0.002;
 			break;
 		case 3:
-			iweight = 0.008;
+			iweight = 0.003;
 			break;
 		case 4:
-			iweight = 0.009;
+			iweight = 0.004;
 			break;
 		case 5:
-			iweight = 0.01;
+			iweight = 0.005;
 			break;
 		case 6:
-			iweight = 0.011;
+			iweight = 0.006;
 			break;
 		case 7:
-			iweight = 0.012;
+			iweight = 0.007;
 			break;
 		case 8:
-			iweight = 0.013;
+			iweight = 0.008;
 			break;
 		case 9:
-			iweight = 0.015;
+			iweight = 0.009;
+			break;
+		case 10:
+			iweight = 0.010;
 			break;
 		default:
-			iweight = 0.01;
+			iweight = 0.005;
 			break;
 	}
 	Anti_Weight_Open = iweight;
@@ -3451,34 +3454,37 @@ static void Parameter_Load(void){
 	//關門防夾權重設定
 	switch(Anti_Weight_Close_select){
 		case 1:
-			iweight = 0.005;
+			iweight = 0.001;
 			break;
 		case 2:
-			iweight = 0.007;
+			iweight = 0.002;
 			break;
 		case 3:
-			iweight = 0.008;
+			iweight = 0.003;
 			break;
 		case 4:
-			iweight = 0.009;
+			iweight = 0.004;
 			break;
 		case 5:
-			iweight = 0.01;
+			iweight = 0.005;
 			break;
 		case 6:
-			iweight = 0.011;
+			iweight = 0.006;
 			break;
 		case 7:
-			iweight = 0.012;
+			iweight = 0.007;
 			break;
 		case 8:
-			iweight = 0.013;
+			iweight = 0.008;
 			break;
 		case 9:
-			iweight = 0.015;
+			iweight = 0.009;
+			break;
+		case 10:
+			iweight = 0.010;
 			break;
 		default:
-			iweight = 0.01;
+			iweight = 0.005;
 			break;
 	}
 	Anti_Weight_Close = iweight;
