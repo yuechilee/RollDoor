@@ -164,6 +164,7 @@ uint8_t Anti_Event_buf = 0;				//防夾觸發類別 0:正常運轉 1:開門防夾 2:關門防夾
 uint8_t ST_Low_Operate = 0;	
 
 uint8_t EE_Addr_P = 0;
+uint8_t ST_Save_8u = 0;
 	//16-bits
 
 uint16_t TM_Printf = 10;
@@ -211,8 +212,8 @@ uint8_t Flag_60s_Save = FALSE;
 
 uint16_t TM_SAVE_Buf;
 
-uint16_t Time_Remain_Open = 0;                   
-uint16_t Time_Remain_Close = 0;          
+uint16_t Time_Remain_Open_16u = 0;                   
+uint16_t Time_Remain_Close_16u = 0;          
 
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
@@ -223,10 +224,10 @@ uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210608;
-uint32_t REC_Operate_Times;
+uint32_t Ver_date = 20210618;
+uint32_t REC_Operate_Times_32u;
 
-uint8_t TXBuf[4];
+uint8_t TXBuf[16];
 
 	//Float
 float Voc_base,Voc_base_;
@@ -369,7 +370,6 @@ static uint16_t	TIMDEC(uint16_t TIMB);
 static uint16_t	TIMINC(uint16_t TIMB);
 static uint16_t ADC_Calculate(void);
 uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
-static uint16_t Buffercmp(uint8_t* pBuffer1, uint8_t* pBuffer2, uint16_t BufferLength);	// Confirm the I2C R/W datas.
 
 static void Buzzer_CTRL(void);
 static void Buzz_ON(void);
@@ -633,6 +633,11 @@ static void Debug_Monitor(void){
 			printf("\n\r //////////煙霧感測器偵測觸發\\\\\\\\\\");
 			printf("\n\r Flag_SMK = %d",Flag_SMK);
 		}
+		
+		if(ST_BUZZ_8u > 0){
+			printf("\n");
+			printf("\n\r 蜂鳴器狀態 = %d",ST_BUZZ_8u);
+		}
 
 		
 		printf("\n");
@@ -685,58 +690,40 @@ static void Low_Operate_Function(void){
 }
 
 static void Operate_Infor_Save(void){
+	uint8_t W_ADR, ee_addr; 
+	//uint8_t Pack_Size;
 	
-	/*
-	REC_Operate_Times++;
-	TXBuf[0] = REC_Operate_Times;
-	TXBuf[1] = REC_Operate_Times >> 8;
-	TXBuf[2] = REC_Operate_Times >> 8*2;
-	TXBuf[3] = REC_Operate_Times >> 8*3;
-		*/
+	W_ADR = 0;
+	//Pack_Size = sizeof(TXBuf);
 	
-	
-	if((TM_Save == 1 && 	TM_SAVE_Buf == 2)||
-		 (TM_Save_1st_16u == 0 && Flag_60s_Save == FALSE)){
-		TXBuf[0] = ADC_OPEN_MAX_16u;
-		TXBuf[1] = ADC_OPEN_MAX_16u >> 8;
-		TXBuf[2] = ADC_CLOSE_MAX_16u;
-		TXBuf[3] = ADC_CLOSE_MAX_16u >> 8;
-			 
-		if(HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, 208, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf, 4, 10000) != HAL_OK){
-			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
-				Error_Handler();
-			}
-		}
-		Flag_60s_Save = TRUE;
-	}
-	
-	if(TM_Save == 0){
-		TXBuf[0] = REC_Operate_Times;
-		TXBuf[1] = REC_Operate_Times >> 8;
-		TXBuf[2] = REC_Operate_Times >> 8*2;
-		TXBuf[3] = REC_Operate_Times >> 8*3;
+	if(ST_Save_8u == 1){
+		TXBuf[W_ADR++] = REC_Operate_Times_32u;
+		TXBuf[W_ADR++] = REC_Operate_Times_32u >> 8;
+		TXBuf[W_ADR++] = REC_Operate_Times_32u >> 8*2;
+		TXBuf[W_ADR++] = REC_Operate_Times_32u >> 8*3;
 		
-		//
-		if(HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, 200, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf, 4, 10000) != HAL_OK){
-			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
-				Error_Handler();
-			}
-		}
-		//HAL_Delay(5);
-					
-		/*
-		if(HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 256, 10000) != HAL_OK){
-			if(HAL_I2C_GetError(&I2cHandle) != HAL_I2C_ERROR_AF){
-				Error_Handler();
-			}
-		}
-		*/
+		TXBuf[W_ADR++] = Time_Remain_Open_16u;
+		TXBuf[W_ADR++] = Time_Remain_Open_16u >> 8;
 		
-		TM_Save = 2*60*60;
-	}
-	
-	TM_SAVE_Buf = TM_Save;
+		TXBuf[W_ADR++] = Time_Remain_Close_16u;
+		TXBuf[W_ADR++] = Time_Remain_Close_16u >> 8;
+		
+		TXBuf[W_ADR++] = ADC_OPEN_MAX_16u;
+		TXBuf[W_ADR++] = ADC_OPEN_MAX_16u >> 8;
+		
 
+		TXBuf[W_ADR++] = ADC_CLOSE_MAX_16u;
+		TXBuf[W_ADR++] = ADC_CLOSE_MAX_16u >> 8;
+		
+		for(ee_addr = 0; ee_addr < sizeof(TXBuf); ee_addr += 8){
+			HAL_I2C_Mem_Write(&I2cHandle,(uint16_t)I2C_ADDRESS, ee_addr + 200, I2C_MEMADD_SIZE_8BIT, (uint8_t*)TXBuf + ee_addr, 8, 10000);
+			Delay_ms(6);
+		}
+		
+		//HAL_I2C_Mem_Read(&I2cHandle,(uint16_t)I2C_ADDRESS, 0, I2C_MEMADD_SIZE_8BIT, (uint8_t*)aRxBuffer, 256, 10000);
+		
+		ST_Save_8u = 0;
+	}
 }
 
 //紀錄開關門時的最大與最小ADC值
@@ -773,12 +760,16 @@ static void Operate_ADC_Detect(void){
 		}
 		
 	}else if(ADC_Detect_Start_Flag == 2){
+		printf("\n\r ADC_Detect_Start_Flag = %d",ADC_Detect_Start_Flag);
+		printf("\n\r TM_ADC_Relaod = %d",TM_ADC_Relaod);
+		printf("\n\r Anti_Event = %d",Anti_Event);
+		printf("\n\r Anti_Event_buf = %d",Anti_Event_buf);
 		if(TM_ADC_Relaod == 0 && Anti_Event_buf == 0){
 			if(Flag_Door_UpLimit == TRUE){
-				ADC_OPEN_MAX_16u= ADC_OPEN_MAX_b;
+				ADC_OPEN_MAX_16u = ADC_OPEN_MAX_b;
 				ADC_OPEN_MIN = ADC_OPEN_MIN_b;
 			}else if(Flag_Door_DownLimit == TRUE){
-				ADC_CLOSE_MAX_16u= ADC_CLOSE_MAX_b;
+				ADC_CLOSE_MAX_16u = ADC_CLOSE_MAX_b;
 				ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
 			}
 		}else{
@@ -793,6 +784,7 @@ static void Operate_ADC_Detect(void){
 			ADC_CLOSE_MAX_16u = 3700;
 		}
 		
+		Anti_Event_buf = 0;
 		ADC_Detect_Start_Flag = 0;
 	}
 }
@@ -808,7 +800,7 @@ static void Cycle_Test(void){
 		TM_CLOSE = TM_MAX;
 		ACT_Door = 2;
 		Wait_flg = TRUE;
-		REC_Operate_Times++;
+		REC_Operate_Times_32u++;
 		Ext_CNTER();
 		printf("\n\rNoise test 1");
 	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
@@ -829,7 +821,7 @@ static void Cycle_Test(void){
 	Door_manage();
 	PWR_CTRL(); 
 	//OpEnd_Detect();
-	Operate_Infor_Save();
+	//Operate_Infor_Save();
 
 	
 	if(TM_Printf == 0){
@@ -1321,17 +1313,18 @@ static void OpEnd_Detect(void){
 				
 				//運轉剩餘時間
 				if(TM_OPEN > 0){
-					Time_Remain_Open = TM_MAX - TM_OPEN;
+					Time_Remain_Open_16u = TM_MAX - TM_OPEN;
 					ST_ONEKEY_8u = 2;
 				}
 				if(TM_CLOSE > 0){
-					Time_Remain_Close = TM_MAX - TM_CLOSE;
+					Time_Remain_Close_16u = TM_MAX - TM_CLOSE;
 					ST_ONEKEY_8u = 4;
 				}
 				
 				//運轉次數
 				if(TM_OPEN > 0){
-					REC_Operate_Times++;
+					REC_Operate_Times_32u++;
+					ST_Save_8u = 1;
 				}
 				
 				if(Flag_WindowsDoor == TRUE){
@@ -1389,11 +1382,11 @@ static void OpEnd_Detect_2(void){
 				Flag3_Door_UpLimit_8u = TRUE;
 				
 				//運轉次數
-				REC_Operate_Times++;
+				REC_Operate_Times_32u++;
 				
 				ST_Close = 1;
 
-				Time_Remain_Open = TM_MAX - TM_OPEN;	//運轉剩餘時間
+				Time_Remain_Open_16u = TM_MAX - TM_OPEN;	//運轉剩餘時間
 
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
@@ -1418,6 +1411,8 @@ static void OpEnd_Detect_2(void){
 				Flag_Door_DownLimit = TRUE;
 				Flag2_Door_UpLimit_8u   = FALSE;
 				Flag2_Door_DownLimit_8u = TRUE;
+				
+				Time_Remain_Close_16u = TM_MAX - TM_CLOSE;
 				
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
@@ -2692,7 +2687,7 @@ static void EXTI2_3_IRQHandler_Config(void){
   GPIO_InitStructure.Pin = W_ONEKEY;
   HAL_GPIO_Init(PORT_ONEKEY, &GPIO_InitStructure);
 	
-	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 2, 0);
+	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 3, 0);
 }
 
 //EXIT Configures
@@ -2718,7 +2713,7 @@ static void EXTI4_15_IRQHandler_Config(void)
   HAL_GPIO_Init(EXTI_CTRL_PORT_2, &GPIO_InitStructure);
 	
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 3, 0);
   //HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
@@ -2933,6 +2928,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ST_BTN = TRUE;
 			ACT_Door = 1;	 //開門
 			ST_ONEKEY_8u = 1;
+			ST_BUZZ_8u = 4;
 			break;
 		
 		case W_ONEKEY:
@@ -2940,6 +2936,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(ST_ONEKEY_8u > 4){
 				ST_ONEKEY_8u = 1;
 			}
+			
+			ST_BUZZ_8u = 9;
 			
 			switch(ST_ONEKEY_8u){
 				case 1:
@@ -3431,10 +3429,10 @@ static void Parameter_Load(void){
 	
 	
 	//捲門運行次數
-	REC_Operate_Times = 0;
-	//REC_Operate_Times = (uint32_t)aRxBuffer[30] | (uint32_t)aRxBuffer[31]<<8 | (uint32_t)aRxBuffer[32]<<16 | (uint32_t)aRxBuffer[33]<<24;
+	REC_Operate_Times_32u = 0;
+	//REC_Operate_Times_32u = (uint32_t)aRxBuffer[30] | (uint32_t)aRxBuffer[31]<<8 | (uint32_t)aRxBuffer[32]<<16 | (uint32_t)aRxBuffer[33]<<24;
 	for(i=0;i<4;i++){
-		REC_Operate_Times = REC_Operate_Times | (uint32_t)aRxBuffer[200+i]<<(8*i);
+		REC_Operate_Times_32u = REC_Operate_Times_32u | (uint32_t)aRxBuffer[200+i]<<(8*i);
 	}
 	
 	//開門防夾權重設定
@@ -3587,7 +3585,7 @@ static void Parameter_List(void){
 	
 	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
-	printf("\n\n\r運轉次數  :%d", REC_Operate_Times);
+	printf("\n\n\r運轉次數  :%d", REC_Operate_Times_32u);
 	
 	//外部狀態Relay參數
 	printf("\n\n\r*****State-Relay parameter*****");
@@ -4125,7 +4123,9 @@ static void Buzzer_CTRL(void){
 			break;
 			
 		default:
+			ST_BUZZ_A_8u = 0;
 			Buzz_OFF();
+			Flag3_Door_UpLimit_8u = FALSE;
 			break;
 	}
 	
