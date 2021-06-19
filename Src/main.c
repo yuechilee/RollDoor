@@ -138,6 +138,7 @@ uint8_t Flag_No_VSB; //The default stand-by volt is ZERO.
 uint8_t Flag_Relay_MidStop;
 uint8_t Flag_Relay_OPEN;
 uint8_t Flag_Relay_CLOSE;
+uint8_t Flag_Debug_8u = FALSE;
 
 	//8-bits
 uint8_t ACT_Door = 0;                   //Controller's cmd (0:Stop /1:Open /2:Close)
@@ -190,11 +191,9 @@ uint16_t Tim_cnt_10ms = 0;
 uint8_t TM_Vstb_Extend_8u = 0;
 uint8_t Time_Vstb_Extend_8u = 0;
 
-uint16_t ADC_OPEN_MAX_16u = 3700;	//[???]
-//uint16_t ADC_OPEN_MAX_16u;
+uint16_t ADC_OPEN_MAX_16u = 0;	//[???]
 uint16_t ADC_OPEN_MIN;
-uint16_t ADC_CLOSE_MAX_16u = 3700;	//[???]
-//uint16_t ADC_CLOSE_MAX_16u;
+uint16_t ADC_CLOSE_MAX_16u = 0;	//[???]
 uint16_t ADC_CLOSE_MIN;
 uint16_t ADC_OPEN_MAX_b;
 uint16_t ADC_OPEN_MIN_b;
@@ -212,8 +211,8 @@ uint8_t Flag_60s_Save = FALSE;
 
 uint16_t TM_SAVE_Buf;
 
-uint16_t Time_Remain_Open_16u = 0;                   
-uint16_t Time_Remain_Close_16u = 0;          
+uint16_t Time_Remain_Open_16u = 0;   //開門運轉時間           
+uint16_t Time_Remain_Close_16u = 0;  //關門運轉時間
 
 uint8_t Time_Low_Operate_Ini;
 uint8_t Time_Low_Operate_Mid;
@@ -334,6 +333,9 @@ uint16_t TM_Buzz_16u;
 uint8_t W_IR_Buf0;
 uint8_t W_IR_Buf1;
 
+//Dubug
+uint8_t CNT_Debug_BTN_8u = 0;
+
 
 int i,j;
 
@@ -374,6 +376,10 @@ uint16_t* BubbleSort(uint16_t arr[], uint16_t len);
 static void Buzzer_CTRL(void);
 static void Buzz_ON(void);
 static void Buzz_OFF(void);
+
+static void LED_CTRL(void);
+static void LED_ON(void);
+static void LED_OFF(void);
 
 static void Parameter_Load(void);	//EEPROM參數讀取
 static void Parameter_List(void);	//EEPROM參數顯示
@@ -421,6 +427,12 @@ void Relay_ACT_OFF(void);
 void Relay_POS_ON(void);
 void Relay_POS_OFF(void);
 
+
+static void Dubug_CTRL(void);
+static void Fun_Debug_Enable(void);
+static void Fun_Debug_Disable(void);
+
+
 /* Private functions ---------------------------------------------------------*/
 
 
@@ -444,7 +456,7 @@ int main(void)
   EXTI2_3_IRQHandler_Config();
   TIM16_Config();
   TIM17_Config();
-  Uart_Config();
+//  Uart_Config();
   I2C_Config();
 	
   /* Enable each GPIO Clock */
@@ -454,7 +466,7 @@ int main(void)
   // Parameter access
   //EE_Default = FALSE;
   Parameter_Load();
-  
+ 
 
   //程式最後修改日期
   printf("\n\r***********************************"); 
@@ -470,8 +482,8 @@ int main(void)
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
   StatusRelay_out_config();
-  Buzzer_Config();	//No used
-  ControlBox_Config();	//No used
+  Buzzer_Config();	
+  ControlBox_Config();
 
   TM_OPEN = 0;
   TM_CLOSE = 0;
@@ -540,9 +552,12 @@ int main(void)
 			Operate_Infor_Save();
 			StatusRelay_Control();
 			Buzzer_CTRL();
+			LED_CTRL();
+			Dubug_CTRL();
 		}
   }
 }
+
 
 static void Debug_Monitor(void){
 	//目前狀態偵測
@@ -589,7 +604,7 @@ static void Debug_Monitor(void){
 		if(Flag_WindowsDoor == TRUE){		//1-segment mode
 			//printf("\n\rOPEN_IT= %d",Open_IT);
 			printf("\n\n\r捲窗關門狀態");
-			printf("ST_CLOSE= %d",ST_Close);
+			printf("ST_Close= %d",ST_Close);
 		}
 		
 		if(Anti_Event > 0){
@@ -777,12 +792,12 @@ static void Operate_ADC_Detect(void){
 		}
 		
 		//防壓參考值下限
-		if(ADC_OPEN_MAX_16u < 1000){
-			ADC_OPEN_MAX_16u = 3700;
-		}
-		if(ADC_CLOSE_MAX_16u < 1000){
-			ADC_CLOSE_MAX_16u = 3700;
-		}
+		//if(ADC_OPEN_MAX_16u < 1000){
+		//	ADC_OPEN_MAX_16u = 3700;
+		//}
+		//if(ADC_CLOSE_MAX_16u < 1000){
+		//	ADC_CLOSE_MAX_16u = 3700;
+		//}
 		
 		Anti_Event_buf = 0;
 		ADC_Detect_Start_Flag = 0;
@@ -980,6 +995,7 @@ void PWR_CTRL(void){
 	if(TM_OPEN > 0 || TM_CLOSE > 0){
 		OpEnd_Detect();
 		OpEnd_Detect_2();
+	//捲窗門:第一段關門結束時儲存防夾AD值
 	}else if(Flag_WindowsDoor == TRUE && TM_CLOSE == 0 && TM_CLOSE_b != 0 && Anti_Event == 0){
 			printf("\n\n\rHelloxxx");
 			printf("\n\n\rST_Close = %d", ST_Close);
@@ -995,7 +1011,8 @@ void PWR_CTRL(void){
 	}
 	TM_CLOSE_b = TM_CLOSE;
 	
-
+	
+	//控制箱燈條
 	if(TM_OPEN > 0){
 		CtrlBox_Light_Up();
 	}else if(TM_CLOSE > 0){
@@ -1260,7 +1277,7 @@ void Door_Stop(void){
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
 	
-	HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
 
 }
 
@@ -1311,7 +1328,7 @@ static void OpEnd_Detect(void){
 					Flag2_Door_DownLimit_8u = TRUE;
 				}
 				
-				//運轉剩餘時間
+				//運轉時間計算
 				if(TM_OPEN > 0){
 					Time_Remain_Open_16u = TM_MAX - TM_OPEN;
 					ST_ONEKEY_8u = 2;
@@ -1412,13 +1429,17 @@ static void OpEnd_Detect_2(void){
 				Flag2_Door_UpLimit_8u   = FALSE;
 				Flag2_Door_DownLimit_8u = TRUE;
 				
-				Time_Remain_Close_16u = TM_MAX - TM_CLOSE;
+				if(ST_Close == 1){
+					Time_Remain_Close_16u = TM_WindowsDoor_ClosePart1 - TM_CLOSE;
+				}else{
+					Time_Remain_Close_16u = 0;
+				}
 				
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;
-				
+								
 				ST_ONEKEY_8u = 4;
 			}
 		}
@@ -1438,7 +1459,7 @@ static void MotorRelay_out_config(void){
 	GPIO_InitStruct.Pin = MOS_ACT;
 	HAL_GPIO_Init(PORT_Motor_MOS, &GPIO_InitStruct);
 	
-	
+	//測試LED
 	GPIO_InitStruct.Pin = TEST_PIN;
 	HAL_GPIO_Init(PORT_TEST, &GPIO_InitStruct);
 
@@ -2728,6 +2749,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	
 	switch(GPIO_Pin){
 		case W_STOP:
+			CNT_Debug_BTN_8u++;
+		
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
 				break;
@@ -2771,7 +2794,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		
 		case W_OPEN:
 			ST_BUZZ_8u = 9;
-
+			
+			CNT_Debug_BTN_8u = 0;
+			
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
 
@@ -2825,6 +2850,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 		case W_CLOSE:			
 			ST_BUZZ_8u = 9;
+			CNT_Debug_BTN_8u = 0;
 
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
@@ -2883,6 +2909,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		
 		case RM_LOCK:
 			printf("\n\rLock!\n");
+			CNT_Debug_BTN_8u = 0;
+
 			if(Flag_Remote_Lock == TRUE){	//鎖電功能開啟?
 				
 				ST_Press = HAL_GPIO_ReadPin(PORT_LOCK, RM_LOCK);
@@ -2997,10 +3025,10 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	
 	if(PWM_Count < PWM_Duty){
-		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 	}else{
-		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
 	}
 	//HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
@@ -3211,14 +3239,15 @@ static void Uart_Config(void){
   UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
   UartHandle.Init.Mode       = UART_MODE_TX_RX;
   UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if(HAL_UART_DeInit(&UartHandle) != HAL_OK)
-  {
-    Error_Handler();
-  }  
-  if(HAL_UART_Init(&UartHandle) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  
+	if(HAL_UART_DeInit(&UartHandle) != HAL_OK){
+		Error_Handler();
+	}
+	
+	if(HAL_UART_Init(&UartHandle) != HAL_OK){
+		Error_Handler();
+	}
+
 }
 
 static void Parameter_Load(void){
@@ -3424,7 +3453,6 @@ static void Parameter_Load(void){
 		Flag_Rly_TME_TER_8u  = aRxBuffer[EE_Addr_P++];   //
 		Flag_Rly_ACT_TER_8u  = aRxBuffer[EE_Addr_P++];   //
 		Flag_Rly_POS_TER_8u  = aRxBuffer[EE_Addr_P++];   //
-
 	}
 	
 	
@@ -4133,6 +4161,80 @@ static void Buzzer_CTRL(void){
 	TM_Buzz_OFF_Buf_8u = TM_Buzz_OFF_8u;
 	
 }
+
+//Name: TEST_LED
+//Description: LED ON
+static void LED_ON(void){
+	HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
+}
+
+//Description: LED OFF
+static void LED_OFF(void){
+	HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
+}
+
+static void LED_CTRL(void){
+	if(Time_Remain_Open_16u <= 500 || Time_Remain_Close_16u <= 500){
+		LED_ON();
+	}else{
+		LED_OFF();
+	}
+
+}
+
+//Debug 功能開啟關閉
+static void Dubug_CTRL(void){
+	if(CNT_Debug_BTN_8u == 10){
+		if(Flag_Debug_8u == TRUE){
+			Flag_Debug_8u = FALSE;
+		}else{
+			Flag_Debug_8u = TRUE;
+		}
+
+		if(Flag_Debug_8u == TRUE){
+			Fun_Debug_Enable();
+			ST_BUZZ_8u = 9;
+		}else{
+			Fun_Debug_Disable();
+		}
+
+		CNT_Debug_BTN_8u = 0;
+	}
+}
+
+static void Fun_Debug_Enable(void){
+  UartHandle.Instance        = USARTx;
+
+  UartHandle.Init.BaudRate   = 9600;
+  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  UartHandle.Init.Parity     = UART_PARITY_NONE;
+  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  
+  if(HAL_UART_Init(&UartHandle) != HAL_OK){
+  	Error_Handler();
+  }
+}
+
+static void Fun_Debug_Disable(void){
+  UartHandle.Instance        = USARTx;
+
+  UartHandle.Init.BaudRate   = 9600;
+  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  UartHandle.Init.Parity     = UART_PARITY_NONE;
+  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  
+  if(HAL_UART_DeInit(&UartHandle) != HAL_OK){
+  	Error_Handler();
+  }
+}
+
+
 
 #ifdef  USE_FULL_ASSERT
 
