@@ -456,7 +456,7 @@ int main(void)
   EXTI2_3_IRQHandler_Config();
   TIM16_Config();
   TIM17_Config();
-//  Uart_Config();
+  Uart_Config();
   I2C_Config();
 	
   /* Enable each GPIO Clock */
@@ -781,11 +781,15 @@ static void Operate_ADC_Detect(void){
 		printf("\n\r Anti_Event_buf = %d",Anti_Event_buf);
 		if(TM_ADC_Relaod == 0 && Anti_Event_buf == 0){
 			if(Flag_Door_UpLimit == TRUE){
-				ADC_OPEN_MAX_16u = ADC_OPEN_MAX_b;
-				ADC_OPEN_MIN = ADC_OPEN_MIN_b;
+				if(ADC_OPEN_MAX_b > ADC_OPEN_MAX_16u){
+					ADC_OPEN_MAX_16u = ADC_OPEN_MAX_b;
+					ADC_OPEN_MIN = ADC_OPEN_MIN_b;
+				}
 			}else if(Flag_Door_DownLimit == TRUE){
-				ADC_CLOSE_MAX_16u = ADC_CLOSE_MAX_b;
-				ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
+				if(ADC_CLOSE_MAX_b > 	ADC_CLOSE_MAX_16u){
+					ADC_CLOSE_MAX_16u = ADC_CLOSE_MAX_b;
+					ADC_CLOSE_MIN = ADC_CLOSE_MIN_b;
+				}
 			}
 		}else{
 			ADC_Detect_Start_Flag = 0;
@@ -3466,37 +3470,37 @@ static void Parameter_Load(void){
 	//開門防夾權重設定
 	switch(Anti_Weight_Open_select){
 		case 1:
-			iweight = 0.001;
+			iweight = 0.01;
 			break;
 		case 2:
-			iweight = 0.002;
+			iweight = 0.02;
 			break;
 		case 3:
-			iweight = 0.003;
+			iweight = 0.03;
 			break;
 		case 4:
-			iweight = 0.004;
+			iweight = 0.04;
 			break;
 		case 5:
-			iweight = 0.005;
+			iweight = 0.05;
 			break;
 		case 6:
-			iweight = 0.006;
+			iweight = 0.10;
 			break;
 		case 7:
-			iweight = 0.007;
+			iweight = 0.20;
 			break;
 		case 8:
-			iweight = 0.008;
+			iweight = 0.30;
 			break;
 		case 9:
-			iweight = 0.009;
+			iweight = 0.40;
 			break;
 		case 10:
-			iweight = 0.010;
+			iweight = 0.50;
 			break;
 		default:
-			iweight = 0.005;
+			iweight = 0.05;
 			break;
 	}
 	Anti_Weight_Open = iweight;
@@ -3504,37 +3508,37 @@ static void Parameter_Load(void){
 	//關門防夾權重設定
 	switch(Anti_Weight_Close_select){
 		case 1:
-			iweight = 0.001;
+			iweight = 0.01;
 			break;
 		case 2:
-			iweight = 0.002;
+			iweight = 0.02;
 			break;
 		case 3:
-			iweight = 0.003;
+			iweight = 0.03;
 			break;
 		case 4:
-			iweight = 0.004;
+			iweight = 0.04;
 			break;
 		case 5:
-			iweight = 0.005;
+			iweight = 0.05;
 			break;
 		case 6:
-			iweight = 0.006;
+			iweight = 0.10;
 			break;
 		case 7:
-			iweight = 0.007;
+			iweight = 0.20;
 			break;
 		case 8:
-			iweight = 0.008;
+			iweight = 0.30;
 			break;
 		case 9:
-			iweight = 0.009;
+			iweight = 0.40;
 			break;
 		case 10:
-			iweight = 0.010;
+			iweight = 0.50;
 			break;
 		default:
-			iweight = 0.005;
+			iweight = 0.05;
 			break;
 	}
 	Anti_Weight_Close = iweight;
@@ -3689,7 +3693,9 @@ static void Anti_Pressure_5(void){
 					
 				}else if(TM_AntiDly == 0){
 					//根據防夾參數權重,設定防夾動作值
-					if(TM_OPEN > 0){
+					if(TM_OPEN > 0 && TM_CLOSE > 0){
+					
+					}else if(TM_OPEN > 0){
 						//Anti_Weight = 1 + (Anti_Weight_Open / 10);
 						Anti_Weight = 1 + Anti_Weight_Open;
 						ADC_Anti_Max = ADC_OPEN_MAX_16u * Anti_Weight;
@@ -3711,7 +3717,7 @@ static void Anti_Pressure_5(void){
 					ADC_Buf = ADC_Calculate();	//讀取當前AD值
 
 					//判斷當前AD值	
-					if(ADC_Buf >= ADC_Anti_Max){
+					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= 2390){
 						Times_OverADC++;				
 					}else{
 						Times_OverADC = 0;
@@ -3749,7 +3755,7 @@ static void Anti_Pressure_5(void){
 					
 					//計算運轉電壓變化
 										
-					if(ADC_Buf >= ADC_Anti_Max){
+					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= 2390){
 						Times_OverADC++;				
 					}else{
 						Times_OverADC = 0;
@@ -4174,7 +4180,9 @@ static void LED_OFF(void){
 }
 
 static void LED_CTRL(void){
-	if(Time_Remain_Open_16u <= 500 || Time_Remain_Close_16u <= 500){
+	if(ADC_OPEN_MAX_16u <= 500 || ADC_CLOSE_MAX_16u <= 500){
+		LED_ON();
+	}else if(ADC_OPEN_MAX_16u >= 2350 || ADC_CLOSE_MAX_16u >= 2350){
 		LED_ON();
 	}else{
 		LED_OFF();

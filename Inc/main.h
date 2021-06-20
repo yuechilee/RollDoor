@@ -215,8 +215,8 @@
 #define Status_Out_CLK_DISABLE()  __HAL_RCC_GPIOB_CLK_DISABLE()
 
 /******************Port C******************/
-#define	TEST_PIN   	           GPIO_PIN_0
-//#define	TEST_PIN             GPIO_PIN_1
+//#define	xxx   	           GPIO_PIN_0
+//#define	xxx                GPIO_PIN_1
 //#define	xxx   	           GPIO_PIN_2
 //#define	xxx   	           GPIO_PIN_3
 //#define	xxx   	           GPIO_PIN_4
@@ -228,7 +228,7 @@
 #define	W_OPEN   	           GPIO_PIN_10
 #define	W_STOP   	           GPIO_PIN_11
 #define	W_CLOSE  	           GPIO_PIN_12
-//#define	xxx   	           GPIO_PIN_13
+#define	TEST_PIN   	         GPIO_PIN_13
 //#define	xxx   	           GPIO_PIN_14
 //#define	xxx   	           GPIO_PIN_15
 
