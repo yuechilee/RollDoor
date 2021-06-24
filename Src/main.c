@@ -202,6 +202,9 @@ uint16_t ADC_OPEN_MIN_b;
 uint16_t ADC_CLOSE_MAX_b;
 uint16_t ADC_CLOSE_MIN_b;
 uint16_t ADC_Anti_Max;
+uint16_t ADC_Anti_MAX_STD_8u;
+
+uint16_t Door_Select_8u;
 
 uint16_t TM_Anti_Occur = 0;
 uint16_t TM_Save = 2*60*60;			//運轉次數儲存ˊ週期
@@ -3276,7 +3279,7 @@ static void Parameter_Load(void){
 		Flag_CycleTest       = FALSE;   //循環測試(長時測試)
 		Flag_WindowsDoor     = FALSE;   //捲窗門功能
 		Flag_AntiPress_Open  = TRUE;    //開門防夾功能
-		Flag_AntiPress_Close = FALSE;    //關門防夾功能
+		Flag_AntiPress_Close = TRUE;    //關門防夾功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
 		Flag_Func_JOG        = FALSE;   //吋動功能
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
@@ -3284,7 +3287,7 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
-		Flag_Low_Operate     = TRUE;  //緩起步 & 緩停止
+		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
 		
 		//EE_Addr_P = 31;
 
@@ -3335,6 +3338,8 @@ static void Parameter_Load(void){
 		Time_RlyEvent_POS_B_16u = 10;	//成立時間B
 		Time_RlyEvent_TER_POS_16u = 5;	//解除時間
 		Time_RlyOp_POS_16u = 100;		//輸出時間
+		
+		Door_Select_8u = 1;
 	}else{
 		//******Parameter form EEPROM*****//
 		EE_Addr_P = 0;
@@ -3451,6 +3456,9 @@ static void Parameter_Load(void){
 		//待機電壓判定延遲時間
 		EE_Addr_P = 84;
 		Time_Vstb_Extend_8u = (uint16_t)aRxBuffer[EE_Addr_P];
+
+		EE_Addr_P = 85;
+		Door_Select_8u = (uint16_t)aRxBuffer[EE_Addr_P];
 
 		
 		//狀態RELAY成立條件
@@ -3596,6 +3604,25 @@ static void Parameter_Load(void){
 	}else{
 		Flag_AntiPress = FALSE;
 	}
+	
+	switch(Door_Select_8u){
+		case 0:	//小門
+			ADC_Anti_MAX_STD_8u = 2200;
+			break;
+			
+		case 1: //中門
+			ADC_Anti_MAX_STD_8u = 2390;
+			break;
+			
+		case 2: //大門
+			ADC_Anti_MAX_STD_8u = 4000;
+			break;
+			
+		default:
+			ADC_Anti_MAX_STD_8u = 2390;
+			break;
+	
+	}
 }
 
 static void Parameter_List(void){
@@ -3647,6 +3674,8 @@ static void Parameter_List(void){
 	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
 	printf("\n\n\r運轉次數  :%d (次)", REC_Operate_Times_32u);
+	
+	printf("\n\n\r防夾必須動作值  :%d", ADC_Anti_MAX_STD_8u);
 	
 	//外部狀態Relay參數
 	printf("\n\n\r*****State-Relay parameter*****");
@@ -3750,7 +3779,7 @@ static void Anti_Pressure_5(void){
 					ADC_Buf = ADC_Calculate();	//讀取當前AD值
 
 					//判斷當前AD值	
-					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= 2390){
+					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= ADC_Anti_MAX_STD_8u){
 						Times_OverADC++;				
 					}else{
 						Times_OverADC = 0;
@@ -3792,7 +3821,7 @@ static void Anti_Pressure_5(void){
 					
 					//計算運轉電壓變化
 										
-					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= 2390){
+					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= ADC_Anti_MAX_STD_8u){
 						Times_OverADC++;				
 					}else{
 						Times_OverADC = 0;
@@ -4249,7 +4278,7 @@ static void LED_OFF(void){
 static void LED_CTRL(void){
 	if(ADC_OPEN_MAX_16u <= 500 || ADC_CLOSE_MAX_16u <= 500){
 		LED_ON();
-	}else if(ADC_OPEN_MAX_16u >= 2350 || ADC_CLOSE_MAX_16u >= 2350){
+	}else if(ADC_OPEN_MAX_16u >= ADC_Anti_MAX_STD_8u || ADC_CLOSE_MAX_16u >= ADC_Anti_MAX_STD_8u){
 		LED_ON();
 	}else{
 		LED_OFF();
