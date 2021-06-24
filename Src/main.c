@@ -91,6 +91,8 @@ uint8_t EE_Default = FALSE;
 uint8_t Flag_WindowsDoor; 		//捲窗門選擇:	
 uint8_t Flag_CycleTest;             //循環測試(長時測試)
 uint8_t Flag_AntiPress;			//防夾功能
+uint8_t Flag_AntiPress_Open;	//防夾功能(開門)
+uint8_t Flag_AntiPress_Close;	//防夾功能(關門)
 uint8_t Times_JOG;				//長按判定次數: 吋動判定次數, 大於:吋動, 小於:一鍵
 uint8_t Times_Remote_Lock;
 uint8_t PWM_Grade;	
@@ -223,7 +225,7 @@ uint32_t RLY_Delay_ms = 20;			   //Relay_Delay_time(*1ms)
 uint32_t uwPrescalerValue = 0;         // Prescaler declaration
 uint32_t Cycle_times_up = 0;
 uint32_t Cycle_times_down = 0;
-uint32_t Ver_date = 20210618;
+uint32_t Ver_date = 20210620;
 uint32_t REC_Operate_Times_32u;
 
 uint8_t TXBuf[16];
@@ -321,6 +323,7 @@ uint8_t Trig_RM_8u;
 
 //蜂鳴器
 uint8_t ST_BUZZ_8u;
+uint8_t ST_BUZZ_Buf_8u;
 uint8_t ST_BUZZ_A_8u;
 uint8_t TM_Buzz_ON_8u;
 uint8_t TM_Buzz_ON_Buf_8u;
@@ -465,19 +468,8 @@ int main(void)
 
   // Parameter access
   //EE_Default = FALSE;
-  Parameter_Load();
- 
-
-  //程式最後修改日期
-  printf("\n\r***********************************"); 
-  printf("\n\r***********************************"); 
-  printf("\n\r* Final Modify Date: %d           *", Ver_date);
-  printf("\n\r* Model: TYG-NCP-R01              *");
-  printf("\n\r**Version: H%dV%d                 *",VER1,VER2); 
-  printf("\n\r***********************************"); 
-  
+  Parameter_Load();  
   Parameter_List();	
-
 
   /* Configure IOs in output push-pull mode to drive Relays */
   MotorRelay_out_config();
@@ -672,7 +664,7 @@ static void Low_Operate_Function(void){
 				PWM_Period = 2;
 				ST_Low_Operate = 1;
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
-				PWM_Duty = 99;
+				PWM_Duty = 95;
 				PWM_Period = 100;
 				ST_Low_Operate = 2;
 			}else{	//尾段減速
@@ -743,6 +735,10 @@ static void Operate_Infor_Save(void){
 
 //紀錄開關門時的最大與最小ADC值
 static void Operate_ADC_Detect(void){
+//Description:　紀錄運轉電壓，並且將最大值作為防夾功能的參考值
+//Timing: 限位偵測OpEnd_Detect()待機狀態
+
+
 	uint16_t ADC_Tmp;
 	
 	//ADC_Detect_Start_Flag
@@ -2753,8 +2749,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	
 	switch(GPIO_Pin){
 		case W_STOP:
+			
 			CNT_Debug_BTN_8u++;
-		
+			
+		  if(CNT_Debug_BTN_8u == 10){
+				ST_BUZZ_8u = 0;
+			}else{
+				ST_BUZZ_8u = 9;
+			}
+
 			if(Flag_SMK  == TRUE)	break;
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
 				break;
@@ -2764,7 +2767,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			ST_Anti = 0;
 			ADC_Detect_Start_Flag = 0;
 			
-			ST_BUZZ_8u = 0;
+			if(ST_BUZZ_8u != 9){
+				ST_BUZZ_8u = 0;
+			}
 			
 			BSET(Trig_RM_8u,BIT1);
 
@@ -3047,7 +3052,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	Tim_cnt_10ms++;
 	Tim_cnt_100ms++;
 	Tim_cnt_1s++;
-	
+
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
 		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
@@ -3244,13 +3249,13 @@ static void Uart_Config(void){
   UartHandle.Init.Mode       = UART_MODE_TX_RX;
   UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   
-	if(HAL_UART_DeInit(&UartHandle) != HAL_OK){
-		Error_Handler();
-	}
-	
-	if(HAL_UART_Init(&UartHandle) != HAL_OK){
-		Error_Handler();
-	}
+	//if(HAL_UART_DeInit(&UartHandle) != HAL_OK){
+	//	Error_Handler();
+	//}
+	//
+	//if(HAL_UART_Init(&UartHandle) != HAL_OK){
+	//	Error_Handler();
+	//}
 
 }
 
@@ -3270,7 +3275,8 @@ static void Parameter_Load(void){
 		//Default parameter
 		Flag_CycleTest       = FALSE;   //循環測試(長時測試)
 		Flag_WindowsDoor     = FALSE;   //捲窗門功能
-		Flag_AntiPress       = TRUE;    //防夾功能
+		Flag_AntiPress_Open  = TRUE;    //開門防夾功能
+		Flag_AntiPress_Close = FALSE;    //關門防夾功能
 		Flag_AutoClose       = FALSE;   //自動關門功能
 		Flag_Func_JOG        = FALSE;   //吋動功能
 		Flag_Motor_Direction = TRUE;   //馬達運轉方向
@@ -3278,7 +3284,7 @@ static void Parameter_Load(void){
 		Flag_Rate_Regulate   = FALSE;   //捲門調速
 		Flag_Buzzer          = TRUE;    //蜂鳴器
 		Flag_Light           = FALSE;    //自動照明
-		Flag_Low_Operate     = FALSE;  //緩起步 & 緩停止
+		Flag_Low_Operate     = TRUE;  //緩起步 & 緩停止
 		
 		//EE_Addr_P = 31;
 
@@ -3297,7 +3303,7 @@ static void Parameter_Load(void){
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade        = 2;   //鐵捲速度
+		PWM_Grade        = 1;   //鐵捲速度
 		Auto_Close_Mode  = 1;	 //自動關門模式設定
 		
 		Time_Low_Operate_Ini = 20;
@@ -3353,7 +3359,7 @@ static void Parameter_Load(void){
 		EE_Addr_P = 20;
 		Flag_CycleTest       = aRxBuffer[EE_Addr_P++];   //循環測試(長時測試)
 		Flag_WindowsDoor     = aRxBuffer[EE_Addr_P++];   //捲窗門功能
-		Flag_AntiPress       = aRxBuffer[EE_Addr_P++];   //防夾功能
+		Flag_AntiPress_Close = aRxBuffer[EE_Addr_P++];   //防夾功能(關門)
 		Flag_AutoClose       = aRxBuffer[EE_Addr_P++];   //自動關門功能
 		Flag_Func_JOG        = aRxBuffer[EE_Addr_P++];   //吋動功能
 		Flag_Motor_Direction = aRxBuffer[EE_Addr_P++];   //馬達運轉方向
@@ -3362,6 +3368,7 @@ static void Parameter_Load(void){
 		Flag_Buzzer          = aRxBuffer[EE_Addr_P++];   //蜂鳴器
 		Flag_Light           = aRxBuffer[EE_Addr_P++];   //自動照明
 		Flag_Low_Operate     = aRxBuffer[EE_Addr_P++];   //緩起步 & 緩停止
+		Flag_AntiPress_Open  = aRxBuffer[EE_Addr_P++];   //防夾功能(開門)
 
 
 		EE_Addr_P = 40;
@@ -3559,7 +3566,12 @@ static void Parameter_Load(void){
 			break;
 			
 		case 2:
-			PWM_Duty = 99;
+			PWM_Duty = 4;
+			PWM_Period = 5;
+			break;
+		
+		case 3:
+			PWM_Duty = 95;
 			PWM_Period = 100;
 			break;
 		
@@ -3569,19 +3581,34 @@ static void Parameter_Load(void){
 			break;
 	}
 	
+	//待機電壓設定
 	if(Volt_StandBy_b == 0){
 		Flag_No_VSB = TRUE;
 		Volt_StandBy_b = ADC_Calculate() *(3.3/4095);
 		Volt_StandBy = Volt_StandBy_b * 1.3;
-  }else{
+	}else{
 		Flag_No_VSB = FALSE;
 		Volt_StandBy = Volt_StandBy_b;
+	}
+	
+	if(Flag_AntiPress_Open == TRUE || Flag_AntiPress_Close == TRUE){
+		Flag_AntiPress = TRUE;
+	}else{
+		Flag_AntiPress = FALSE;
 	}
 }
 
 static void Parameter_List(void){
 	//int i,j;
-	
+	Buzz_OFF();
+  //程式最後修改日期
+	printf("\n\r***********************************"); 
+	printf("\n\r***********************************"); 
+	printf("\n\r* Final Modify Date: %d           *", Ver_date);
+	printf("\n\r* Model: TYG-NCP-R01              *");
+	printf("\n\r**Version: H%dV%d                 *",VER1,VER2); 
+	printf("\n\r***********************************"); 
+
 	printf("\n\r============================");
 	printf("\n\r==========參數設定==========");
 	printf("\n\r============================");
@@ -3597,6 +3624,8 @@ static void Parameter_List(void){
 	printf("\n\r 提示音    : %d", Flag_Buzzer);
 	printf("\n\r 自動照明  : %d", Flag_Light);
 	printf("\n\r 緩啟動功能: %d", Flag_Low_Operate);
+	printf("\n\r 防夾功能(開)  : %d", Flag_AntiPress_Open);
+	printf("\n\r 防夾功能(關)  : %d", Flag_AntiPress_Close);
 	
 	printf("\n\n\r*****運轉參數");
 	printf("\n\r 開關門最大運轉時間      : %4.1f 秒", TM_MAX *0.1);
@@ -3617,7 +3646,7 @@ static void Parameter_List(void){
 	
 	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
 	
-	printf("\n\n\r運轉次數  :%d", REC_Operate_Times_32u);
+	printf("\n\n\r運轉次數  :%d (次)", REC_Operate_Times_32u);
 	
 	//外部狀態Relay參數
 	printf("\n\n\r*****State-Relay parameter*****");
@@ -3647,7 +3676,7 @@ static void Parameter_List(void){
 	printf("\n\r 成立時間B: %4.1f 秒", Time_RlyEvent_POS_B_16u*0.1);
 	printf("\n\r 解除時間 : %4.1f 秒", Time_RlyEvent_TER_POS_16u*0.1);
 	printf("\n\r 輸出時間 : %4.1f 秒", Time_RlyOp_POS_16u*0.1);
-
+	printf("\n\n\r*****State-Relay parameter End*****");
 	printf("\n\n\r========參數設定 End========");
 	
 	printf("\n\n\r======== EEPROM Print ========");	
@@ -3712,6 +3741,10 @@ static void Anti_Pressure_5(void){
 				break;
 			
 			case 2:	//開門防夾偵測
+				if(Flag_AntiPress_Open == FALSE){
+					ST_Anti = 0;
+				}
+				
 				if(TM_AntiDly2 == 0){
 
 					ADC_Buf = ADC_Calculate();	//讀取當前AD值
@@ -3746,6 +3779,10 @@ static void Anti_Pressure_5(void){
 				break;
 			
 			case 3:	//關門防夾偵測
+				if(Flag_AntiPress_Close == FALSE){
+					ST_Anti = 0;
+				}
+				
 				if(ST_Close == 2){
 					ST_Anti = 0;
 				}else if(TM_AntiDly2 == 0){
@@ -3924,7 +3961,10 @@ static void Buzz_OFF(void){
 
  
 static void Buzzer_CTRL(void){
-	
+		
+	if(ST_BUZZ_8u != ST_BUZZ_Buf_8u){
+		ST_BUZZ_A_8u = 0;
+	}
 	switch(ST_BUZZ_8u){
 		case 1:	//初送電
 			if(ST_BUZZ_A_8u == 0){
@@ -4135,7 +4175,7 @@ static void Buzzer_CTRL(void){
 		case 9:	//控制器指令(OPEN/CLOSE)
 			if(ST_BUZZ_A_8u == 0){
 				TM_Buzz_ON_8u = 3*10;
-				TM_Buzz_16u = 8;
+				TM_Buzz_16u = 5;
 				ST_BUZZ_A_8u = 1;
 			}
 			
@@ -4156,6 +4196,32 @@ static void Buzzer_CTRL(void){
 			
 			break;
 			
+		case 10:	//bibi兩聲
+			if(ST_BUZZ_A_8u == 0){
+				TM_Buzz_ON_8u = 2*10;
+				TM_Buzz_16u = 7;
+				ST_BUZZ_A_8u = 1;
+			}
+			
+			if(TM_Buzz_ON_8u > 0){
+				Buzz_ON();
+			}else if(TM_Buzz_OFF_8u > 0){
+				Buzz_OFF();
+			}
+			
+			if(TM_Buzz_16u == 0){
+				ST_BUZZ_8u = 0;
+				ST_BUZZ_A_8u = 0;
+			}
+			
+			if(TM_Buzz_ON_8u == 0 && TM_Buzz_ON_Buf_8u != 0){
+				TM_Buzz_OFF_8u = 2*10;
+			}else if(TM_Buzz_OFF_8u == 0 && TM_Buzz_OFF_Buf_8u != 0){
+				TM_Buzz_ON_8u = 2*10;
+			}
+			
+			break;
+			
 		default:
 			ST_BUZZ_A_8u = 0;
 			Buzz_OFF();
@@ -4163,6 +4229,7 @@ static void Buzzer_CTRL(void){
 			break;
 	}
 	
+	ST_BUZZ_Buf_8u = ST_BUZZ_8u;
 	TM_Buzz_ON_Buf_8u = TM_Buzz_ON_8u;
 	TM_Buzz_OFF_Buf_8u = TM_Buzz_OFF_8u;
 	
@@ -4200,10 +4267,20 @@ static void Dubug_CTRL(void){
 		}
 
 		if(Flag_Debug_8u == TRUE){
+			ST_BUZZ_8u = 0;
+			Buzz_OFF();
+			Buzz_OFF();
+			Buzz_OFF();
+			Buzz_OFF();
+			Buzz_OFF();
+			//Buzzer_CTRL();
+			//Delay_ms(100);
 			Fun_Debug_Enable();
-			ST_BUZZ_8u = 9;
+			Parameter_List();
+			ST_BUZZ_8u = 10;
 		}else{
 			Fun_Debug_Disable();
+			ST_BUZZ_8u = 10;
 		}
 
 		CNT_Debug_BTN_8u = 0;
@@ -4211,15 +4288,16 @@ static void Dubug_CTRL(void){
 }
 
 static void Fun_Debug_Enable(void){
-  UartHandle.Instance        = USARTx;
-
-  UartHandle.Init.BaudRate   = 9600;
-  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
-  UartHandle.Init.StopBits   = UART_STOPBITS_1;
-  UartHandle.Init.Parity     = UART_PARITY_NONE;
-  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-  UartHandle.Init.Mode       = UART_MODE_TX_RX;
-  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  
+  //UartHandle.Instance        = USARTx;
+  //
+  //UartHandle.Init.BaudRate   = 9600;
+  //UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  //UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  //UartHandle.Init.Parity     = UART_PARITY_NONE;
+  //UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  //UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  //UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   
   if(HAL_UART_Init(&UartHandle) != HAL_OK){
   	Error_Handler();
@@ -4227,15 +4305,16 @@ static void Fun_Debug_Enable(void){
 }
 
 static void Fun_Debug_Disable(void){
-  UartHandle.Instance        = USARTx;
-
-  UartHandle.Init.BaudRate   = 9600;
-  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
-  UartHandle.Init.StopBits   = UART_STOPBITS_1;
-  UartHandle.Init.Parity     = UART_PARITY_NONE;
-  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-  UartHandle.Init.Mode       = UART_MODE_TX_RX;
-  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  
+  //UartHandle.Instance        = USARTx;
+  //
+  //UartHandle.Init.BaudRate   = 9600;
+  //UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
+  //UartHandle.Init.StopBits   = UART_STOPBITS_1;
+  //UartHandle.Init.Parity     = UART_PARITY_NONE;
+  //UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  //UartHandle.Init.Mode       = UART_MODE_TX_RX;
+  //UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   
   if(HAL_UART_DeInit(&UartHandle) != HAL_OK){
   	Error_Handler();
