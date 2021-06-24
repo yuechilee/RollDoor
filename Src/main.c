@@ -173,6 +173,7 @@ uint8_t ST_Save_8u = 0;
 uint16_t TM_Printf = 10;
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 uint16_t TM_OPEN = 0;                   //Time: Door open
+uint16_t TM_OPEN_Buf = 0;                   //Time: Door open
 uint16_t TM_CLOSE = 0;                  //Time: Door close
 uint16_t TM_CLOSE_EndPart = 0;                  //Time: Door close
 uint16_t TM_CLOSE_b = 0;                  //Time: Door close
@@ -342,6 +343,7 @@ uint8_t W_IR_Buf1;
 //Dubug
 uint8_t CNT_Debug_BTN_8u = 0;
 
+uint8_t Flag4_Door_UpLimit_8u = FALSE;
 
 int i,j;
 
@@ -438,6 +440,8 @@ static void Dubug_CTRL(void);
 static void Fun_Debug_Enable(void);
 static void Fun_Debug_Disable(void);
 
+static void Fun_Break_AFT_Open(void);
+
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -515,10 +519,7 @@ int main(void)
   }
 	
   //開機提示音
-  //Buzz_ON();
-  //Delay_ms(500);
-  //Buzz_OFF();
-  //_Buzz_ON_8u = 5;
+
   ST_BUZZ_8u = 1;
 	
   Rly_TME_A_8u = FALSE;
@@ -527,6 +528,8 @@ int main(void)
   Rly_ACT_B_8u = FALSE;
   Rly_POS_A_8u = FALSE;
   Rly_POS_B_8u = FALSE;
+  
+  LED_OFF();
   
   while(1){ 
 		if(Flag_CycleTest == TRUE){
@@ -1023,7 +1026,9 @@ void PWR_CTRL(void){
 	}else{
 		CtrlBox_Light_OFF();
 	}
-			
+	
+	Fun_Break_AFT_Open();
+	TM_OPEN_Buf = TM_OPEN;
 }
 
 void Door_manage(void){	
@@ -1324,6 +1329,7 @@ static void OpEnd_Detect(void){
 					Flag2_Door_UpLimit_8u   = TRUE;
 					Flag2_Door_DownLimit_8u = FALSE;
 					Flag3_Door_UpLimit_8u = TRUE;
+					Flag4_Door_UpLimit_8u = TRUE;
 				}else if(TM_CLOSE > 0){
 					Flag_Door_UpLimit   = FALSE;
 					Flag_Door_DownLimit = TRUE;
@@ -1400,6 +1406,7 @@ static void OpEnd_Detect_2(void){
 				Flag2_Door_UpLimit_8u   = TRUE;
 				Flag2_Door_DownLimit_8u = FALSE;
 				Flag3_Door_UpLimit_8u = TRUE;
+				Flag4_Door_UpLimit_8u = TRUE;
 				
 				//運轉次數
 				REC_Operate_Times_32u++;
@@ -4350,7 +4357,14 @@ static void Fun_Debug_Disable(void){
   }
 }
 
-
+static void Fun_Break_AFT_Open(void){
+	if(TM_OPEN == 0 && TM_OPEN_Buf != 0){
+		if(Flag4_Door_UpLimit_8u == TRUE){
+			TM_CLOSE = 1;
+			Flag4_Door_UpLimit_8u = FALSE;
+		}
+	}
+}
 
 #ifdef  USE_FULL_ASSERT
 
