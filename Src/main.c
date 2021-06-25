@@ -155,8 +155,6 @@ uint8_t PWM_Period = 100;
 uint8_t PWM_Duty = 50;
 uint8_t PWM_Count = 0;
 uint8_t TM_IR_Lock = 0;
-//uint8_t Auto_Close_Mode;
-uint16_t Auto_Close_Mode;
 uint8_t CNT_Jog_Press = 0;
 uint8_t CNT_LOCK_Press = 0;
 uint8_t ADC_Detect_Start_Flag = 0;
@@ -173,7 +171,7 @@ uint8_t ST_Save_8u = 0;
 uint16_t TM_Printf = 10;
 static uint16_t aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE];	  //Variable containing ADC conversions data
 uint16_t TM_OPEN = 0;                   //Time: Door open
-uint16_t TM_OPEN_Buf = 0;                   //Time: Door open
+uint16_t TM_OPEN_Buf_16u = 0;                   //Time: Door open
 uint16_t TM_CLOSE = 0;                  //Time: Door close
 uint16_t TM_CLOSE_EndPart = 0;                  //Time: Door close
 uint16_t TM_CLOSE_b = 0;                  //Time: Door close
@@ -344,6 +342,7 @@ uint8_t W_IR_Buf1;
 uint8_t CNT_Debug_BTN_8u = 0;
 
 uint8_t Flag4_Door_UpLimit_8u = FALSE;
+uint8_t Time_Open_Break_8u = 0;
 
 int i,j;
 
@@ -1028,7 +1027,7 @@ void PWR_CTRL(void){
 	}
 	
 	Fun_Break_AFT_Open();
-	TM_OPEN_Buf = TM_OPEN;
+	TM_OPEN_Buf_16u = TM_OPEN;
 }
 
 void Door_manage(void){	
@@ -2718,7 +2717,7 @@ static void EXTI2_3_IRQHandler_Config(void){
   GPIO_InitStructure.Pin = W_ONEKEY;
   HAL_GPIO_Init(PORT_ONEKEY, &GPIO_InitStructure);
 	
-	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 3, 0);
+	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 1, 0);
 }
 
 //EXIT Configures
@@ -2744,7 +2743,7 @@ static void EXTI4_15_IRQHandler_Config(void)
   HAL_GPIO_Init(EXTI_CTRL_PORT_2, &GPIO_InitStructure);
 	
   /* Enable and set EXTI line 4_15 Interrupt to the lowest priority */
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 3, 0);
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);
   //HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
@@ -3313,8 +3312,7 @@ static void Parameter_Load(void){
 		Times_JOG        = 50;   //吋動判定次數
 		Times_Remote_Lock = 75;   //鎖電成立次數
 		
-		PWM_Grade        = 1;   //鐵捲速度
-		Auto_Close_Mode  = 1;	 //自動關門模式設定
+		PWM_Grade        = 3;   //鐵捲速度
 		
 		Time_Low_Operate_Ini = 20;
 		Time_Low_Operate_Mid = 80;
@@ -3347,6 +3345,8 @@ static void Parameter_Load(void){
 		Time_RlyOp_POS_16u = 100;		//輸出時間
 		
 		Door_Select_8u = 1;
+		Time_Open_Break_8u = 1;
+		
 	}else{
 		//******Parameter form EEPROM*****//
 		EE_Addr_P = 0;
@@ -3410,10 +3410,10 @@ static void Parameter_Load(void){
 		PWM_Grade      = aRxBuffer[EE_Addr_P++];   //鐵捲速度
 		
 		//EE_Addr_P = 56;
-		Auto_Close_Mode   = (uint16_t)aRxBuffer[EE_Addr_P] | (uint16_t)aRxBuffer[EE_Addr_P+1]<<8;	 //自動關門模式設定
-		EE_Addr_P+=2;
+		//EE_Addr_P = 56;
+		
 
-		//EE_Addr_P = 58;
+		EE_Addr_P = 58;
 		Time_Low_Operate_Ini = aRxBuffer[EE_Addr_P++]; 
 		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]; 
 		
@@ -3462,10 +3462,9 @@ static void Parameter_Load(void){
 		
 		//待機電壓判定延遲時間
 		EE_Addr_P = 84;
-		Time_Vstb_Extend_8u = (uint16_t)aRxBuffer[EE_Addr_P];
-
-		EE_Addr_P = 85;
-		Door_Select_8u = (uint16_t)aRxBuffer[EE_Addr_P];
+		Time_Vstb_Extend_8u = aRxBuffer[EE_Addr_P++];
+		Door_Select_8u      = aRxBuffer[EE_Addr_P++];
+		Time_Open_Break_8u  = aRxBuffer[EE_Addr_P++];
 
 		
 		//狀態RELAY成立條件
@@ -3567,7 +3566,7 @@ static void Parameter_Load(void){
 	
 	//PWM速度選擇
 	if(Flag_Rate_Regulate == FALSE){
-		PWM_Grade = 2;
+		PWM_Grade = 3;
 	}
 	switch(PWM_Grade){
 		case 0:
@@ -3667,7 +3666,7 @@ static void Parameter_List(void){
 	printf("\n\r 捲窗門關門時間(Part 1)  : %4.1f 秒", TM_WindowsDoor_ClosePart1 *0.1);
 	printf("\n\r 自動關門時間            : %4.1f 秒", Time_Auto_Close *0.1);
 	printf("\n\r 照明時間                : %4.1f 秒", Time_Light *0.1);
-	printf("\n\r 待機電壓成立延遲時間    : %4.1f 秒", Time_Vstb_Extend_8u *0.1);
+	printf("\n\r 待機電壓成立延遲時間     : %4.1f 秒", Time_Vstb_Extend_8u *0.1);
 	printf("\n\r 緩步運轉(第1段)         : %4.1f 秒", Time_Low_Operate_Ini *0.1);
 	printf("\n\r 緩步運轉(第2段)         : %4.1f 秒", Time_Low_Operate_Mid *0.1);
 
@@ -3678,11 +3677,16 @@ static void Parameter_List(void){
 	printf("\n\r 吋動判定參數    : %d", Times_JOG);
 	printf("\n\r 鎖電判定參數    : %d", Times_Remote_Lock);
 	
-	printf("\n\r 運轉速度(1~2)   : %d", PWM_Grade);
+	printf("\n\r 運轉速度(0~3)   : %d", PWM_Grade);
+	printf("\n\r PWM Duty Cycle  : %3.1f", (float)PWM_Duty*100/PWM_Period);
 	
 	printf("\n\n\r運轉次數  :%d (次)", REC_Operate_Times_32u);
 	
-	printf("\n\n\r防夾必須動作值  :%d", ADC_Anti_MAX_STD_8u);
+	printf("\n\n\r 門大小選擇        :%d", Door_Select_8u);
+	printf("\n\r 防夾必須動作值(AD):%d", ADC_Anti_MAX_STD_8u);
+	printf("\n\r 防夾必須動作值(A) :%2.3f", ADC_Anti_MAX_STD_8u*(3.3*200)/(4096*34));
+	
+	printf("\n\n\r 開門煞車動作時間  :%2.1f", Time_Open_Break_8u *0.1);
 	
 	//外部狀態Relay參數
 	printf("\n\n\r*****State-Relay parameter*****");
@@ -3715,9 +3719,10 @@ static void Parameter_List(void){
 	printf("\n\n\r*****State-Relay parameter End*****");
 	printf("\n\n\r========參數設定 End========");
 	
+	Buzz_OFF();
 	printf("\n\n\r======== EEPROM Print ========");	
 	for(i=0;i<32;i++){
-		printf("\n\r R%02d: ",i);
+		printf("\n\r R%03d: ",i*8);
 		for(j=i*8;j<(i*8+8);j++){
 			printf("%02X, ",aRxBuffer[j]);
 		}
@@ -4358,9 +4363,9 @@ static void Fun_Debug_Disable(void){
 }
 
 static void Fun_Break_AFT_Open(void){
-	if(TM_OPEN == 0 && TM_OPEN_Buf != 0){
+	if(TM_OPEN == 0 && TM_OPEN_Buf_16u != 0){
 		if(Flag4_Door_UpLimit_8u == TRUE){
-			TM_CLOSE = 1;
+			TM_CLOSE = (uint16_t)Time_Open_Break_8u;
 			Flag4_Door_UpLimit_8u = FALSE;
 		}
 	}
