@@ -153,152 +153,147 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ST_BUZZ_8u</ItemText>
+          <ItemText>TM_Auto_Close,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ST_BUZZ_A_8u</ItemText>
+          <ItemText>TM_Save</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>TM_Auto_Close,0x0A</ItemText>
+          <ItemText>REC_Operate_Times,0x10</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>EE_Default</ItemText>
+          <ItemText>aRxBuffer,0x10</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[200]</ItemText>
+          <ItemText>Time_Auto_Close,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>TM_Save</ItemText>
+          <ItemText>TXBuf</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>REC_Operate_Times,0x10</ItemText>
+          <ItemText>aRxBuffer[200]</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[208]</ItemText>
+          <ItemText>aRxBuffer[201]</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[209]</ItemText>
+          <ItemText>aRxBuffer[202]</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[250]</ItemText>
+          <ItemText>aRxBuffer[203]</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer,0x10</ItemText>
+          <ItemText>aRxBuffer[204]</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
           <WinNumber>1</WinNumber>
-          <ItemText>Time_Auto_Close,0x0A</ItemText>
+          <ItemText>aRxBuffer[205]</ItemText>
         </Ww>
         <Ww>
           <count>12</count>
           <WinNumber>1</WinNumber>
-          <ItemText>TXBuf</ItemText>
+          <ItemText>aRxBuffer[206]</ItemText>
         </Ww>
         <Ww>
           <count>13</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ADC_CLOSE_MAX_16u</ItemText>
+          <ItemText>aRxBuffer[207]</ItemText>
         </Ww>
         <Ww>
           <count>14</count>
           <WinNumber>1</WinNumber>
-          <ItemText>TXBuf</ItemText>
+          <ItemText>aRxBuffer[208]</ItemText>
         </Ww>
         <Ww>
           <count>15</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[200]</ItemText>
+          <ItemText>aRxBuffer[209]</ItemText>
         </Ww>
         <Ww>
           <count>16</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[201]</ItemText>
+          <ItemText>aRxBuffer[210]</ItemText>
         </Ww>
         <Ww>
           <count>17</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[202]</ItemText>
+          <ItemText>aRxBuffer[211]</ItemText>
         </Ww>
         <Ww>
           <count>18</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[203]</ItemText>
+          <ItemText>ST_BUZZ_8u</ItemText>
         </Ww>
         <Ww>
           <count>19</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[204]</ItemText>
+          <ItemText>ADC_Detect_Start_Flag</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[205]</ItemText>
+          <ItemText>CNT_Debug_BTN_8u</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[206]</ItemText>
+          <ItemText>ADC_OPEN_MAX_16u,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[207]</ItemText>
+          <ItemText>\\H001\../Src/main.c\ADC_CLOSE_MAX_16u,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[208]</ItemText>
+          <ItemText>Flag3_Door_UpLimit_8u</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[209]</ItemText>
+          <ItemText>\\H001\../Src/main.c\ST_BUZZ_8u</ItemText>
         </Ww>
         <Ww>
           <count>25</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[210]</ItemText>
+          <ItemText>\\H001\../Src/main.c\ST_BUZZ_A_8u</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[211]</ItemText>
+          <ItemText>\\H001\../Src/main.c\Flag3_Door_UpLimit_8u</ItemText>
         </Ww>
         <Ww>
           <count>27</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ST_BUZZ_8u</ItemText>
+          <ItemText>Volt_StandBy</ItemText>
         </Ww>
         <Ww>
           <count>28</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ADC_Detect_Start_Flag</ItemText>
-        </Ww>
-        <Ww>
-          <count>29</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>CNT_Debug_BTN_8u</ItemText>
+          <ItemText>TM_Buzz_16u,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -386,6 +381,11 @@
           <count>16</count>
           <WinNumber>2</WinNumber>
           <ItemText>ST_Door</ItemText>
+        </Ww>
+        <Ww>
+          <count>17</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>TM_OPEN_Buf</ItemText>
         </Ww>
       </WatchWindow2>
       <MemoryWindow1>
