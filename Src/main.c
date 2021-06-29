@@ -116,6 +116,7 @@ float Anti_Weight_Open;					//防夾權重(可小數):開門(越小越靈敏),建議>1
 uint8_t Anti_Weight_Close_select;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Anti_Weight_Close;				//防夾權重(可小數):關門(越小越靈敏),建議>1
 float Volt_StandBy, Volt_StandBy_b;				//待機電壓(填0為初次啟動偵測),建議值0.3~0.5
+uint8_t iWeight_Vstb_8u;
 
 //*******參數設定結束*******//
 
@@ -678,25 +679,16 @@ static void Low_Operate_Function(void){
 				ST_Low_Operate = 3;
 			}
 			
-			if(Flag_No_VSB == TRUE){
-				if(ST_Low_Operate == 2){
-					Volt_StandBy = Volt_StandBy_b * 1.3;
-				}else{
-					Volt_StandBy = Volt_StandBy_b * 1.1;
-				}
+
+			if(ST_Low_Operate == 2){
+				Volt_StandBy = Volt_StandBy_b * ((float)iWeight_Vstb_8u/100);
 			}else{
-				if(ST_Low_Operate == 2){
-					Volt_StandBy = Volt_StandBy_b * 1.0;
-				}else{
-					Volt_StandBy = Volt_StandBy_b * 0.85;
-				}
+				Volt_StandBy = Volt_StandBy_b * 0.85;
 			}
+
 		}else{
-			if(Flag_No_VSB == TRUE){
-					Volt_StandBy = Volt_StandBy_b * 1.3;
-			}else{
-					Volt_StandBy = Volt_StandBy_b * 1.0;
-			}
+			Volt_StandBy = Volt_StandBy_b * 1.3;
+			
 		}
 	}
 }
@@ -3304,7 +3296,7 @@ static void Parameter_Load(void){
 		Time_Auto_Close           = 100;   //自動關門延遲時間
 		Time_Light                = 100;   //照明運轉時間
 
-		Volt_StandBy_b = 0; //開機自動決定待機值
+		iWeight_Vstb_8u = 120; //開機自動決定待機值
 		//Volt_StandBy = 0.3;
 		Anti_Weight_Open_select  = 5;   //防夾權重: 開門
 		Anti_Weight_Close_select = 5;   //防夾權重: 關門
@@ -3400,7 +3392,7 @@ static void Parameter_Load(void){
 		EE_Addr_P+=2;
 		
 		//EE_Addr_P = 50;
-		Volt_StandBy_b     = (float)aRxBuffer[EE_Addr_P++]/10;   //待機電壓for到位判定使用
+		iWeight_Vstb_8u          = aRxBuffer[EE_Addr_P++];   //待機電壓for到位判定使用
 		Anti_Weight_Open_select  = aRxBuffer[EE_Addr_P++];   //防夾權重: 開門
 		Anti_Weight_Close_select = aRxBuffer[EE_Addr_P++];   //防夾權重: 關門
 		
@@ -3596,14 +3588,8 @@ static void Parameter_Load(void){
 	}
 	
 	//待機電壓設定
-	if(Volt_StandBy_b == 0){
-		Flag_No_VSB = TRUE;
-		Volt_StandBy_b = ADC_Calculate() *(3.3/4095);
-		Volt_StandBy = Volt_StandBy_b * 1.3;
-	}else{
-		Flag_No_VSB = FALSE;
-		Volt_StandBy = Volt_StandBy_b;
-	}
+	Volt_StandBy_b = ADC_Calculate() *(3.3/4095);
+	Volt_StandBy = Volt_StandBy_b * ((float)iWeight_Vstb_8u/100);
 	
 	if(Flag_AntiPress_Open == TRUE || Flag_AntiPress_Close == TRUE){
 		Flag_AntiPress = TRUE;
