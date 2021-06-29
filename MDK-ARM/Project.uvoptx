@@ -152,9 +152,9 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>3603</LineNumber>
+          <LineNumber>3591</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134239654</Address>
+          <Address>134239522</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -163,7 +163,23 @@
           <BreakIfRCount>1</BreakIfRCount>
           <Filename>..\Src\main.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\H001\../Src/main.c\3603</Expression>
+          <Expression>\\H001\../Src/main.c\3591</Expression>
+        </Bp>
+        <Bp>
+          <Number>1</Number>
+          <Type>0</Type>
+          <LineNumber>3396</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134238932</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\Src\main.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\H001\../Src/main.c\3396</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -255,7 +271,7 @@
         <Ww>
           <count>17</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer[211]</ItemText>
+          <ItemText>aRxBuffer[50]</ItemText>
         </Ww>
         <Ww>
           <count>18</count>
@@ -326,6 +342,16 @@
           <count>31</count>
           <WinNumber>1</WinNumber>
           <ItemText>Volt_StandBy_b</ItemText>
+        </Ww>
+        <Ww>
+          <count>32</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Volt_StandBy</ItemText>
+        </Ww>
+        <Ww>
+          <count>33</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>iWeight_Vstb_8u,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
