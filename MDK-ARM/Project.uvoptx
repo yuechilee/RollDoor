@@ -148,7 +148,24 @@
           <Name>-U066FFF323338424E43053144 -O2254 -SF10000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P1 -N00("ARM CoreSight SW-DP (ARM Core") -D00(0BB11477) -L00(0) -TO131090 -TC10000000 -TT10000000 -TP21 -TDS8004 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO15 -FD20000000 -FC1000 -FN1 -FF0STM32F0xx_64.FLM -FS08000000 -FL010000 -FP0($$Device:STM32F030R8$CMSIS\Flash\STM32F0xx_64.FLM)</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint/>
+      <Breakpoint>
+        <Bp>
+          <Number>0</Number>
+          <Type>0</Type>
+          <LineNumber>3603</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134239654</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\Src\main.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\H001\../Src/main.c\3603</Expression>
+        </Bp>
+      </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
@@ -168,7 +185,7 @@
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>aRxBuffer,0x10</ItemText>
+          <ItemText>aRxBuffer,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
@@ -294,6 +311,21 @@
           <count>28</count>
           <WinNumber>1</WinNumber>
           <ItemText>TM_Buzz_16u,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>29</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Volt_StandBy,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>30</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>ADC_STBY_16u,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>31</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Volt_StandBy_b</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
