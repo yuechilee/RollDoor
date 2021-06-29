@@ -669,7 +669,7 @@ static void Low_Operate_Function(void){
 				PWM_Period = 2;
 				ST_Low_Operate = 1;
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
-				PWM_Duty = 95;
+				PWM_Duty = 99;
 				PWM_Period = 100;
 				ST_Low_Operate = 2;
 			}else{	//尾段減速
@@ -759,7 +759,7 @@ static void Operate_ADC_Detect(void){
 		ADC_CLOSE_MIN_b = ADC_Tmp;
 	
 	}else if(ADC_Detect_Start_Flag == 1){	//當限位偵測開始即執行
-		if(ST_Door == 1){
+		if(ST_Door == 1 && TM_OPEN > 0){
 			ADC_Tmp = ADC_Calculate();
 			if(ADC_Tmp > ADC_OPEN_MAX_b){
 				ADC_OPEN_MAX_b = ADC_Tmp;
@@ -3585,7 +3585,7 @@ static void Parameter_Load(void){
 			break;
 		
 		case 3:
-			PWM_Duty = 95;
+			PWM_Duty = 99;
 			PWM_Period = 100;
 			break;
 		
