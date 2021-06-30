@@ -683,7 +683,7 @@ static void Low_Operate_Function(void){
 			if(ST_Low_Operate == 2){
 				Volt_StandBy = Volt_StandBy_b * ((float)iWeight_Vstb_8u/100);
 			}else{
-				Volt_StandBy = Volt_StandBy_b * 0.85;
+				Volt_StandBy = Volt_StandBy_b * 1.1;
 			}
 
 		}else{
