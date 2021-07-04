@@ -348,6 +348,8 @@ uint8_t CNT_Debug_BTN_8u = 0;
 uint8_t Flag4_Door_UpLimit_8u = FALSE;
 uint8_t Time_Open_Break_8u = 0;
 
+uint8_t Flag_End;
+
 int i,j;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -445,6 +447,7 @@ static void Fun_Debug_Disable(void);
 
 static void Fun_Break_AFT_Open(void);
 
+static void PWM_Grade_Select(uint8_t Grade_8u);
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -996,7 +999,7 @@ void PWR_CTRL(void){
 	}
 	
 	//到位偵測
-	if(TM_OPEN > 0 || TM_CLOSE > 0){
+	if(TM_OPEN > 6 || TM_CLOSE > 6){
 		OpEnd_Detect();
 		OpEnd_Detect_2();
 	//捲窗門:第一段關門結束時儲存防夾AD值
@@ -1025,7 +1028,7 @@ void PWR_CTRL(void){
 		CtrlBox_Light_OFF();
 	}
 	
-	Fun_Break_AFT_Open();
+	//Fun_Break_AFT_Open();
 	TM_OPEN_Buf_16u = TM_OPEN;
 }
 
@@ -1291,6 +1294,9 @@ void Door_Stop(void){
 
 //無捲窗門限位偵測
 static void OpEnd_Detect(void){
+	
+	uint16_t TM_OPEN_A,TM_CLOSE_A;
+	
 	if(TM_EndDetec == 0 && Flag_WindowsDoor == FALSE){
 		if(OpEnd_Detect_Start_Flag == FALSE){                  //等待
 			TM_DoorOperateDly = 5;                             //Delay 0.5 second後開始確認是否到限位
@@ -1299,19 +1305,35 @@ static void OpEnd_Detect(void){
 		}else{
 			ADC_TMP_16u = ADC_Calculate();
 			Voc = (float)ADC_TMP_16u *(3.3/4096);		
-			if(Voc > Volt_StandBy_32f && Voc > Volt_StandBy_b_32f && TM_DoorOperateDly == 0){	//到位電壓延遲判定
-				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
-			}
+			//if(Voc > Volt_StandBy_32f && Voc > (Volt_StandBy_b_32f*0.95) && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+			//	TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
+			//	Flag_End = FALSE;
+			//}else{
+			//	Flag_End = TRUE;
+			//}
+			//
+			//if(Flag_End == TRUE){
+			//	//PWM_Grade_Select(1);
+			//}else{
+			//	PWM_Grade_Select(PWM_Grade);
+			//}
 			
-			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
+			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f*0.95) && 
 			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
 				
 				ADC_OpEnd_16u = ADC_TMP_16u;
 				
+				TM_OPEN_A = TM_OPEN;
+				TM_CLOSE_A = TM_CLOSE;
+				
+				TM_OPEN = 0;
+				TM_CLOSE = 0;
+				Door_Stop();
+				
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				
 				//判斷是否開門到位,並且設定照明時間
-				if(TM_OPEN > 0){
+				if(TM_OPEN_A > 0){
 					if(Flag_AutoClose == 1){
 						TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
 						AClose_Flg = TRUE;									//自動關門旗標:ON
@@ -1325,14 +1347,15 @@ static void OpEnd_Detect(void){
 				}
 								
 				//限位旗標做成
-				if(TM_OPEN > 0){
+				if(TM_OPEN_A > 0){
 					Flag_Door_UpLimit   = TRUE;
 					Flag_Door_DownLimit = FALSE;
 					Flag2_Door_UpLimit_8u   = TRUE;
 					Flag2_Door_DownLimit_8u = FALSE;
 					Flag3_Door_UpLimit_8u = TRUE;
 					Flag4_Door_UpLimit_8u = TRUE;
-				}else if(TM_CLOSE > 0){
+					Door_Close();	//開門反向煞車
+				}else if(TM_CLOSE_A > 0){
 					Flag_Door_UpLimit   = FALSE;
 					Flag_Door_DownLimit = TRUE;
 					Flag2_Door_UpLimit_8u   = FALSE;
@@ -1340,29 +1363,33 @@ static void OpEnd_Detect(void){
 				}
 				
 				//運轉時間計算
-				if(TM_OPEN > 0){
-					Time_Remain_Open_16u = TM_MAX - TM_OPEN;
+				if(TM_OPEN_A > 0){
+					Time_Remain_Open_16u = TM_MAX - TM_OPEN_A;
 					ST_ONEKEY_8u = 2;
+					Door_Stop();	//反向煞車後立即停止運轉
+					printf("\n\n\r 開門STOP");
+					printf("\n\n\r");
 				}
-				if(TM_CLOSE > 0){
-					Time_Remain_Close_16u = TM_MAX - TM_CLOSE;
+				if(TM_CLOSE_A > 0){
+					Time_Remain_Close_16u = TM_MAX - TM_CLOSE_A;
 					ST_ONEKEY_8u = 4;
+					Door_Stop();
 				}
 				
 				//運轉次數
-				if(TM_OPEN > 0){
+				if(TM_OPEN_A > 0){
 					REC_Operate_Times_32u++;
 					ST_Save_8u = 1;
 				}
 				
 				if(Flag_WindowsDoor == TRUE){
-					if(TM_OPEN > 0){
+					if(TM_OPEN_A > 0){
 						ST_Close = 1;
 					}
 				}
-								
-				TM_OPEN = 0;
-				TM_CLOSE = 0;
+				
+				//TM_OPEN = 0;
+				//TM_CLOSE = 0;
 				ST_Anti = 0;
 				OpEnd_Detect_Start_Flag = FALSE;		
 				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
@@ -4373,6 +4400,35 @@ static void Fun_Break_AFT_Open(void){
 	}
 }
 
+
+static void PWM_Grade_Select(uint8_t Grade_8u){
+	switch(Grade_8u){
+		case 0:
+			PWM_Duty = 1;
+			PWM_Period = 2;
+			break;
+			
+		case 1:
+			PWM_Duty = 3;
+			PWM_Period = 4;
+			break;
+			
+		case 2:
+			PWM_Duty = 4;
+			PWM_Period = 5;
+			break;
+		
+		case 3:
+			PWM_Duty = 99;
+			PWM_Period = 100;
+			break;
+		
+		default:
+			PWM_Duty = 1;
+			PWM_Period = 2;
+			break;
+	}
+}
 #ifdef  USE_FULL_ASSERT
 
 /**
