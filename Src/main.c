@@ -206,6 +206,7 @@ uint16_t ADC_CLOSE_MAX_b;
 uint16_t ADC_CLOSE_MIN_b;
 uint16_t ADC_Anti_Max;
 uint16_t ADC_Anti_MAX_STD_8u;
+uint16_t ADC_AVE_16u;
 
 uint16_t Door_Select_8u;
 
@@ -454,7 +455,6 @@ static void PWM_Grade_Select(uint8_t Grade_8u);
 
 //Variable to ADC conversion
 //uint16_t i,j;
-uint16_t adc_32_amnt = 0;
 float Voc,Voc_;
 
 // Main Loop
@@ -535,7 +535,10 @@ int main(void)
   
   //開機提示音
   ST_BUZZ_8u = 1;
-	
+  
+  Fun_Debug_Enable();
+  Flag_Debug_8u = TRUE;
+  
   while(1){ 
 		if(Flag_CycleTest == TRUE){
 			//循環測試
@@ -547,7 +550,8 @@ int main(void)
 			Low_Operate_Function();
 			IR_CTRL();
 			SMK_CTRL();
-			PWR_CTRL(); 
+			PWR_CTRL();
+			ADC_Calculate();
 			Operate_ADC_Detect();
 			Auto_Close_CTRL();
 			Anti_Pressure_5();
@@ -567,7 +571,7 @@ static void Debug_Monitor(void){
 	if(TM_Printf == 0){
 		printf("\n\r==============狀態scan===================");			
 		
-		ADC_Promp_16u = ADC_Calculate();
+		ADC_Promp_16u = ADC_AVE_16u;
 		Voc_ = ADC_Promp_16u *(3.3/4096);		
 		printf("\n\r 待機上限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_16u);
 		printf("\n\r 目前    V = %2.3f V/ I = %2.2f A/ AD = %d",Voc_,Voc_*20/1.825,ADC_Promp_16u);
@@ -676,16 +680,19 @@ static void Low_Operate_Function(void){
 	if(Flag_Low_Operate == TRUE){
 		if(TM_OPEN > 0 || TM_CLOSE > 0){
 			if(TM_Low_Operate < Time_Low_Operate_Ini){ //初步啟動
-				PWM_Duty = 1;
-				PWM_Period = 2;
+				//PWM_Duty = 1;
+				//PWM_Period = 2;
+				PWM_Grade_Select(1);
 				ST_Low_Operate = 1;
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
-				PWM_Duty = 99;
-				PWM_Period = 100;
+				//PWM_Duty = 99;
+				//PWM_Period = 100;
+				PWM_Grade_Select(4);
 				ST_Low_Operate = 2;
 			}else{	//尾段減速
-				PWM_Duty = 1;
-				PWM_Period = 2;
+				//PWM_Duty = 1;
+				//PWM_Period = 2;
+				PWM_Grade_Select(1);
 				ST_Low_Operate = 3;
 			}
 			
@@ -754,7 +761,7 @@ static void Operate_ADC_Detect(void){
 	//2: Reload給原變數
 	
 	if(ADC_Detect_Start_Flag == 0){
-		ADC_Tmp = ADC_Calculate();
+		ADC_Tmp = ADC_AVE_16u;
 		ADC_OPEN_MAX_b = ADC_Tmp;
 		ADC_OPEN_MIN_b = ADC_Tmp;
 		ADC_CLOSE_MAX_b = ADC_Tmp;
@@ -762,14 +769,14 @@ static void Operate_ADC_Detect(void){
 	
 	}else if(ADC_Detect_Start_Flag == 1){	//當限位偵測開始即執行
 		if(ST_Door == 1 && TM_OPEN > 0){
-			ADC_Tmp = ADC_Calculate();
+			ADC_Tmp = ADC_AVE_16u;
 			if(ADC_Tmp > ADC_OPEN_MAX_b){
 				ADC_OPEN_MAX_b = ADC_Tmp;
 			}else if(ADC_Tmp < ADC_OPEN_MIN_b){
 				ADC_OPEN_MIN_b = ADC_Tmp;
 			}
 		}else if(ST_Door == 2 && TM_CLOSE_EndPart > 0){
-			ADC_Tmp = ADC_Calculate();
+			ADC_Tmp = ADC_AVE_16u;
 			if(ADC_Tmp > ADC_CLOSE_MAX_b){
 				ADC_CLOSE_MAX_b = ADC_Tmp;
 			}else if(ADC_Tmp < ADC_CLOSE_MIN_b){
@@ -848,7 +855,7 @@ static void Cycle_Test(void){
 	
 	if(TM_Printf == 0){
 		printf("\n\r==============循環測試-狀態scan2===================");			
-		Voc_ = ADC_Calculate() *(3.3/4096);		
+		Voc_ = ADC_AVE_16u *(3.3/4096);		
 		printf("\n\r目前電壓值 = %f V",Voc_);
 		printf("\n\r待機電壓   = %f V",Volt_StandBy_32f);
 		printf("\n\rACT_Door = %d",ACT_Door);
@@ -1281,13 +1288,12 @@ void Door_Stop(void){
 	}	
 	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
 	
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
-	
-	//HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
-
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_ACT) != GPIO_PIN_RESET){
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+	}
 }
 
 //******************Relay control end******************//
@@ -1303,9 +1309,9 @@ static void OpEnd_Detect(void){
 			OpEnd_Detect_Start_Flag = TRUE;
 			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
 		}else{
-			ADC_TMP_16u = ADC_Calculate();
+			ADC_TMP_16u = ADC_AVE_16u;
 			Voc = (float)ADC_TMP_16u *(3.3/4096);		
-			//if(Voc > Volt_StandBy_32f && Voc > (Volt_StandBy_b_32f*0.95) && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+			//if(Voc > Volt_StandBy_32f && Voc > (Volt_StandBy_b_32f) && TM_DoorOperateDly == 0){	//到位電壓延遲判定
 			//	TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
 			//	Flag_End = FALSE;
 			//}else{
@@ -1318,7 +1324,7 @@ static void OpEnd_Detect(void){
 			//	PWM_Grade_Select(PWM_Grade);
 			//}
 			
-			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f*0.95) && 
+			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
 			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
 				
 				ADC_OpEnd_16u = ADC_TMP_16u;
@@ -1406,7 +1412,7 @@ static void OpEnd_Detect_2(void){
 			OpEnd_Detect_Start_Flag = TRUE;
 			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
 		}else if(TM_OPEN > 0){
-			Voc = ADC_Calculate() *(3.3/4096);		
+			Voc = ADC_AVE_16u *(3.3/4096);		
 			
 			if(Voc > Volt_StandBy_32f && Voc > Volt_StandBy_b_32f && TM_DoorOperateDly == 0){	//到位電壓延遲判定
 				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
@@ -1454,7 +1460,7 @@ static void OpEnd_Detect_2(void){
 				ST_ONEKEY_8u = 2;
 			}
 		}else if(TM_CLOSE > 0){			
-			Voc = ADC_Calculate() *(3.3/4096);		
+			Voc = ADC_AVE_16u *(3.3/4096);		
 						
 			if(Voc > Volt_StandBy_32f && Voc > Volt_StandBy_b_32f && TM_DoorOperateDly == 0){	//到位電壓延遲判定
 				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
@@ -3074,16 +3080,15 @@ void HAL_TIM17_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		PWM_Count = 0;
 	}
 	
+		//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+		//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
+	
 	if(PWM_Count < PWM_Duty){
-//		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 	}else{
-//		HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
 	}
-	//HAL_GPIO_WritePin(PORT_TEST, TEST_PIN, GPIO_PIN_RESET);
-  //HAL_GPIO_TogglePin(PORT_Motor_MOS, MOS_ACT);
-
+	
 }
 
 
@@ -3093,7 +3098,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	Tim_cnt_10ms++;
 	Tim_cnt_100ms++;
 	Tim_cnt_1s++;
-
+	
 	// 0.01 sec
 	if(Tim_cnt_10ms == 10){
 		TM_Buzz_ON_8u  = TIMDEC(TM_Buzz_ON_8u);
@@ -3188,7 +3193,7 @@ static void TIM17_Config(void)
 
 	TimHandle17.Instance = TIM17;
 
-	TimHandle17.Init.Period            = (1*10) - 1;   // 1*10ms
+	TimHandle17.Init.Period            = 10 - 1;
 	TimHandle17.Init.Prescaler         = uwPrescalerValue;
 	TimHandle17.Init.ClockDivision     = 0;
 	TimHandle17.Init.CounterMode       = TIM_COUNTERMODE_DOWN;
@@ -3600,38 +3605,15 @@ static void Parameter_Load(void){
 	if(Flag_Rate_Regulate == FALSE){
 		PWM_Grade = 3;
 	}
-	switch(PWM_Grade){
-		case 0:
-			PWM_Duty = 1;
-			PWM_Period = 2;
-			break;
-			
-		case 1:
-			PWM_Duty = 3;
-			PWM_Period = 4;
-			break;
-			
-		case 2:
-			PWM_Duty = 4;
-			PWM_Period = 5;
-			break;
-		
-		case 3:
-			PWM_Duty = 99;
-			PWM_Period = 100;
-			break;
-		
-		default:
-			PWM_Duty = 1;
-			PWM_Period = 2;
-			break;
-	}
+	
+	PWM_Grade_Select(PWM_Grade);
 	
 	//待機電壓設定
-	ADC_StandBy_b_16u = ADC_Calculate();
+	ADC_Calculate();
+	ADC_StandBy_b_16u = ADC_AVE_16u;
 	ADC_StandBy_16u = (uint16_t)((float)ADC_StandBy_b_16u * iWeight_Vstb_8u);
-	Volt_StandBy_b_32f = (float)ADC_StandBy_b_16u *(3.3/4096);
-	Volt_StandBy_32f = Volt_StandBy_b_32f * iWeight_Vstb_8u;
+	Volt_StandBy_b_32f = (float)ADC_StandBy_b_16u *(3.3/4096)*0.95;
+	Volt_StandBy_32f = (float)ADC_StandBy_b_16u *(3.3/4096) * iWeight_Vstb_8u;
 	
 	if(Flag_AntiPress_Open == TRUE || Flag_AntiPress_Close == TRUE){
 		Flag_AntiPress = TRUE;
@@ -3817,7 +3799,7 @@ static void Anti_Pressure_5(void){
 				
 				if(TM_AntiDly2 == 0){
 
-					ADC_Buf = ADC_Calculate();	//讀取當前AD值
+					ADC_Buf = ADC_AVE_16u;	//讀取當前AD值
 
 					//判斷當前AD值	
 					if(ADC_Buf >= ADC_Anti_Max || ADC_Buf >= ADC_Anti_MAX_STD_8u){
@@ -3857,7 +3839,7 @@ static void Anti_Pressure_5(void){
 					ST_Anti = 0;
 				}else if(TM_AntiDly2 == 0){
 
-					ADC_Buf = ADC_Calculate();	//讀取當前ADC值
+					ADC_Buf = ADC_AVE_16u;	//讀取當前ADC值
 
 					
 					//計算運轉電壓變化
@@ -3916,18 +3898,42 @@ static void Anti_Pressure_5(void){
 }
 
 static uint16_t ADC_Calculate(void){
-	uint16_t   i;
-	uint16_t   Voc_Buf;
-	uint32_t   adc_32_amnt = 0;
-
-	for (i=0;i<=31;i++){
-		adc_32_amnt = adc_32_amnt + aADCxConvertedData[i];
+	uint16_t i;
+	uint16_t Voc_Buf;
+	uint32_t adc_amnt_32u = 0;
+	uint16_t x_tmp[ADC_CONVERTED_DATA_BUFFER_SIZE];
+	uint16_t y_tmp;
+	uint16_t Array_size = ADC_CONVERTED_DATA_BUFFER_SIZE;
+	uint8_t  Sample_size = 24;
+			
+	//複製當前AD值
+	for(i=0;i<32;i++){
+		x_tmp[i] = aADCxConvertedData[i];
 	}
 	
-	Voc_Buf = adc_32_amnt / 32;
+	//排序小->大
+	for(i=0;i<Array_size;i++){
+		for(j=0;j<=i;j++){
+			if(x_tmp[i] < x_tmp[j]){
+				y_tmp = x_tmp[j];
+				x_tmp[j] = x_tmp[i];
+				x_tmp[i] = y_tmp;
+			}
+		}
+	}
+	
+	//濾波:去掉頭尾各4個
+	for(i=0;i<=(Sample_size-1);i++){
+		adc_amnt_32u = adc_amnt_32u + x_tmp[i+3];
+	}		
+	
+	//取平均
+	ADC_AVE_16u = (uint16_t)((float)adc_amnt_32u / Sample_size);
+	//printf("\n\r adc_amnt_32u:%d / %d",adc_amnt_32u,ADC_AVE_16u);
 	
 	return Voc_Buf;
 }
+
 
 static void Buzzer_Config(void){
 	if(Flag_Buzzer == TRUE){
@@ -4007,6 +4013,7 @@ void Delay_ms(int32_t nms)
   SysTick->LOAD = 8000*nms; 
   SysTick->VAL=0X00;				//清空計數器 
   SysTick->CTRL=0X01;				//使能，減到零是無動作，採用外部時鐘源 
+	 
   do 
   { 
        temp=SysTick->CTRL;	//讀取當前倒計數值 
@@ -4419,13 +4426,13 @@ static void PWM_Grade_Select(uint8_t Grade_8u){
 			break;
 		
 		case 3:
-			PWM_Duty = 99;
-			PWM_Period = 100;
+			PWM_Duty = 10;
+			PWM_Period = 11;
 			break;
 		
 		default:
-			PWM_Duty = 1;
-			PWM_Period = 2;
+			PWM_Duty = 4;
+			PWM_Period = 5;
 			break;
 	}
 }
