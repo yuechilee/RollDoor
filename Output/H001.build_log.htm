@@ -31,17 +31,19 @@ Rebuild target 'STM32F030R8-Nucleo'
 assembling startup_stm32f030x8.s...
 compiling stm32f0xx_nucleo.c...
 compiling main.c...
-..\Src\main.c(1503): warning:  #177-D: variable "Grade_tmp_8u"  was declared but never referenced
+..\Src\main.c(1440): warning:  #181-D: argument is incompatible with corresponding format string conversion
+                printf("\n\r «Ý¾÷¤U­­V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_b_16u* iWeight_Vstb_8u);
+..\Src\main.c(1511): warning:  #177-D: variable "Grade_tmp_8u"  was declared but never referenced
         uint8_t Grade_tmp_8u;
-..\Src\main.c(1504): warning:  #177-D: variable "TM_OPEN_A"  was declared but never referenced
+..\Src\main.c(1512): warning:  #177-D: variable "TM_OPEN_A"  was declared but never referenced
         uint16_t TM_OPEN_A,TM_CLOSE_A;
-..\Src\main.c(1502): warning:  #177-D: function "OpEnd_Detect_Close"  was declared but never referenced
+..\Src\main.c(1510): warning:  #177-D: function "OpEnd_Detect_Close"  was declared but never referenced
   static void OpEnd_Detect_Close(void){
 ..\Src\main.c(586): warning:  #177-D: function "Debug_Monitor"  was declared but never referenced
   static void Debug_Monitor(void){
-..\Src\main.c(4652): warning:  #177-D: function "Fun_Break_AFT_Open"  was declared but never referenced
+..\Src\main.c(4669): warning:  #177-D: function "Fun_Break_AFT_Open"  was declared but never referenced
   static void Fun_Break_AFT_Open(void){
-..\Src\main.c: 5 warnings, 0 errors
+..\Src\main.c: 6 warnings, 0 errors
 compiling stm32f0xx_it.c...
 compiling stm32f0xx_hal_msp.c...
 compiling system_stm32f0xx.c...
@@ -59,9 +61,9 @@ compiling stm32f0xx_hal_uart.c...
 compiling stm32f0xx_hal_i2c.c...
 compiling stm32f0xx_hal_i2c_ex.c...
 linking...
-Program Size: Code=28004 RO-data=236 RW-data=356 ZI-data=1860  
+Program Size: Code=28356 RO-data=236 RW-data=356 ZI-data=1860  
 FromELF: creating hex file...
-"..\Output\H001.axf" - 0 Error(s), 5 Warning(s).
+"..\Output\H001.axf" - 0 Error(s), 6 Warning(s).
 
 <h2>Software Packages used:</h2>
 

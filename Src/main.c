@@ -1273,11 +1273,13 @@ static void IR_CTRL(void){
 //******************Relay control******************//
 void Door_Open(void){
 //	printf("\n\r----OPEN_Relay");
-	if(Flag_Motor_Direction == FALSE){
+	if(Flag_Motor_Direction == TRUE){
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 	}else{
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	}
+	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
+	
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
 	Delay_ms(RLY_Delay_ms);
@@ -1292,11 +1294,14 @@ void Door_Open(void){
 
 void Door_Close(void){
 //	printf("\n\r----CLOSE_Relay");
-	if(Flag_Motor_Direction == FALSE){
+	if(Flag_Motor_Direction == TRUE){
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	}else{
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 	}
+	
+	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
+
 	Delay_ms(RLY_Delay_ms);
 	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
 	Delay_ms(RLY_Delay_ms);
@@ -1417,7 +1422,7 @@ static void OpEnd_Detect(void){
 			//	PWM_Grade_Select(PWM_Grade);
 			//}
 			
-			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
+			if((Voc <= Volt_StandBy_32f && HAL_GPIO_ReadPin(PORT_OC, PIN_OC) == RESET)&&// && Voc >= Volt_StandBy_b_32f) && 
 			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
 				
 				ADC_OpEnd_16u = ADC_TMP_16u;
@@ -1430,6 +1435,9 @@ static void OpEnd_Detect(void){
 				Door_Stop();
 				
 				printf("\n\n\r門到位-停止運轉!\n\n");
+		//printf("\n\r 待機上限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_16u);
+		printf("\n\r 目前    V = %2.3f V/ I = %2.2f A/ AD = %d",Voc,Voc*20/1.825,ADC_TMP_16u);
+		printf("\n\r 待機下限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_b_16u* iWeight_Vstb_8u);
 				
 				//判斷是否開門到位,並且設定照明時間
 				if(TM_OPEN_A > 0){
@@ -3289,7 +3297,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case PIN_OC:
+				Delay_ms(300);
+				//if(TM_DoorOperateDly == 0){
+				
+				if(HAL_GPIO_ReadPin(PORT_OC,PIN_OC) == RESET){
 					Door_Stop();
+					//TM_OPEN = 0;
+					//TM_CLOSE = 0;
+					printf("\n\r OC Work");
+				}
 					//if(TM_CLOSE > 0){
 
 						//TM_CLOSE = 0;
@@ -3860,6 +3876,7 @@ static void Parameter_Load(void){
 	PWM_Grade_Select(PWM_Grade);
 	
 	//待機電壓設定
+	iWeight_Vstb_8u = 1.05;
 	ADC_Calculate();
 	ADC_StandBy_b_16u = ADC_AVE_16u;
 	ADC_StandBy_16u = (uint16_t)((float)ADC_StandBy_b_16u * iWeight_Vstb_8u);
