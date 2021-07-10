@@ -375,6 +375,7 @@ void Delay_ms(int32_t nms);
 //static void SystemClock_Config(void);
 static void EXTI4_15_IRQHandler_Config(void);
 static void EXTI2_3_IRQHandler_Config(void);
+static void EXTI0_1_IRQHandler_Config(void);
 static void TIM16_Config(void);
 static void TIM17_Config(void);
 static void ADC_Config(void);
@@ -482,7 +483,8 @@ int main(void)
   ADC_Config();
   EXTI4_15_IRQHandler_Config();
   EXTI2_3_IRQHandler_Config();
-  TIM16_Config();
+  EXTI0_1_IRQHandler_Config();
+	TIM16_Config();
   TIM17_Config();
   Uart_Config();
   I2C_Config();
@@ -513,6 +515,7 @@ int main(void)
   }
   ST_Close = 1;
 	
+  HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);	
   HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);	
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);	
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);  
@@ -551,8 +554,9 @@ int main(void)
 	//???
   Fun_Debug_Enable();
   Flag_Debug_8u = TRUE;
-  Flag_Func_JOG = TRUE;
-  while(1){ 
+  //Flag_Func_JOG = TRUE;
+  
+	while(1){ 
 		if(Flag_CycleTest == TRUE){
 			//循環測試
 			Cycle_Test();
@@ -573,7 +577,7 @@ int main(void)
 			Buzzer_CTRL();
 			LED_CTRL();
 			Dubug_CTRL();
-			Debug_Monitor();
+			//Debug_Monitor();
 		}
   }
 }
@@ -700,7 +704,7 @@ static void Low_Operate_Function(void){
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
 				//PWM_Duty = 99;
 				//PWM_Period = 100;
-				PWM_Grade_Select(4);
+				PWM_Grade_Select(3);
 				ST_Low_Operate = 2;
 			}else{	//尾段減速
 				//PWM_Duty = 1;
@@ -973,6 +977,7 @@ void PWR_CTRL(void){
 		ST_Door_buf = ST_Door;
 		if(Flag_WindowsDoor == FALSE){		//正常開關門模式
 			if(TM_OPEN > 0){
+				PWM_Grade_Select(3);
 				Door_Open();
 			}else if(TM_CLOSE > 0){	
 				Door_Close();
@@ -1019,9 +1024,10 @@ void PWR_CTRL(void){
 	}
 	
 	//到位偵測
-	if(Flag_WindowsDoor == FALSE && TM_CLOSE > 0){
-		OpEnd_Detect_Close();
-	}else if(TM_OPEN > 6 || TM_CLOSE > 6){
+	//if(Flag_WindowsDoor == FALSE && TM_CLOSE > 0){
+		//OpEnd_Detect_Close();
+	//}else 
+	if(TM_OPEN > 6 || TM_CLOSE > 6){
 		OpEnd_Detect();
 		OpEnd_Detect_2();
 	//捲窗門:第一段關門結束時儲存防夾AD值
@@ -1267,7 +1273,7 @@ static void IR_CTRL(void){
 //******************Relay control******************//
 void Door_Open(void){
 //	printf("\n\r----OPEN_Relay");
-	if(Flag_Motor_Direction == TRUE){
+	if(Flag_Motor_Direction == FALSE){
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 	}else{
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
@@ -1286,7 +1292,7 @@ void Door_Open(void){
 
 void Door_Close(void){
 //	printf("\n\r----CLOSE_Relay");
-	if(Flag_Motor_Direction == TRUE){
+	if(Flag_Motor_Direction == FALSE){
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	}else{
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
@@ -1313,10 +1319,31 @@ void Door_Stop(void){
 		}	
 		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
 	
-		Delay_ms(RLY_Delay_ms);
+		//Delay_ms(RLY_Delay_ms);
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
-		Delay_ms(RLY_Delay_ms);
-		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+		//Delay_ms(RLY_Delay_ms);
+		//HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+		
+		printf("\n\r STOP~1");
+	}
+}
+void Door_Stop_2(void){
+//	printf("\n\r----STOP_Relay");
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_ACT) != GPIO_PIN_RESET){
+	
+		if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+			/* Starting Error */
+			Error_Handler();
+		}	
+		HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);			
+	
+		//Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+		//Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);		
+		
+		printf("\n\r STOP~2");
+
 	}
 }
 
@@ -1432,6 +1459,7 @@ static void OpEnd_Detect(void){
 					Flag_Door_DownLimit = TRUE;
 					Flag2_Door_UpLimit_8u   = FALSE;
 					Flag2_Door_DownLimit_8u = TRUE;
+					Door_Open();
 				}
 				
 				//運轉時間計算
@@ -1442,10 +1470,11 @@ static void OpEnd_Detect(void){
 					printf("\n\n\r 開門STOP");
 					printf("\n\n\r");
 				}
+				
 				if(TM_CLOSE_A > 0){
 					Time_Remain_Close_16u = TM_MAX - TM_CLOSE_A;
 					ST_ONEKEY_8u = 4;
-					Door_Stop();
+					Door_Stop_2();
 				}
 				
 				//運轉次數
@@ -1473,8 +1502,10 @@ static void OpEnd_Detect(void){
 static void OpEnd_Detect_Close(void){
 	uint8_t Grade_tmp_8u;
 	uint16_t TM_OPEN_A,TM_CLOSE_A;
+	uint8_t	ST_Slope_8u;
 	
 	TM_CLOSE_A = TM_CLOSE;
+	//ADC_Calculate();
 	
 	switch(ST_OpEnd_8u){
 		case 0:
@@ -1521,37 +1552,43 @@ static void OpEnd_Detect_Close(void){
 			
 			if(ADC_Buf_16u >= ADC_EndDetect_16u){
 				Slope_ADC_16u =  (uint16_t)(100 *(float)(ADC_Buf_16u - ADC_EndDetect_16u)/ADC_EndDetect_16u);
+				ST_Slope_8u = 0;
 			}else{
 				//Slope_ADC_16u =  (uint16_t)(100 *(float)(ADC_EndDetect_16u - ADC_Buf_16u)/ADC_EndDetect_16u);
 				Slope_ADC_16u = 0;
+				ST_Slope_8u = 1;
 			}
 			
 			if(Slope_ADC_16u < 30){
 				//ADC_EndDetect_16u = ADC_Buf_16u;
 				PWM_Grade_Select(PWM_Grade);
 				
-			}else if(Slope_ADC_16u < 50){
-				if(PWM_Grade > 2){
-					Grade_tmp_8u = PWM_Grade - 1;
-					PWM_Grade_Select(Grade_tmp_8u);
-				}
+			//}else if(Slope_ADC_16u < 85){
+				//if(PWM_Grade > 2){
+				//	Grade_tmp_8u = PWM_Grade - 1;
+				//	PWM_Grade_Select(PWM_Grade);
+				//}
 				
 			}else if(Slope_ADC_16u < 70){
-				if(PWM_Grade > 2){
-					Grade_tmp_8u = PWM_Grade - 2;
-					PWM_Grade_Select(Grade_tmp_8u);
-				}
+				//if(PWM_Grade > 2){
+				//	Grade_tmp_8u = PWM_Grade - 2;
+					PWM_Grade_Select(2);
+				//}
 				
-			}else if(Slope_ADC_16u < 80){
+			}else if(Slope_ADC_16u < 90){
 				PWM_Grade_Select(1);
 				
 			}else {
 				PWM_Grade_Select(0);
 				Flag_Slope_Hi_8u = TRUE;
+				//Door_Stop();
+				//TM_CLOSE = 0;
+				//TM_OPEN = 0;
 			}
 			
 			if(Flag_Slope_Hi_8u == TRUE){
-				if(ADC_AVE_16u <= ADC_StandBy_16u){
+	//			if(ADC_AVE_16u <= ADC_StandBy_16u){
+				if(ST_Slope_8u == 1){
 					Door_Stop();
 					TM_CLOSE = 0;
 					TM_OPEN = 0;
@@ -2935,6 +2972,19 @@ void Relay_POS_OFF(void){
 	//printf("\n\r Relay_POS OFF!");
 }
 
+static void EXTI0_1_IRQHandler_Config(void){
+  GPIO_InitTypeDef   GPIO_InitStructure;
+	GPIOA_CLK_DISABLE();
+	
+  GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;//GPIO_MODE_IT_RISING;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+
+  GPIO_InitStructure.Pin = PIN_OC;
+  HAL_GPIO_Init(PORT_OC, &GPIO_InitStructure);
+	
+	HAL_NVIC_SetPriority(EXTI0_1_IRQn, 1, 0);
+}
+
 static void EXTI2_3_IRQHandler_Config(void){
   GPIO_InitTypeDef   GPIO_InitStructure;
 	EXTI_CTRL_ONEKEY_CLK_ENABLE();
@@ -3238,6 +3288,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			
 			break;
 		
+		case PIN_OC:
+					Door_Stop();
+					//if(TM_CLOSE > 0){
+
+						//TM_CLOSE = 0;
+					//}
+					//TM_OPEN = 0;
+			break;
+			
 		default:
 				break;
 	}
@@ -4618,8 +4677,8 @@ static void PWM_Grade_Select(uint8_t Grade_8u){
 			break;
 		
 		case 3:
-			PWM_Duty = 10;
-			PWM_Period = 11;
+			PWM_Duty = 99;
+			PWM_Period = 100;
 			break;
 		
 		default:

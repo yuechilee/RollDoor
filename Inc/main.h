@@ -144,7 +144,7 @@
 //========================================//
 /******************Port A******************/
 //#define	xxx   	           GPIO_PIN_0
-//#define	xxx   	           GPIO_PIN_1
+#define	PIN_OC   	           GPIO_PIN_1
 //#define	xxx   	           GPIO_PIN_2
 //#define	xxx   	           GPIO_PIN_3
 //#define	xxx   	           GPIO_PIN_4
@@ -159,6 +159,8 @@
 //#define	xxx   	           GPIO_PIN_13
 //#define	xxx   	           GPIO_PIN_14
 //#define	xxx   	           GPIO_PIN_15
+
+#define PORT_OC       GPIOA
 
 #define PORT_Motor_MOS       GPIOA
 #define Motor_MOS_CLK_ENABLE()    __HAL_RCC_GPIOA_CLK_ENABLE()  

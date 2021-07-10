@@ -134,8 +134,16 @@ void EXTI4_15_IRQHandler(void)
   }else if(__HAL_GPIO_EXTI_GET_IT(W_IR) != 0x00u){ 
 		__HAL_GPIO_EXTI_CLEAR_IT(W_IR);
 		HAL_GPIO_EXTI_Callback(W_IR);
-	
+		
   }
+}
+
+void EXTI0_1_IRQHandler(void){
+	if(__HAL_GPIO_EXTI_GET_IT(PIN_OC) != 0x00u){ 
+			__HAL_GPIO_EXTI_CLEAR_IT(PIN_OC);
+			HAL_GPIO_EXTI_Callback(PIN_OC);
+		
+	}
 }
 
 void EXTI2_3_IRQHandler(void){
