@@ -359,12 +359,15 @@ uint16_t ADC_Buf_16u;
 uint16_t TM_Dly_InitSample_16u;
 uint8_t CNT_NoWork_8u;
 
+uint16_t TM_Idle_16u = 0;
+
 int i,j;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Door_Open(void);
 void Door_Stop(void);
+void Door_Stop_2(void);
 void Door_Close(void);		
 void Door_Open_JOG(void);
 void Door_Stop_JOG(void);
@@ -552,8 +555,8 @@ int main(void)
   ST_BUZZ_8u = 1;
   
 	//???
-  Fun_Debug_Enable();
-  Flag_Debug_8u = TRUE;
+  //Fun_Debug_Enable();
+  //Flag_Debug_8u = TRUE;
   //Flag_Func_JOG = TRUE;
   
 	while(1){ 
@@ -563,6 +566,7 @@ int main(void)
 			
 		}else{ 
 			//Main function
+			//printf("\n\rPI_OC = % d",HAL_GPIO_ReadPin(PORT_OC,PIN_OC));
 			Door_manage();
 			Low_Operate_Function();
 			IR_CTRL();
@@ -577,7 +581,7 @@ int main(void)
 			Buzzer_CTRL();
 			LED_CTRL();
 			Dubug_CTRL();
-			//Debug_Monitor();
+			Debug_Monitor();
 		}
   }
 }
@@ -1064,6 +1068,18 @@ void PWR_CTRL(void){
 		PWM_Grade_Select(PWM_Grade);
 	}
 	
+	if(TM_OPEN == 0 && TM_CLOSE == 0){
+		if(TM_Idle_16u == 0){
+			if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) != GPIO_PIN_RESET){
+				HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+			}
+			//if(HAL_GPIO_ReadPin(PORT_Motor_MOS, MOS_ACT) == GPIO_PIN_RESET){
+			//	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);		
+			//}
+		}
+	}else{
+		TM_Idle_16u = 30;
+	}
 	//Fun_Break_AFT_Open();
 	TM_OPEN_Buf_16u = TM_OPEN;
 }
@@ -3410,6 +3426,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		TM_Buzz_16u  = TIMDEC(TM_Buzz_16u);
 		
 		TM_Dly_InitSample_16u = TIMDEC(TM_Dly_InitSample_16u);
+		TM_Idle_16u = TIMDEC(TM_Idle_16u);
 		
 		Tim_cnt_100ms = 0;
 
@@ -3876,7 +3893,7 @@ static void Parameter_Load(void){
 	PWM_Grade_Select(PWM_Grade);
 	
 	//待機電壓設定
-	iWeight_Vstb_8u = 1.05;
+	//iWeight_Vstb_8u = 1.05;
 	ADC_Calculate();
 	ADC_StandBy_b_16u = ADC_AVE_16u;
 	ADC_StandBy_16u = (uint16_t)((float)ADC_StandBy_b_16u * iWeight_Vstb_8u);
