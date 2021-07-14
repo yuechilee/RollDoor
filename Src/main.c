@@ -1657,20 +1657,35 @@ static void OpEnd_Detect_Close(void){
 
 //有捲窗門限位偵測
 static void OpEnd_Detect_2(void){
+	uint16_t TM_OPEN_A;//,TM_CLOSE_A;
+
 	if(TM_EndDetec == 0 && Flag_WindowsDoor == TRUE){
 		if(OpEnd_Detect_Start_Flag == FALSE){                  //等待
 			TM_DoorOperateDly = 5;                             //Delay 0.5 second後開始確認是否到限位
 			OpEnd_Detect_Start_Flag = TRUE;
 			ADC_Detect_Start_Flag = 1;		                   //ADC運轉值擷取開始:Operate_ADC_Detect
 		}else if(TM_OPEN > 0){
-			Voc = ADC_AVE_16u *(3.3/4096);		
 			
-			if(Voc > Volt_StandBy_32f && Voc > Volt_StandBy_b_32f && TM_DoorOperateDly == 0){	//到位電壓延遲判定
-				TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
-			}
+			ADC_TMP_16u = ADC_AVE_16u;
+			Voc = (float)ADC_TMP_16u *(3.3/4096);		
 			
-			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
+			//if(Voc > Volt_StandBy_32f && Voc > Volt_StandBy_b_32f && TM_DoorOperateDly == 0){	//到位電壓延遲判定
+			//	TM_Vstb_Extend_8u = Time_Vstb_Extend_8u;
+			//}
+			
+			//if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
+			//   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
+
+			if((Voc <= Volt_StandBy_32f && HAL_GPIO_ReadPin(PORT_OC, PIN_OC) == RESET)&&// && Voc >= Volt_StandBy_b_32f) && 
 			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
+				
+				ADC_OpEnd_16u = ADC_TMP_16u;
+				
+				TM_OPEN_A = TM_OPEN;
+				TM_OPEN = 0;
+				TM_CLOSE = 0;
+				Door_Stop();
+
 				printf("\n\n\r門到位-停止運轉!\n\n");
 				
 				//判斷是否開門到位,並且設定照明時間
@@ -1694,13 +1709,20 @@ static void OpEnd_Detect_2(void){
 				Flag2_Door_DownLimit_8u = FALSE;
 				Flag3_Door_UpLimit_8u = TRUE;
 				Flag4_Door_UpLimit_8u = TRUE;
-				
+				Door_Close();	//開門反向煞車
+
+				//運轉時間計算
+				Time_Remain_Open_16u = TM_MAX - TM_OPEN_A;
+				ST_ONEKEY_8u = 2;
+				Door_Stop();	//反向煞車後立即停止運轉
+				printf("\n\n\r 開門STOP");
+				printf("\n\n\r");
+
 				//運轉次數
 				REC_Operate_Times_32u++;
+				ST_Save_8u = 1;
 				
 				ST_Close = 1;
-
-				Time_Remain_Open_16u = TM_MAX - TM_OPEN;	//運轉剩餘時間
 
 				TM_OPEN = 0;
 				TM_CLOSE = 0;
@@ -1708,7 +1730,7 @@ static void OpEnd_Detect_2(void){
 				OpEnd_Detect_Start_Flag = FALSE;		
 				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
 				
-				ST_ONEKEY_8u = 2;
+				//ST_ONEKEY_8u = 2;
 			}
 		}else if(TM_CLOSE > 0){			
 			Voc = ADC_AVE_16u *(3.3/4096);		
