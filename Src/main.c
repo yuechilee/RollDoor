@@ -3139,7 +3139,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			
 			CNT_Debug_BTN_8u = 0;
 			
-			if(Flag_SMK  == TRUE)	break;
+			if(Flag_SMK  == TRUE)	break;	//煙霧偵測ON: 不動作
 			if(Flag_LOCK == TRUE){			//鎖電功能ON: 不動作
 
 				break;
@@ -3178,7 +3178,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				printf("\n\r--------立即反轉--------");
 				Door_Stop();
 				Delay_ms(100);
-				OpEnd_Detect_Start_Flag = TRUE;				
+				OpEnd_Detect_Start_Flag = TRUE;	
+				//防夾功能初始化
+				ST_Anti = 0;
+				TM_AntiDly = Time_AntiDly;
+				Times_OverADC = 0;
 			}
 			//***反轉判定 END***//
 			
@@ -3196,7 +3200,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 			if(Flag_SMK   == TRUE)	break;		//煙霧感測器觸發
 			if(Anti_Event == 2)     break;      //關門防壓中
-			if(Flag_LOCK  == TRUE){			//鎖電功能ON: 不動作
+			if(Flag_LOCK  == TRUE){				//鎖電功能ON: 不動作
 
 				break;
 			}
@@ -3238,6 +3242,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				Door_Stop();
 				Delay_ms(100);
 				OpEnd_Detect_Start_Flag = TRUE;
+				//防夾功能初始化
+				ST_Anti = 0;
+				TM_AntiDly = Time_AntiDly;
+				Times_OverADC = 0;
 			}
 			//***反轉判定 END***//
 			
@@ -4120,7 +4128,7 @@ static void Anti_Pressure_5(void){
 					if(Times_OverADC >= Times_OverADC_Target){
 						ST_Anti = 4;
 						Anti_Event = 1; 	// OPEN防夾ON
-						TM_Anti_Occur = 100; //設定100秒計時
+						TM_Anti_Occur = 100; //10秒停滯時間設定
 						
 						//停機
 						TM_OPEN = 0;
@@ -4132,7 +4140,7 @@ static void Anti_Pressure_5(void){
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
-						TM_AntiDly2 = 3;
+						TM_AntiDly2 = 3;	//下回防壓偵測等待時間
 					}
 				}
 				break;
@@ -4172,7 +4180,7 @@ static void Anti_Pressure_5(void){
 					}else{
 						//ST_Anti = 2;
 						Anti_Event = 0; 	// 正常運轉
-						TM_AntiDly2 = 1;
+						TM_AntiDly2 = 1;	//下回防壓偵測等待時間
 					}
 				}
 				break;
