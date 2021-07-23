@@ -3343,7 +3343,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			break;
 		
 		case PIN_OC:
-				Delay_ms(190);
+				if(TM_OPEN > 0){
+					Delay_ms(100);
+				}else{
+					Delay_ms(190);
+				}
 				//if(TM_DoorOperateDly == 0){
 				
 				if(HAL_GPIO_ReadPin(PORT_OC,PIN_OC) == RESET){
