@@ -3344,23 +3344,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		
 		case PIN_OC:
 				if(TM_OPEN > 0){
-					Delay_ms(100);
+					Delay_ms(30);
 				}else{
 					Delay_ms(190);
 				}
-				//if(TM_DoorOperateDly == 0){
 				
 				if(HAL_GPIO_ReadPin(PORT_OC,PIN_OC) == RESET){
 					Door_Stop();
-					//TM_OPEN = 0;
-					//TM_CLOSE = 0;
 					printf("\n\r OC Work");
 				}
-					//if(TM_CLOSE > 0){
-
-						//TM_CLOSE = 0;
-					//}
-					//TM_OPEN = 0;
 			break;
 			
 		default:
