@@ -553,11 +553,9 @@ int main(void)
   
   //開機提示音
   ST_BUZZ_8u = 1;
-  Flag_CycleTest = TRUE;
-	
+  
 	//???
-  Fun_Debug_Enable();
-	TM_DLY_Value = 50;
+  //Fun_Debug_Enable();
   //Flag_Debug_8u = TRUE;
   //Flag_Func_JOG = TRUE;
   
