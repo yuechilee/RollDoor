@@ -553,9 +553,11 @@ int main(void)
   
   //開機提示音
   ST_BUZZ_8u = 1;
-  
+  Flag_CycleTest = TRUE;
+	
 	//???
-  //Fun_Debug_Enable();
+  Fun_Debug_Enable();
+	TM_DLY_Value = 50;
   //Flag_Debug_8u = TRUE;
   //Flag_Func_JOG = TRUE;
   
@@ -563,7 +565,8 @@ int main(void)
 		if(Flag_CycleTest == TRUE){
 			//循環測試
 			Cycle_Test();
-			
+			ADC_Calculate();
+
 		}else{ 
 			//Main function
 			//printf("\n\rPI_OC = % d",HAL_GPIO_ReadPin(PORT_OC,PIN_OC));
