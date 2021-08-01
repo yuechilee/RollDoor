@@ -1438,86 +1438,90 @@ static void OpEnd_Detect(void){
 			//	PWM_Grade_Select(PWM_Grade);
 			//}
 			
-			if((Voc <= Volt_StandBy_32f && HAL_GPIO_ReadPin(PORT_OC, PIN_OC) == RESET)&&// && Voc >= Volt_StandBy_b_32f) && 
-			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
-				
-				ADC_OpEnd_16u = ADC_TMP_16u;
-				
-				TM_OPEN_A = TM_OPEN;
-				TM_CLOSE_A = TM_CLOSE;
-				
-				TM_OPEN = 0;
-				TM_CLOSE = 0;
-				Door_Stop();
-				
-				printf("\n\n\r門到位-停止運轉!\n\n");
-		//printf("\n\r 待機上限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_16u);
-		printf("\n\r 目前    V = %2.3f V/ I = %2.2f A/ AD = %d",Voc,Voc*20/1.825,ADC_TMP_16u);
-		printf("\n\r 待機下限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_b_16u* iWeight_Vstb_8u);
-				
-				//判斷是否開門到位,並且設定照明時間
-				if(TM_OPEN_A > 0){
-					if(Flag_AutoClose == 1){
-						TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
-						AClose_Flg = TRUE;									//自動關門旗標:ON
+			if(TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0){
+			
+				if((Voc <= Volt_StandBy_32f && HAL_GPIO_ReadPin(PORT_OC, PIN_OC) == RESET && TM_CLOSE > 0)	||
+				   (Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f && TM_OPEN > 0)){
+				   
+					
+					ADC_OpEnd_16u = ADC_TMP_16u;
+					
+					TM_OPEN_A = TM_OPEN;
+					TM_CLOSE_A = TM_CLOSE;
+					
+					TM_OPEN = 0;
+					TM_CLOSE = 0;
+					Door_Stop();
+					
+					printf("\n\n\r門到位-停止運轉!\n\n");
+					//printf("\n\r 待機上限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_16u);
+					//printf("\n\r 目前    V = %2.3f V/ I = %2.2f A/ AD = %d",Voc,Voc*20/1.825,ADC_TMP_16u);
+					//printf("\n\r 待機下限V = %2.3f V/ I = %2.2f A/ AD = %d",Volt_StandBy_32f,Volt_StandBy_32f*20/1.825, ADC_StandBy_b_16u* iWeight_Vstb_8u);
+					
+					//判斷是否開門到位,並且設定照明時間
+					if(TM_OPEN_A > 0){
+						if(Flag_AutoClose == 1){
+							TM_Auto_Close = Time_Auto_Close;					//設定自動關門倒數時間
+							AClose_Flg = TRUE;									//自動關門旗標:ON
+						}
+						
+						//若是關門防夾觸發,恢復成待機正常運轉
+						Anti_Event_buf = Anti_Event;
+						if(Anti_Event == 2){
+							Anti_Event = 0;
+						}
+					}
+									
+					//限位旗標做成
+					if(TM_OPEN_A > 0){
+						Flag_Door_UpLimit   = TRUE;
+						Flag_Door_DownLimit = FALSE;
+						Flag2_Door_UpLimit_8u   = TRUE;
+						Flag2_Door_DownLimit_8u = FALSE;
+						Flag3_Door_UpLimit_8u = TRUE;
+						Flag4_Door_UpLimit_8u = TRUE;
+						Door_Close();	//開門反向煞車
+					}else if(TM_CLOSE_A > 0){
+						Flag_Door_UpLimit   = FALSE;
+						Flag_Door_DownLimit = TRUE;
+						Flag2_Door_UpLimit_8u   = FALSE;
+						Flag2_Door_DownLimit_8u = TRUE;
+						Door_Open();
 					}
 					
-					//若是關門防夾觸發,恢復成待機正常運轉
-					Anti_Event_buf = Anti_Event;
-					if(Anti_Event == 2){
-						Anti_Event = 0;
-					}
-				}
-								
-				//限位旗標做成
-				if(TM_OPEN_A > 0){
-					Flag_Door_UpLimit   = TRUE;
-					Flag_Door_DownLimit = FALSE;
-					Flag2_Door_UpLimit_8u   = TRUE;
-					Flag2_Door_DownLimit_8u = FALSE;
-					Flag3_Door_UpLimit_8u = TRUE;
-					Flag4_Door_UpLimit_8u = TRUE;
-					Door_Close();	//開門反向煞車
-				}else if(TM_CLOSE_A > 0){
-					Flag_Door_UpLimit   = FALSE;
-					Flag_Door_DownLimit = TRUE;
-					Flag2_Door_UpLimit_8u   = FALSE;
-					Flag2_Door_DownLimit_8u = TRUE;
-					Door_Open();
-				}
-				
-				//運轉時間計算
-				if(TM_OPEN_A > 0){
-					Time_Remain_Open_16u = TM_MAX - TM_OPEN_A;
-					ST_ONEKEY_8u = 2;
-					Door_Stop();	//反向煞車後立即停止運轉
-					printf("\n\n\r 開門STOP");
-					printf("\n\n\r");
-				}
-				
-				if(TM_CLOSE_A > 0){
-					Time_Remain_Close_16u = TM_MAX - TM_CLOSE_A;
-					ST_ONEKEY_8u = 4;
-					Door_Stop_2();
-				}
-				
-				//運轉次數
-				if(TM_OPEN_A > 0){
-					REC_Operate_Times_32u++;
-					ST_Save_8u = 1;
-				}
-				
-				if(Flag_WindowsDoor == TRUE){
+					//運轉時間計算
 					if(TM_OPEN_A > 0){
-						ST_Close = 1;
+						Time_Remain_Open_16u = TM_MAX - TM_OPEN_A;
+						ST_ONEKEY_8u = 2;
+						Door_Stop();	//反向煞車後立即停止運轉
+						printf("\n\n\r 開門STOP");
+						printf("\n\n\r");
 					}
+					
+					if(TM_CLOSE_A > 0){
+						Time_Remain_Close_16u = TM_MAX - TM_CLOSE_A;
+						ST_ONEKEY_8u = 4;
+						Door_Stop_2();
+					}
+					
+					//運轉次數
+					if(TM_OPEN_A > 0){
+						REC_Operate_Times_32u++;
+						ST_Save_8u = 1;
+					}
+					
+					if(Flag_WindowsDoor == TRUE){
+						if(TM_OPEN_A > 0){
+							ST_Close = 1;
+						}
+					}
+					
+					//TM_OPEN = 0;
+					//TM_CLOSE = 0;
+					ST_Anti = 0;
+					OpEnd_Detect_Start_Flag = FALSE;		
+					ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
 				}
-				
-				//TM_OPEN = 0;
-				//TM_CLOSE = 0;
-				ST_Anti = 0;
-				OpEnd_Detect_Start_Flag = FALSE;		
-				ADC_Detect_Start_Flag = 2;		//運轉結束並且儲存AD值: Operate_ADC_Detect
 			}
 		}
 	}
@@ -1676,7 +1680,7 @@ static void OpEnd_Detect_2(void){
 			//if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f) && 
 			//   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
 
-			if((Voc <= Volt_StandBy_32f && HAL_GPIO_ReadPin(PORT_OC, PIN_OC) == RESET)&&// && Voc >= Volt_StandBy_b_32f) && 
+			if((Voc <= Volt_StandBy_32f && Voc >= Volt_StandBy_b_32f)&&// && Voc >= Volt_StandBy_b_32f) && 
 			   (TM_DoorOperateDly == 0 && TM_Vstb_Extend_8u == 0)){
 				
 				ADC_OpEnd_16u = ADC_TMP_16u;
@@ -3347,11 +3351,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					//Delay_ms(30);
 				}else{
 					Delay_ms(190);
-				}
-				
-				if(HAL_GPIO_ReadPin(PORT_OC,PIN_OC) == RESET){
-					Door_Stop();
-					printf("\n\r OC Work");
+					
+					if(HAL_GPIO_ReadPin(PORT_OC,PIN_OC) == RESET){
+						Door_Stop();
+						printf("\n\r OC Work");
+					}
 				}
 			break;
 			
