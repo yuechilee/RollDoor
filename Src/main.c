@@ -3344,7 +3344,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		
 		case PIN_OC:
 				if(TM_OPEN > 0){
-					Delay_ms(30);
+					//Delay_ms(30);
 				}else{
 					Delay_ms(190);
 				}
