@@ -563,7 +563,7 @@ int main(void)
 		if(Flag_CycleTest == TRUE){
 			//ด`ภ๔ด๚ธี
 			Cycle_Test();
-			
+			ADC_Calculate();
 		}else{ 
 			//Main function
 			//printf("\n\rPI_OC = % d",HAL_GPIO_ReadPin(PORT_OC,PIN_OC));
