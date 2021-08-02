@@ -1368,6 +1368,238 @@ void Door_Stop_2(void){
 	}
 }
 
+void Door_Stop_T01(void){
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_DIR
+	//HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+
+void Door_Stop_T02(void){
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//Relay_DIR
+	//HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+
+void Door_Stop_T11(void){
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+
+void Door_Stop_T12(void){
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+}
+
+void Door_Stop_T13(void){
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+		
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+}
+
+void Door_Stop_T14(void){
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+	
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+}
+
+void Door_Stop_T15(void){
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+}
+
+void Door_Stop_T16(void){
+	//Relay_DIR
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);		
+
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+}
+
+void Door_Stop_T21(void){
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+
+}
+
+void Door_Stop_T22(void){
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+}
+
+void Door_Stop_T23(void){
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+		
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+
+}
+
+void Door_Stop_T24(void){
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+	
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+}
+
+void Door_Stop_T25(void){
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+	
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+}
+
+void Door_Stop_T26(void){
+	//Relay_DIR
+	if(HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
+	}else{
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
+	}
+
+	//MOS_PWM
+	if (HAL_TIM_Base_Stop_IT(&TimHandle17) != HAL_OK){
+		Error_Handler();
+	}
+	HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_SET);
+	
+	//Relay_ACT
+	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_RESET);
+}
+
 //For JOG
 void Door_Open_JOG(void){
 //	printf("\n\r----OPEN_Relay");
