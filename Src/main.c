@@ -1296,10 +1296,11 @@ void Door_Open(void){
 	}
 	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
 	
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
-	Delay_ms(RLY_Delay_ms);
-	
+	if(TM_OPEN > 0){
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);		
+		Delay_ms(RLY_Delay_ms);
+	}
 	//MOSFET switch ON
 	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 	if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK){
@@ -1317,11 +1318,12 @@ void Door_Close(void){
 	}
 	
 	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
-
-	Delay_ms(RLY_Delay_ms);
-	HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
-	Delay_ms(RLY_Delay_ms);
 	
+	if(TM_CLOSE > 0){
+		Delay_ms(RLY_Delay_ms);
+		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_ACT, GPIO_PIN_SET);
+		Delay_ms(RLY_Delay_ms);
+	}
 	//MOSFET switch ON
 	//HAL_GPIO_WritePin(PORT_Motor_MOS, MOS_ACT, GPIO_PIN_RESET);
 	if (HAL_TIM_Base_Start_IT(&TimHandle17) != HAL_OK){
