@@ -850,7 +850,7 @@ static void Cycle_Test(void){
 		TM_CLOSE = TM_MAX;
 		ACT_Door = 2;
 		Wait_flg = TRUE;
-		REC_Operate_Times_32u++;
+		//REC_Operate_Times_32u++;
 		Ext_CNTER();
 		printf("\n\rNoise test 1");
 	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
@@ -1081,6 +1081,10 @@ void PWR_CTRL(void){
 		TM_Idle_16u = 30;
 	}
 	//Fun_Break_AFT_Open();
+	
+	if(TM_OPEN != 0 && TM_OPEN_Buf_16u == 0){
+		REC_Operate_Times_32u++;
+	}
 	TM_OPEN_Buf_16u = TM_OPEN;
 }
 
@@ -1505,7 +1509,7 @@ static void OpEnd_Detect(void){
 				
 				//運轉次數
 				if(TM_OPEN_A > 0){
-					REC_Operate_Times_32u++;
+					//REC_Operate_Times_32u++;
 					ST_Save_8u = 1;
 				}
 				
@@ -1721,7 +1725,7 @@ static void OpEnd_Detect_2(void){
 				printf("\n\n\r");
 
 				//運轉次數
-				REC_Operate_Times_32u++;
+				//REC_Operate_Times_32u++;
 				ST_Save_8u = 1;
 				
 				ST_Close = 1;
@@ -4637,9 +4641,11 @@ static void LED_OFF(void){
 }
 
 static void LED_CTRL(void){
-	if(ADC_OPEN_MAX_16u <= 500 || ADC_CLOSE_MAX_16u <= 500){
-		LED_ON();
-	}else if(ADC_OPEN_MAX_16u >= ADC_Anti_MAX_STD_8u || ADC_CLOSE_MAX_16u >= ADC_Anti_MAX_STD_8u){
+	//if(ADC_OPEN_MAX_16u <= 500 || ADC_CLOSE_MAX_16u <= 500){
+	//	LED_ON();
+	//}else if(ADC_OPEN_MAX_16u >= ADC_Anti_MAX_STD_8u || ADC_CLOSE_MAX_16u >= ADC_Anti_MAX_STD_8u){
+	//	LED_ON();
+	if(ADC_OPEN_MAX_16u == 0 || ADC_CLOSE_MAX_16u == 0){
 		LED_ON();
 	}else{
 		LED_OFF();
