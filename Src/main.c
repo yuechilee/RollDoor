@@ -224,8 +224,8 @@ uint16_t TM_SAVE_Buf;
 uint16_t Time_Remain_Open_16u = 0;   //開門運轉時間           
 uint16_t Time_Remain_Close_16u = 0;  //關門運轉時間
 
-uint8_t Time_Low_Operate_Ini;
-uint8_t Time_Low_Operate_Mid;
+uint16_t Time_Low_Operate_Ini;
+uint16_t Time_Low_Operate_Mid;
 
 
 	//32-bits
@@ -3768,7 +3768,7 @@ static void Parameter_Load(void){
 
 		EE_Addr_P = 58;
 		Time_Low_Operate_Ini = aRxBuffer[EE_Addr_P++]; 
-		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]; 
+		Time_Low_Operate_Mid = aRxBuffer[EE_Addr_P++]*10; 
 		
 		//繼電器時間參數 TME/ACT/POS 
 		EE_Addr_P = 60;
