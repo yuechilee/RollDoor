@@ -564,6 +564,7 @@ int main(void)
 			//循環測試
 			Cycle_Test();
 			ADC_Calculate();
+			Operate_Infor_Save();
 		}else{ 
 			//Main function
 			//printf("\n\rPI_OC = % d",HAL_GPIO_ReadPin(PORT_OC,PIN_OC));
@@ -874,25 +875,25 @@ static void Cycle_Test(void){
 	//Operate_Infor_Save();
 
 	
-	if(TM_Printf == 0){
-		printf("\n\r==============循環測試-狀態scan2===================");			
-		Voc_ = ADC_AVE_16u *(3.3/4096);		
-		printf("\n\r目前電壓值 = %f V",Voc_);
-		printf("\n\r待機電壓   = %f V",Volt_StandBy_32f);
-		printf("\n\rACT_Door = %d",ACT_Door);
-		if(TM_OPEN > 0){
-			printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
-			printf("\n\r開門次數 = %d\n",Cycle_times_down);
-		}
-		if(TM_CLOSE > 0){
-			printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
-			printf("\n\r關門次數 = %d\n",Cycle_times_down);
-		}
-		if(TM_DLY > 0){
-			printf("\n\rTM_DLY = %d",TM_DLY);
-		}
-		TM_Printf= 10;
-	}	
+	//if(TM_Printf == 0){
+	//	printf("\n\r==============循環測試-狀態scan2===================");			
+	//	Voc_ = ADC_AVE_16u *(3.3/4096);		
+	//	printf("\n\r目前電壓值 = %f V",Voc_);
+	//	printf("\n\r待機電壓   = %f V",Volt_StandBy_32f);
+	//	printf("\n\rACT_Door = %d",ACT_Door);
+	//	if(TM_OPEN > 0){
+	//		printf("\n\n\r開門剩餘時間 = %d ms",TM_OPEN);
+	//		//printf("\n\r開門次數 = %d\n",Cycle_times_down);
+	//	}
+	//	if(TM_CLOSE > 0){
+	//		printf("\n\n\r關門剩餘時間 = %d ms",TM_CLOSE);
+	//		//printf("\n\r關門次數 = %d\n",Cycle_times_down);
+	//	}
+	//	if(TM_DLY > 0){
+	//		printf("\n\rTM_DLY = %d",TM_DLY);
+	//	}
+	//	TM_Printf= 10;
+	//}	
 
 
 }
