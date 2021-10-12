@@ -704,7 +704,7 @@ static void Low_Operate_Function(void){
 			if(TM_Low_Operate < Time_Low_Operate_Ini){ //初步啟動
 				//PWM_Duty = 1;
 				//PWM_Period = 2;
-				PWM_Grade_Select(1);
+				PWM_Grade_Select(0);
 				ST_Low_Operate = 1;
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
 				//PWM_Duty = 99;
@@ -714,7 +714,7 @@ static void Low_Operate_Function(void){
 			}else{	//尾段減速
 				//PWM_Duty = 1;
 				//PWM_Period = 2;
-				PWM_Grade_Select(1);
+				PWM_Grade_Select(0);
 				ST_Low_Operate = 3;
 			}
 			
