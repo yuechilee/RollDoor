@@ -1247,7 +1247,14 @@ static void Auto_Close_CTRL(void){
 				printf("\n\r自動關門等待時間到達");
 				printf("\n\r關門時間設立");
 				AClose_Flg = FALSE;									//自動關門旗標:OFF
-				TM_CLOSE = TM_MAX;									//關門時間設定
+				if(Anti_Event == 2){ 		//關門防壓中: break
+						
+				}else{
+					TM_CLOSE = TM_MAX;									//關門時間設定
+					TM_AntiDly = Time_AntiDly;
+					TM_EndDetec = 10;
+					ST_OpEnd_8u = 0;
+				}
 			}
 		}else if(Flag_AutoClose == 2){							//自動關門功能: ON
 			if(Flag_WindowsDoor == FALSE){								//兩段關門功能:無
@@ -1264,7 +1271,14 @@ static void Auto_Close_CTRL(void){
 					printf("\n\r自動關門等待時間到達");
 					printf("\n\r關門時間設立");
 					AClose_Flg = FALSE;									//自動關門旗標:OFF
-					TM_CLOSE = TM_MAX;									//關門時間設定
+					if(Anti_Event == 2){ 		//關門防壓中: break
+							
+					}else{
+						TM_CLOSE = TM_MAX;									//關門時間設定
+						TM_AntiDly = Time_AntiDly;
+						TM_EndDetec = 10;
+						ST_OpEnd_8u = 0;
+					}
 				}
 			}else{
 				//empty
