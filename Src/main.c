@@ -4764,6 +4764,22 @@ static void PWM_Grade_Select(uint8_t Grade_8u){
 			PWM_Period = 100;
 			break;
 		
+		//以下緩速使用
+		case 4:
+			PWM_Duty = 1;
+			PWM_Period = 3;
+			break;
+		
+		case 5:
+			PWM_Duty = 1;
+			PWM_Period = 4;
+			break;
+		
+		case 6:
+			PWM_Duty = 1;
+			PWM_Period = 5;
+			break;
+		
 		default:
 			PWM_Duty = 4;
 			PWM_Period = 5;
