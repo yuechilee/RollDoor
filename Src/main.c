@@ -702,32 +702,26 @@ static void Low_Operate_Function(void){
 	if(Flag_Low_Operate == TRUE){
 		if(TM_OPEN > 0 || TM_CLOSE > 0){
 			if(TM_Low_Operate < Time_Low_Operate_Ini){ //初步啟動
-				//PWM_Duty = 1;
-				//PWM_Period = 2;
-				PWM_Grade_Select(0);
+				PWM_Grade_Select(4);	//33%
 				ST_Low_Operate = 1;
+				
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
-				//PWM_Duty = 99;
-				//PWM_Period = 100;
 				PWM_Grade_Select(3);
 				ST_Low_Operate = 2;
+				
 			}else{	//尾段減速
-				//PWM_Duty = 1;
-				//PWM_Period = 2;
-				PWM_Grade_Select(0);
+				PWM_Grade_Select(4);	//33%
 				ST_Low_Operate = 3;
 			}
 			
-
 			if(ST_Low_Operate == 2){
-				Volt_StandBy_32f = Volt_StandBy_b_32f * iWeight_Vstb_8u;
+				Volt_StandBy_32f = (float)ADC_StandBy_b_16u *(3.3/4096) * iWeight_Vstb_8u;		//[#066]
 			}else{
-				Volt_StandBy_32f = Volt_StandBy_b_32f * 1.1;
+				Volt_StandBy_32f = (float)ADC_StandBy_b_16u *(3.3/4096) * 1.1;					//[#066]
 			}
 
 		}else{
-			Volt_StandBy_32f = Volt_StandBy_b_32f * 1.3;
-			
+			Volt_StandBy_32f = (float)ADC_StandBy_b_16u *(3.3/4096) * 1.3;						//[#066]
 		}
 	}
 }
@@ -982,7 +976,7 @@ void PWR_CTRL(void){
 		ST_Door_buf = ST_Door;
 		if(Flag_WindowsDoor == FALSE){		//正常開關門模式
 			if(TM_OPEN > 0){
-				PWM_Grade_Select(3);
+//[066]				PWM_Grade_Select(3);
 				Door_Open();
 			}else if(TM_CLOSE > 0){	
 				Door_Close();
