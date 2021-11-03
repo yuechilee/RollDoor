@@ -360,6 +360,7 @@ uint16_t TM_Dly_InitSample_16u;
 uint8_t CNT_NoWork_8u;
 
 uint16_t TM_Idle_16u = 0;
+uint16_t TM_AdcDly_16u = 0;
 
 int i,j;
 
@@ -704,6 +705,7 @@ static void Low_Operate_Function(void){
 			if(TM_Low_Operate < Time_Low_Operate_Ini){ //初步啟動
 				PWM_Grade_Select(4);	//33%
 				ST_Low_Operate = 1;
+				TM_AdcDly_16u = 10;
 				
 			}else if(TM_Low_Operate < (Time_Low_Operate_Ini + Time_Low_Operate_Mid)){ //中段加速
 				PWM_Grade_Select(3);
@@ -783,7 +785,8 @@ static void Operate_ADC_Detect(void){
 		ADC_CLOSE_MAX_b = ADC_Tmp;
 		ADC_CLOSE_MIN_b = ADC_Tmp;
 	
-	}else if(ADC_Detect_Start_Flag == 1){	//當限位偵測開始即執行
+	}else if(ADC_Detect_Start_Flag == 1 &&		//當限位偵測開始即執行
+			 TM_AdcDly_16u == 0					){	//AD偵測延遲時間經過
 		if(ST_Door == 1 && TM_OPEN > 0){
 			ADC_Tmp = ADC_AVE_16u;
 			if(ADC_Tmp > ADC_OPEN_MAX_b){
@@ -3468,6 +3471,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		
 		TM_Dly_InitSample_16u = TIMDEC(TM_Dly_InitSample_16u);
 		TM_Idle_16u = TIMDEC(TM_Idle_16u);
+		TM_AdcDly_16u = TIMDEC(TM_AdcDly_16u);
 		
 		Tim_cnt_100ms = 0;
 
