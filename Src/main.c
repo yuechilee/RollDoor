@@ -1250,6 +1250,7 @@ static void Auto_Close_CTRL(void){
 					TM_CLOSE = TM_MAX;									//關門時間設定
 					TM_AntiDly = Time_AntiDly;
 					TM_EndDetec = 10;
+					TM_Low_Operate = 0;		//[V069]
 					ST_OpEnd_8u = 0;
 				}
 			}
@@ -1274,6 +1275,7 @@ static void Auto_Close_CTRL(void){
 						TM_CLOSE = TM_MAX;									//關門時間設定
 						TM_AntiDly = Time_AntiDly;
 						TM_EndDetec = 10;
+						TM_Low_Operate = 0;		//[V069]
 						ST_OpEnd_8u = 0;
 					}
 				}
