@@ -565,6 +565,7 @@ int main(void)
 			//循環測試
 			Cycle_Test();
 			ADC_Calculate();
+			Low_Operate_Function();	//[V070]
 			Operate_Infor_Save();
 		}else{ 
 			//Main function
@@ -629,9 +630,9 @@ static void Debug_Monitor(void){
 			}
 			
 		}
-				
+			
 		if(TM_Auto_Close > 0){
-			printf("\n\n\r關門等待時間 = %d ms",TM_Auto_Close);
+			printf("\n\n\r關門等待時間 = %2.1f s",(float)TM_Auto_Close/10);
 		}
 		
 		if(ST_Anti > 0){
@@ -846,6 +847,7 @@ static void Cycle_Test(void){
 	if(TM_OPEN == 0 && ACT_Door == 1 && TM_DLY == 0){
 		Door_Stop();
 		TM_CLOSE = TM_MAX;
+		TM_Low_Operate = 0;	//[V070]
 		ACT_Door = 2;
 		Wait_flg = TRUE;
 		//REC_Operate_Times_32u++;
@@ -854,6 +856,7 @@ static void Cycle_Test(void){
 	}else if(TM_CLOSE == 0 && ACT_Door == 2 && TM_DLY == 0){
 		Door_Stop();
 		TM_OPEN = TM_MAX;
+		TM_Low_Operate = 0;	//[V070]
 		ACT_Door = 1;
 		Wait_flg = TRUE;
 		Cycle_times_up++;
@@ -1312,7 +1315,7 @@ void Door_Open(void){
 	}else{
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_RESET);
 	}
-	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
+	//printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
 	
 	if(TM_OPEN > 0){
 		Delay_ms(RLY_Delay_ms);
@@ -1335,7 +1338,7 @@ void Door_Close(void){
 		HAL_GPIO_WritePin(PORT_Motor_Out, RLY_DIR, GPIO_PIN_SET);
 	}
 	
-	printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
+	//printf("\n\r RLY_DIR = %d",HAL_GPIO_ReadPin(PORT_Motor_Out, RLY_DIR));
 	
 	if(TM_CLOSE > 0){
 		Delay_ms(RLY_Delay_ms);
